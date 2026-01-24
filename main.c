@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <kdl/kdl.h>
 
-
 static size_t read_func(void* userdata, char* buf, size_t bufsize)
 {
     FILE* fid = (FILE*)userdata;
@@ -17,7 +16,6 @@ int main()
 
     kdl_parser* parser = kdl_create_stream_parser(&read_func, (void*)fid, KDL_DEFAULTS);
 
-
     bool eof = false;
     while (1) {
         kdl_event_data* event = kdl_parser_next_event(parser);
@@ -25,6 +23,9 @@ int main()
         kdl_event kevent = event->event;
         const char* data = event->name.data;
         kdl_type type = event->value.type;
+        const kdl_str* kstring = NULL;
+        kdl_number knum = event->value.number;
+        kdl_number_type ntype = knum.type;
         switch(kevent) {
             case KDL_EVENT_EOF:
                 event_name = "KDL_EVENT_EOF";
@@ -46,21 +47,23 @@ int main()
                 printf("%s\n", event_name);
                 if (data) printf("%s\n", data);
                 if (type == KDL_TYPE_STRING) {
-                    kdl_owned_string kstring = kdl_clone_str(&event->value.string);
-                    printf("%s\n", kstring.data);
-                    kdl_free_string(&kstring);
+                    kstring = &event->value.string;
+                    kdl_owned_string kostring = kdl_clone_str(kstring); 
+                    printf("%s\n", kostring.data);
+                    kdl_free_string(&kostring);
                 } else if (type == KDL_TYPE_NUMBER) {
-                    kdl_number knum = event->value.number; 
-                    kdl_number_type knum_type = knum.type;
-                    switch(knum_type) {
+                    switch(ntype) {
                         case KDL_NUMBER_TYPE_INTEGER:
-                            printf("%lld\n", knum.integer);
+                            if (knum.integer) printf("%lld\n", knum.integer);
                         case KDL_NUMBER_TYPE_FLOATING_POINT:
-                            printf("%f\n", knum.floating_point);
+                            if (knum.floating_point) printf("%f\n", knum.floating_point);
                         case KDL_NUMBER_TYPE_STRING_ENCODED:
-                            kdl_owned_string kstring = kdl_clone_str(&knum.string);
-                            printf("%s\n", kstring.data);
-                            kdl_free_string(&kstring);
+                            kstring = &event->value.number.string;
+                            kdl_owned_string kostring = kdl_clone_str(kstring);
+                            if (kostring.len != 0) {
+                                printf("%s\n", kostring.data);
+                            }
+                            kdl_free_string(&kostring);
                     }
                 }
                 break;
@@ -79,8 +82,6 @@ int main()
         }
 
         if (eof) break;
-
-        // kdl_event_data* event = kdl_parser_next_event(parser);
     }
 
     fclose(fid);
