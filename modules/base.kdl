@@ -1,0 +1,31 @@
+module {
+    base
+    
+    packages {
+        base
+        base-devel
+        btrfs-progs
+        intel-ucode
+        less
+        linux
+        linux-firmware
+        man-db
+        man-pages
+        networkmanager
+        nvidia-open
+        nvidia-utils
+        openssh
+        sudo
+        fzf
+        paru
+        snapper
+        yay
+    }
+
+    services {
+    }
+
+    hooks {
+    }
+}
+

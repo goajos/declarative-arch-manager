@@ -1,8 +1,9 @@
 host {
-    name arch
+    arch
     
     modules {
         base
+        test
     }
 
     services {
@@ -10,6 +11,5 @@ host {
     }
 
     hooks {
-
     }
 }
