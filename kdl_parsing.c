@@ -22,8 +22,6 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
                 node_depth += 1;
-                printf("Node depth inc: %d\n", node_depth);
-                if (name_data) printf("Start node: %s\n", name_data);
                 if (node_depth == 1) {
                     // TODO: set up a goto error block
                     if (strcmp(name_data, "config") != 0) printf("goto Error: Not a valid config...\n"); 
@@ -33,8 +31,6 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
                 break;
             } else if (event == KDL_EVENT_END_NODE) {
                 node_depth -= 1;
-                printf("Node depth dec: %d\n", node_depth);
-                printf("End node\n");
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
                 if (value_type == KDL_TYPE_BOOLEAN) {
@@ -43,7 +39,6 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
                         Host host = { dest, boolean };
                         da_append((*hosts), host);
                     }
-                    printf("Event argument node: %b\n", boolean);
                 }
                 break;
             } else if (event == KDL_EVENT_EOF) {
@@ -78,8 +73,6 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
                 node_depth += 1;
-                printf("Node depth inc: %d\n", node_depth);
-                if (name_data) printf("Start node: %s\n", name_data);
                 if (node_depth == 1) {
                     // TODO: set up a go to error block
                     if (strcmp(name_data, "host") != 0) printf("goto Error: Not a valid host...\n"); 
@@ -93,8 +86,6 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
                 break;
             } else if (event == KDL_EVENT_END_NODE) {
                 node_depth -= 1;
-                printf("Node depth dec: %d\n", node_depth);
-                printf("End node\n");
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
                 if (value_type == KDL_TYPE_BOOLEAN) {
@@ -111,7 +102,6 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
                             da_append((*hooks), hook);
                         }
                     }
-                    printf("Event argument node: %b\n", boolean);
                 }
                 break;
             } else if (event == KDL_EVENT_EOF) {
@@ -150,8 +140,6 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
                 node_depth += 1;
-                printf("Node depth inc: %d\n", node_depth);
-                if (name_data) printf("Start node: %s\n", name_data);
                 if (node_depth == 1) {
                     // TODO: set up a go to error block
                     if (strcmp(name_data, "module") != 0) printf("goto Error: Not a valid module...\n"); 
@@ -165,8 +153,6 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
                 break;
             } else if (event == KDL_EVENT_END_NODE) {
                 node_depth -= 1;
-                printf("Node depth dec: %d\n", node_depth);
-                printf("End node\n");
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
                 if (value_type == KDL_TYPE_BOOLEAN) {
@@ -183,7 +169,6 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
                             da_append((*hooks), hook);
                         }
                     }
-                    printf("Event argument node: %b\n", boolean);
                 }
                 break;
             } else if (event == KDL_EVENT_EOF) {

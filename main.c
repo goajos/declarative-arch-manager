@@ -8,15 +8,13 @@
 // clang main.c -o main -g -lc -lkdl -lm -std=c23 -Wall -Wextra -Werror -pedantic
 int main()
 {
-    printf("Hello world!\n");
-
     Hosts hosts = {0};
 
-    FILE *config_fid = fopen("config.kdl", "r");
+    FILE *config_fid = fopen("/home/jappe/.config/damngr/config.kdl", "r");
     parse_config_kdl(config_fid, &hosts);
     fclose(config_fid);
 
-    printf("Hosts count: %d\n", (int)hosts.count);
+    printf("hosts count: %d\n", (int)hosts.count);
     char *active_host = nullptr;
     for (int i = 0; i < (int)hosts.count; ++i) {
         if (hosts.items[i].active) {
@@ -28,7 +26,7 @@ int main()
 
     glob_t host_globbuf;
     host_globbuf.gl_offs = 0; // not prepending any flags to glob
-    glob("hosts/*.kdl", GLOB_DOOFFS, NULL, &host_globbuf);
+    glob("/home/jappe/.config/damngr/hosts/*.kdl", GLOB_DOOFFS, NULL, &host_globbuf);
     char *host_path = nullptr;
     for (size_t i = 0; i < host_globbuf.gl_pathc; ++i) {
         char *glob_path = host_globbuf.gl_pathv[i];
@@ -50,10 +48,7 @@ int main()
         parse_host_kdl(host_fid, &modules, &services, &hooks);
         fclose(host_fid);
         
-        printf("Modules count: %d\n", (int)modules.count);
-        for (int i = 0; i < (int)modules.count; ++i) {
-            printf("Module %s - is active: %b\n", modules.items[i].item, modules.items[i].active);
-        }
+        debug_active(modules)
     }
     // no longer need hosts and host glob
     memory_cleanup(hosts);
@@ -65,24 +60,20 @@ int main()
         Module module = modules.items[i];
         if (module.active) {
             char fidbuf[0x256];
-            snprintf(fidbuf, sizeof(fidbuf), "modules/%s.kdl", module.item);
+            snprintf(fidbuf, sizeof(fidbuf), "/home/jappe/.config/damngr/modules/%s.kdl", module.item);
             printf("%s\n", fidbuf);
             FILE *module_fid = fopen(fidbuf, "r");
             parse_module_kdl(module_fid, &packages, &services, &hooks);
             fclose(module_fid);
         }
 
-        printf("Packages count for module %s: %d\n", module.item, (int)packages.count);
-        for (int i = 0; i < (int)packages.count; ++i) {
-            printf("Package %s - is active: %b\n", packages.items[i].item, packages.items[i].active);
-        }
     }
+    debug_active(packages)
+    debug_active_user_type(services);
 
-    printf("Service count: %d\n", (int)services.count);
-    for (int i = 0; i < (int)services.count; ++i) {
-        Service service = services.items[i];
-        printf("Service %s - is active: %b and user service: %b\n", service.item, service.active, service.user_type);
-    }
+    // TODO: how to spawn child processes (fork?)
+    // TODO: parse the packages to determine the packages to install and/or remove
+    // TODO: parse the services to determine the services to enable or disable
 
     memory_cleanup(modules);
     memory_cleanup(packages);
