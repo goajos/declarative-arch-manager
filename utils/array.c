@@ -35,6 +35,12 @@ typedef struct {
 } Packages;
 
 typedef struct {
+    Package *items;
+    size_t count;
+    size_t capacity;
+} AurPackages;
+
+typedef struct {
     String item;
     bool active;
     bool user_type;
