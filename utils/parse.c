@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <kdl/kdl.h>
-#include "utils/array.c"
-#include "utils/mem.c"
+#include "array.c"
+#include "memory.c"
 
 void parse_config_kdl(FILE *fid, Hosts *hosts)
 {
@@ -129,7 +129,7 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
    kdl_destroy_parser(parser); // parser cleans the rest
 }
 
-void parse_module_kdl(FILE *fid, Packages *packages, AurPackages *aur_packages, Services *services, Hooks *hooks)
+void parse_module_kdl(FILE *fid, Packages *packages, Packages *aur_packages, Services *services, Hooks *hooks)
 {
    kdl_parser *parser = kdl_create_stream_parser(&read_func, (void *)fid, KDL_DEFAULTS); 
    
