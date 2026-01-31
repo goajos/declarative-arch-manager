@@ -39,6 +39,16 @@ typedef struct {
 
 typedef struct {
     String item;
+} IPackage;
+
+typedef struct {
+    IPackage *items;
+    size_t count;
+    size_t capacity;
+} IPackages;
+
+typedef struct {
+    String item;
     bool active;
     bool user_type;
 } Service;
@@ -65,9 +75,9 @@ typedef struct {
     Hosts hosts;
     Modules modules;
     Packages packages;
-    Packages installed_packages;
+    IPackages installed_packages;
     Packages aur_packages;
-    Packages installed_aur_packages;
+    IPackages installed_aur_packages;
     Services services;
     Hooks hooks;
     String aur_helper;

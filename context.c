@@ -1,8 +1,10 @@
+#define _GNU_SOURCE
 #include <glob.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include "context.h"
+#include "utils/string.h"
 #include "utils/parse.c"
 #include "utils/debug.c"
 
@@ -131,58 +133,48 @@ Context get_context(Context context)
     return context;
 }
 
-// sudo pacman -Q | cut -d " " -f1
-// void execute_get_installed_packages_command(Packages installed_packages) {
-//     printf("Executing the get installed packages command...\n");
-//     int pipe_fds[2];
-//     pipe(pipe_fds);
-//     pid_t pid = fork();
-//     if (pid == 0) {
-//         close(pipe_fds[1]); // close pipe write end child
-//         dup2(pipe_fds[0], STDIN_FILENO); // redirect to pipe read end child 
-//         close(pipe_fds[0]); // close pipe read end child
-//         execl("/usr/bin/sudo", "sudo", "pacman", "-Q", "|", "cut", "-d", " ", "-f1", nullptr);
-//     } else {
-//         close(pipe_fds[0]); // close pipe read end
-//         for (int i = 0; i < (int)packages.count; ++i) {
-//             Package package = packages.items[i];
-//             if (package.active) {
-//                 write(pipe_fds[1], package.item.data, package.item.len); 
-//                 write(pipe_fds[1], "\n", 1);
-//             }
-//         }
-//         close(pipe_fds[1]); // close pipe write end
-//         waitpid(pid, nullptr, 0);
-//     }
-// }
-//
-// void execute_aur_package_install_command(char* path, char* command, Packages aur_packages) {
-//     printf("Executing the aur package install command...\n");
-//     int pipe_fds[2];
-//     pipe(pipe_fds);
-//     pid_t pid = fork();
-//     if (pid == 0) {
-//         close(pipe_fds[1]); // close pipe write end child
-//         dup2(pipe_fds[0], STDIN_FILENO); // redirect to pipe read end child 
-//         close(pipe_fds[0]); // close pipe read end child
-//         execl(path, command, "-Syu", "--needed", "-", nullptr);
-//     } else {
-//         close(pipe_fds[0]); // close pipe read end
-//         for (int i = 0; i < (int)aur_packages.count; ++i) {
-//             Package package = aur_packages.items[i];
-//             if (package.active) {
-//                 write(pipe_fds[1], package.item.data, package.item.len); 
-//                 write(pipe_fds[1], "\n", 1);
-//             }
-//         }
-//         close(pipe_fds[1]); // close pipe write end
-//         waitpid(pid, nullptr, 0);
-//     }
-// }
+//TODO: not required?
+IPackages execute_get_installed_packages_command(char* arg, IPackages ipackages) {
+    printf("Executing the get installed packages command...\n");
+    int pipe_fds[2];
+    pipe(pipe_fds);
+    pid_t pid = fork();
+    if (pid == 0) {
+        close(pipe_fds[0]); // close pipe read end child
+        dup2(pipe_fds[1], STDOUT_FILENO); // redirect to pipe write end child 
+        execl("/usr/bin/pacman", "pacman", arg, nullptr);
+        close(pipe_fds[1]); // close pipe write end child
+    } else {
+        close(pipe_fds[1]); // close pipe write end
+        FILE *stream = fdopen(pipe_fds[0], "r");
+        String ipackage_str = { .data = nullptr };
+        char *line = nullptr;
+        size_t end; 
+        ssize_t start;
+        while ((start = getline(&line, &end, stream)) != -1) {
+            // getline adds a '\n', replace with '\0' to create a String
+            if (start > 0 && line[start-1] == '\n') {
+                line[start-1] = '\0';
+            } else {
+                printf("");
+            }
+            ipackage_str = string_copy(String(line));
+            IPackage ipackage = { ipackage_str };
+            array_append(ipackages, ipackage);
+        }
+        close(pipe_fds[0]); // close pipe read end
+        waitpid(pid, nullptr, 0);
+        if (line != nullptr) free_sized(line, end - start); 
+    }
 
-// paru -Qm | cut -d " " -f1
+    return ipackages;
+}
+
+// TODO: not required?
 Context get_installed_packages(Context context)
 {
+    context.installed_packages = execute_get_installed_packages_command("-Qq", context.installed_packages);
+    context.installed_aur_packages = execute_get_installed_packages_command("-Qmq", context.installed_aur_packages);
     return context;    
 }
 

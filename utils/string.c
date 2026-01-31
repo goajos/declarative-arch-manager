@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include "string.h"
 
 String string_copy(String str)
