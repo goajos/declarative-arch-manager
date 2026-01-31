@@ -7,7 +7,7 @@
         free_sized(item.data, item.len);\
         item.data = nullptr;\
     }\
-    free_sized(xs.items, xs.capacity*sizeof(*modules.items));\
+    free_sized(xs.items, xs.capacity*sizeof(*xs.items));\
     xs.items = nullptr;
 
 // will be added in glibc 2.43

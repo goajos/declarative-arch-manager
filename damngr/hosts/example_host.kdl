@@ -1,0 +1,13 @@
+host {
+    example_host
+
+    modules {
+        example_module 1
+    }
+
+    services {
+    }
+    
+    hooks {
+    }
+}
