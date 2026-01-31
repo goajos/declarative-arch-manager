@@ -1,12 +1,5 @@
 #include <stdlib.h>
-#include <string.h> 
-
-typedef struct {
-    char *data;
-    size_t len;
-} String;
-
-#define String(x) (String){ x, strlen(x) }
+#include "string.h"
 
 String string_copy(String str)
 {

@@ -1,12 +1,12 @@
 #define _DEFAULT_SOURCE
 #include <stdio.h>
-#include "context.h"
 #include "commands/init.c"
 #include "commands/validate.c"
 #include "commands/sync.c"
 #include "commands/update.c"
 
-
+// TODO: remove all void functions -> int with errors codes?
+// TODO: do we need to pass the whole context all the time?
 int main(int argc, char *argv[])
 {
     if (argc == 1 || argc > 2) {
@@ -25,13 +25,15 @@ int main(int argc, char *argv[])
     }
 
     Context context = {
-        .hosts =        {0},
-        .modules =      {0},
-        .packages =     {0},
-        .aur_helper =   { .data=nullptr },
-        .aur_packages = {0},
-        .services =     {0},
-        .hooks =        {0}
+        .hosts =                  {0},
+        .modules =                {0},
+        .packages =               {0},
+        .installed_packages =     {0},
+        .aur_packages =           {0},
+        .installed_aur_packages = {0},
+        .services =               {0},
+        .hooks =                  {0},
+        .aur_helper = { .data=nullptr },
     };
 
     switch(command_idx) {
@@ -45,7 +47,7 @@ int main(int argc, char *argv[])
             break;
         case 2:
             printf("damngr sync called...\n");
-            damngr_sync();
+            context = damngr_sync(context);
             break;
         case 3:
             printf("damngr update called...\n");

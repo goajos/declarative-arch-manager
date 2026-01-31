@@ -1,10 +1,9 @@
 #include <stdio.h>
+#include "../context.h"
 
-int damngr_init()
+void damngr_init()
 {
     printf("hello from inside damngr_init...\n");
     
-
-
-    return 0; 
+    init_context();
 }

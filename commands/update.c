@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdio.h>
-#include "../context.c"
+#include "../context.h"
 
 void execute_update_command() {
     printf("Executing the update command...\n");
@@ -45,7 +45,7 @@ Context damngr_update(Context context)
 
     String aur_helper = context.aur_helper;
     if (aur_helper.data != nullptr) {
-        char fid[0x4096]; // TODO: magic number for max path length?
+        char fid[path_max];
         snprintf(fid, sizeof(fid), "/usr/bin/%s", aur_helper.data);
         execute_aur_update_command(fid, aur_helper.data);
     } else execute_update_command();
