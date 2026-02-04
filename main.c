@@ -3,7 +3,9 @@
 #include <string.h>
 #include "commands/init.c"
 #include "commands/update.c"
+#include "commands/sync.c"
 
+// TODO: write more puts statements before returning error codes!
 int main(int argc, char* argv[]) {
     if (argc == 1 || argc > 2) {
         puts("Not a valid damngr <command> parameter, possible commands:");
@@ -40,7 +42,7 @@ int main(int argc, char* argv[]) {
             break;
         case 2:
             puts("damngr sync...");
-            ret = 0;
+            ret = damngr_sync();
             break;
         case 3:
             puts("damngr update...");

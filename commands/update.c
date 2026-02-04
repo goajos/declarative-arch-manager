@@ -5,7 +5,7 @@
 #include "../context/context.h"
 #include "../utils/memory.h"
 
-int execute_update_command() {
+static int execute_update_command() {
     pid_t pid = fork();
     if (pid == -1) return EXIT_FAILURE;
     if (pid == 0) { 
@@ -16,7 +16,7 @@ int execute_update_command() {
     return EXIT_SUCCESS;
 }
 
-int execute_aur_update_command(char* path, char* command) {
+static int execute_aur_update_command(char* path, char* command) {
     pid_t pid = fork();
     if (pid == -1) return EXIT_FAILURE;
     if (pid == 0) {
