@@ -1,0 +1,10 @@
+host {
+    example_host {
+        modules {
+            example_module
+        }
+        services {
+            example_root_service // implicit root=#true
+        }
+    }
+}
