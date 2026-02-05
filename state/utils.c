@@ -12,12 +12,6 @@ static size_t write_func(void* user_data, char const* data, size_t nbytes) {
     return fwrite(data, 1, nbytes, fid);
 }
 
-// will be added in glibc 2.43
-[[maybe_unused]] static void free_sized(void *ptr, size_t /*size*/)
-{
-    free(ptr);
-}
-
 static char* string_copy(char* str) {
     char* ret = nullptr;
     size_t len = strlen(str); 
@@ -28,3 +22,11 @@ static char* string_copy(char* str) {
     }
     return ret;
 }
+
+// will be added in glibc 2.43
+[[maybe_unused]] static void free_sized(void *ptr, size_t /*size*/)
+{
+    free(ptr);
+}
+
+

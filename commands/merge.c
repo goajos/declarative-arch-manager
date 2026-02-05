@@ -3,6 +3,8 @@
 #include "../state/state.h"
 #include "utils.c"
 
+// TODO: atomic operation? either everything works or full rollback?
+// TODO: every parse/write step needs a check for the file (mismatch filename and kdl entry) to circumvent a segfault
 int damngr_merge() {
     puts("hello from damngr merge...");
     int ret;
@@ -15,7 +17,7 @@ int damngr_merge() {
         // if old state exists, parse the old state config.kdl
         ret = parse_config_kdl(old_config_fid, &old_config);
         fclose(old_config_fid);
-        if (ret == EXIT_FAILURE) return ret;
+        if (ret == EXIT_FAILURE) goto exit_cleanup;
     }
 
     struct config new_config = { };
@@ -24,7 +26,7 @@ int damngr_merge() {
     // always parse the new state config.kdl
     ret = parse_config_kdl(new_config_fid, &new_config);
     fclose(new_config_fid);
-    if (ret == EXIT_FAILURE) return ret;
+    if (ret == EXIT_FAILURE) goto exit_cleanup;
 
 
     struct host* active_host;
@@ -35,7 +37,7 @@ int damngr_merge() {
         FILE* old_host_fid = fopen(fidbuf, "r");
         ret = parse_host_kdl(old_host_fid, active_host);
         fclose(old_host_fid);
-        if (ret == EXIT_FAILURE) return ret;
+        if (ret == EXIT_FAILURE) goto exit_cleanup;
     } 
 
     active_host = &new_config.active_host;
@@ -44,7 +46,7 @@ int damngr_merge() {
     // always parse the new states active host.kdl
     ret = parse_host_kdl(new_host_fid, active_host);
     fclose(new_host_fid);
-    if (ret == EXIT_FAILURE) return ret;
+    if (ret == EXIT_FAILURE) goto exit_cleanup;
     
     struct modules* modules;
     struct module* module;
@@ -57,7 +59,7 @@ int damngr_merge() {
             FILE* old_module_fid = fopen(fidbuf, "r");
             ret = parse_module_kdl(old_module_fid, module);
             fclose(old_module_fid);
-            if (ret == EXIT_FAILURE) return ret; 
+            if (ret == EXIT_FAILURE) goto exit_cleanup; 
         }
     }
 
@@ -69,8 +71,42 @@ int damngr_merge() {
         FILE* new_module_fid = fopen(fidbuf, "r");
         ret = parse_module_kdl(new_module_fid, module);
         fclose(new_module_fid);
-        if (ret == EXIT_FAILURE) return ret; 
+        if (ret == EXIT_FAILURE) goto exit_cleanup; 
     }
 
+
+    // TODO: calculate the diff to perform the merge step
+    // use the diff to perform actions
+    //      - remove packages
+    //      - install packages
+    //      - (de)sync dotfiles
+    //      - disable services
+    //      - enable services
+    //      - run post hooks
+
+    // TODO: write to the correct .local/share/damngr location
+    FILE* new_config_state_fid = fopen("config_state.kdl", "w");
+    ret = write_config_kdl(new_config_state_fid, &new_config);
+    fclose(new_config_state_fid);
+    if (ret == EXIT_FAILURE) goto exit_cleanup; 
+    snprintf(fidbuf, sizeof(fidbuf), "%s_state.kdl", active_host->name);
+    FILE* new_host_state_fid = fopen(fidbuf, "w");
+    ret = write_host_kdl(new_host_state_fid, active_host);
+    if (ret == EXIT_FAILURE) goto exit_cleanup; 
+    fclose(new_host_state_fid);
+    FILE* new_module_state_fid;
+    for (size_t i = 0; i < modules->count; ++i) {
+        snprintf(fidbuf, sizeof(fidbuf), "%s_state.kdl", modules->items[i].name);
+        new_module_state_fid = fopen(fidbuf, "w");
+        ret = write_module_kdl(new_module_state_fid, &modules->items[i]);
+        fclose(new_module_state_fid);
+        if (ret == EXIT_FAILURE) goto exit_cleanup; 
+    }
+
+    exit_cleanup:
+        if (old_config_fid != nullptr) {    
+            free_config(old_config);
+        } 
+        free_config(new_config);
     return ret;
 }

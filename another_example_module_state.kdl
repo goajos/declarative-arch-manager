@@ -1,0 +1,14 @@
+module_state {
+    another_example_module {
+        packages {
+            another_example_package
+        }
+        aur_packages {
+        }
+        services {
+        }
+        hooks {
+            example_root_hook root=#true
+        }
+    }
+}

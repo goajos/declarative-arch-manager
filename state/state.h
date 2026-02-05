@@ -14,6 +14,28 @@ constexpr size_t path_max = 4096;
         da.items[da.count++] = item;\
     } while(0)
 
+#define PERMISSIONS_FREE(da)\
+    do {\
+        for (size_t i = 0; i < da.count; ++i) {\
+            char* item = da.items[i].name;\
+            free_sized(item, strlen(item));\
+            item = nullptr;\
+        }\
+        free_sized(da.items, da.capacity*sizeof(*da.items));\
+        da.items = nullptr;\
+    } while(0)
+
+#define PACKAGES_FREE(da)\
+    do {\
+        for (size_t i = 0; i < da.count; ++i) {\
+            char* item = da.items[i];\
+            free_sized(item, strlen(item));\
+            item = nullptr;\
+        }\
+        free_sized(da.items, da.capacity*sizeof(*da.items));\
+        da.items = nullptr;\
+    } while(0)
+
 struct permission {
     char* name;
     bool root;
@@ -63,5 +85,9 @@ int parse_host_kdl(FILE* fid, struct host* host);
 int write_host_kdl(FILE* fid, struct host* host);
 int parse_module_kdl(FILE* fid, struct module* module);
 int write_module_kdl(FILE* fid, struct module* module);
+
+int free_config(struct config config);
+int free_host(struct host host);
+int free_module(struct module module);
 
 #endif /* STATE_H */

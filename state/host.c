@@ -77,27 +77,43 @@ int write_host_kdl(FILE* fid, [[maybe_unused]] struct host* host) {
     kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
     kdl_emitter* emitter = kdl_create_stream_emitter(&write_func, (void* )fid, &e_opts);
 
-    // kdl_emit_node(emitter, kdl_str_from_cstr("config_state"));
-    // kdl_start_emitting_children(emitter);
-    // if (config->aur_helper != nullptr) {
-    //     kdl_emit_node(emitter, kdl_str_from_cstr("aur_helper"));
-    //     kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->aur_helper) };
-    //     kdl_emit_arg(emitter, &value);
-    // } else goto invalid_state;
-    // if (config->active_host.name != nullptr) {
-    //     kdl_emit_node(emitter, kdl_str_from_cstr("active_host"));
-    //     kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->active_host.name) };
-    //     kdl_emit_arg(emitter, &value);
-    // } else goto invalid_state;
-    // kdl_finish_emitting_children(emitter);
-    // kdl_emit_end(emitter);
+    kdl_emit_node(emitter, kdl_str_from_cstr("host_state"));
+    kdl_start_emitting_children(emitter); // open host_state level
+    if (host->name != nullptr) {
+        kdl_emit_node(emitter, kdl_str_from_cstr(host->name));
+        kdl_start_emitting_children(emitter); // open example_host level
+        kdl_emit_node(emitter, kdl_str_from_cstr("modules"));
+        kdl_start_emitting_children(emitter); // open modules level
+        for (size_t i = 0; i < host->modules.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(host->modules.items[i].name));
+        }
+        kdl_finish_emitting_children(emitter); // close modules level
+        kdl_emit_node(emitter, kdl_str_from_cstr("services"));
+        kdl_start_emitting_children(emitter); // open services level
+        for (size_t i = 0; i < host->services.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(host->services.items[i].name));
+        }
+        kdl_finish_emitting_children(emitter); // close services level
+        kdl_finish_emitting_children(emitter); // close example_host level
+    } else goto invalid_state;
+    kdl_finish_emitting_children(emitter); // clsoe host_state level
+    kdl_emit_end(emitter);
 
     kdl_destroy_emitter(emitter);
     return EXIT_SUCCESS;
 
-    // invalid_state:
-    //     puts("Not a valid config state for writing config_state.kdl\n");
-    //     kdl_destroy_emitter(emitter);
-    //     return EXIT_FAILURE;
+    invalid_state:
+        puts("Not a valid host state for writing host_state.kdl\n");
+        kdl_destroy_emitter(emitter);
+        return EXIT_FAILURE;
 }
 
+int free_host(struct host host) {
+    int ret;
+    for (size_t i = 0; i < host.modules.count; ++i) {
+        ret = free_module(host.modules.items[i]);
+    }
+    PERMISSIONS_FREE(host.services);
+
+    return ret;
+}
