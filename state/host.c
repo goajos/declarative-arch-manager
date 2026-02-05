@@ -1,0 +1,103 @@
+#include <kdl/kdl.h> 
+#include "state.h"
+#include "utils.c"
+
+int parse_host_kdl(FILE* fid, struct host* host)  {
+    kdl_parser* parser = kdl_create_stream_parser(&read_func, (void* )fid, KDL_DEFAULTS);
+    
+    size_t depth = 0;
+    char* node_d2 = nullptr;
+    bool eof = false;
+
+    while(true) {
+        kdl_event_data* next_event = kdl_parser_next_event(parser);
+        kdl_event event = next_event->event;
+        const char* name_data = next_event->name.data;
+        switch(event) {
+            case KDL_EVENT_START_NODE:
+                switch(depth) {
+                    case 0: // host(_state) level
+                        // reading new state
+                        if (strlen(name_data) == 4 && memcmp(name_data, "host", 4) != 0) goto invalid_host; 
+                        // reading old state
+                        if (strlen(name_data) == 10 && memcmp(name_data, "host_state", 10) != 0) goto invalid_host_state;
+                        break;
+                    case 1: // example_host level
+                        break;
+                    case 2: // modules/services level
+                        node_d2 = string_copy((char* )name_data);
+                        break;
+                    case 3: // child level
+                        if (memcmp(node_d2, "modules", 7) == 0) {
+                            struct modules* modules = &host->modules;
+                            struct module module = { .name=string_copy((char* )name_data) };
+                            DYNAMIC_ARRAY_APPEND((*modules), module);
+                        } else if (memcmp(node_d2, "services", 8) == 0){
+                            struct permissions* services = &host->services;
+                            struct permission service = { .name=string_copy((char* )name_data), .root=true }; // implicit root=#true
+                            DYNAMIC_ARRAY_APPEND((*services), service);
+                        }
+                        break;
+                }
+                depth += 1;
+                break;
+            case KDL_EVENT_END_NODE:
+                depth -= 1;
+                break;
+            case KDL_EVENT_ARGUMENT:
+                break;
+            case KDL_EVENT_PROPERTY:
+                break;
+            case KDL_EVENT_PARSE_ERROR:
+                break;
+            case KDL_EVENT_COMMENT:
+                break;
+            case KDL_EVENT_EOF:
+                eof = true;
+                break;
+        }
+        if (eof) break; // while break
+    }
+
+    kdl_destroy_parser(parser); 
+    return EXIT_SUCCESS;
+    
+    invalid_host:
+        puts("Can't parse state from the host.kdl\n");
+        kdl_destroy_parser(parser); 
+        return EXIT_FAILURE;
+
+    invalid_host_state:
+        puts("Can't parse state from the host_state.kdl\n");
+        kdl_destroy_parser(parser); 
+        return EXIT_FAILURE;
+}
+
+int write_host_kdl(FILE* fid, [[maybe_unused]] struct host* host) {
+    kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
+    kdl_emitter* emitter = kdl_create_stream_emitter(&write_func, (void* )fid, &e_opts);
+
+    // kdl_emit_node(emitter, kdl_str_from_cstr("config_state"));
+    // kdl_start_emitting_children(emitter);
+    // if (config->aur_helper != nullptr) {
+    //     kdl_emit_node(emitter, kdl_str_from_cstr("aur_helper"));
+    //     kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->aur_helper) };
+    //     kdl_emit_arg(emitter, &value);
+    // } else goto invalid_state;
+    // if (config->active_host.name != nullptr) {
+    //     kdl_emit_node(emitter, kdl_str_from_cstr("active_host"));
+    //     kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->active_host.name) };
+    //     kdl_emit_arg(emitter, &value);
+    // } else goto invalid_state;
+    // kdl_finish_emitting_children(emitter);
+    // kdl_emit_end(emitter);
+
+    kdl_destroy_emitter(emitter);
+    return EXIT_SUCCESS;
+
+    // invalid_state:
+    //     puts("Not a valid config state for writing config_state.kdl\n");
+    //     kdl_destroy_emitter(emitter);
+    //     return EXIT_FAILURE;
+}
+
