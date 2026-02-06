@@ -2,8 +2,6 @@
 #define STATE_H
 #include <stdio.h>
 
-constexpr size_t path_max = 4096;
-
 #define DYNAMIC_ARRAY_APPEND(da, item)\
     do {\
         if (da.count >= da.capacity) {\

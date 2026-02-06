@@ -18,9 +18,13 @@ int parse_host_kdl(FILE* fid, struct host* host)  {
                 switch(depth) {
                     case 0: // host(_state) level
                         // reading new state
-                        if (strlen(name_data) == 4 && memcmp(name_data, "host", 4) != 0) goto invalid_host; 
+                        if (strlen(name_data) == 4 && memcmp(name_data, "host", 4) != 0) {
+                            goto invalid_host;
+                        }
                         // reading old state
-                        if (strlen(name_data) == 10 && memcmp(name_data, "host_state", 10) != 0) goto invalid_host_state;
+                        if (strlen(name_data) == 10 && memcmp(name_data, "host_state", 10) != 0) {
+                            goto invalid_host_state;
+                        }
                         break;
                     case 1: // example_host level
                         break;
@@ -34,7 +38,9 @@ int parse_host_kdl(FILE* fid, struct host* host)  {
                             DYNAMIC_ARRAY_APPEND((*modules), module);
                         } else if (memcmp(node_d2, "services", 8) == 0){
                             struct permissions* services = &host->services;
-                            struct permission service = { .name=string_copy((char* )name_data), .root=true }; // implicit root=#true
+                            struct permission service = { 
+                                                    .name=string_copy((char* )name_data),
+                                                    .root=true }; // implicit root=#true
                             DYNAMIC_ARRAY_APPEND((*services), service);
                         }
                         break;
@@ -73,7 +79,7 @@ int parse_host_kdl(FILE* fid, struct host* host)  {
         return EXIT_FAILURE;
 }
 
-int write_host_kdl(FILE* fid, [[maybe_unused]] struct host* host) {
+int write_host_kdl(FILE* fid, struct host* host) {
     kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
     kdl_emitter* emitter = kdl_create_stream_emitter(&write_func, (void* )fid, &e_opts);
 

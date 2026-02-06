@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "commands/init.c"
 #include "commands/merge.c"
 
 int main(int argc, char* argv[]) {
@@ -30,8 +31,8 @@ int main(int argc, char* argv[]) {
     int ret;
     switch (command_idx) {
         case 0:
-            // puts("damngr init...");
-            // ret = damngr_init();
+            puts("damngr init...");
+            ret = damngr_init();
             break;
         case 1:
             // puts("damngr update...");
@@ -47,6 +48,6 @@ int main(int argc, char* argv[]) {
         //     break;
     }
 
-    printf("exit status: %d\n", ret);
+    printf("exit status: %d", ret);
     return ret;
 }

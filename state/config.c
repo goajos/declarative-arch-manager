@@ -19,9 +19,13 @@ int parse_config_kdl(FILE* fid, struct config* config)  {
                 switch(depth) {
                     case 0: // config(_state) level
                         // reading new state
-                        if (strlen(name_data) == 6 && memcmp(name_data, "config", 6) != 0) goto invalid_config; 
+                        if (strlen(name_data) == 6 && memcmp(name_data, "config", 6) != 0) {
+                            goto invalid_config;
+                        }
                         // reading old state
-                        if (strlen(name_data) == 12 && memcmp(name_data, "config_state", 12) != 0) goto invalid_config_state;
+                        if (strlen(name_data) == 12 && memcmp(name_data, "config_state", 12) != 0) {
+                            goto invalid_config_state;
+                        }
                         break;
                     case 1: // child level
                         node_d1 = string_copy((char* )name_data);
@@ -83,7 +87,9 @@ int write_config_kdl(FILE* fid, struct config* config) {
     } else goto invalid_state;
     if (config->active_host.name != nullptr) {
         kdl_emit_node(emitter, kdl_str_from_cstr("active_host"));
-        kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->active_host.name) };
+        kdl_value value = { 
+                    .type=KDL_TYPE_STRING,
+                    .string=kdl_str_from_cstr(config->active_host.name) };
         kdl_emit_arg(emitter, &value);
     } else goto invalid_state;
     kdl_finish_emitting_children(emitter);

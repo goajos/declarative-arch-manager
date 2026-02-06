@@ -14,15 +14,19 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
         kdl_event_data* next_event = kdl_parser_next_event(parser);
         kdl_event event = next_event->event;
         const char* name_data = next_event->name.data;
-        [[maybe_unused]] kdl_value value = next_event->value;
+        kdl_value value = next_event->value;
         switch(event) {
             case KDL_EVENT_START_NODE:
                 switch(depth) {
                     case 0: // module(_state) level
                         // reading new state
-                        if (strlen(name_data) == 6 && memcmp(name_data, "module", 6) != 0) goto invalid_module; 
+                        if (strlen(name_data) == 6 && memcmp(name_data, "module", 6) != 0) {
+                            goto invalid_module;
+                        }
                         // reading old state
-                        if (strlen(name_data) == 12 && memcmp(name_data, "module_state", 12) != 0) goto invalid_module_state;
+                        if (strlen(name_data) == 12 && memcmp(name_data, "module_state", 12) != 0) {
+                            goto invalid_module_state;
+                        }
                         break;
                     case 1: // example_module level
                         break;
@@ -40,7 +44,9 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
                             DYNAMIC_ARRAY_APPEND((*aur_packages), aur_package);
                         } else if (memcmp(node_d2, "services", 8) == 0){
                             struct permissions* services = &module->services;
-                            struct permission service = { .name=string_copy((char* )name_data), .root=false }; // implicit root=#false
+                            struct permission service = { 
+                                                    .name=string_copy((char* )name_data),
+                                                    .root=false }; // implicit root=#false
                             DYNAMIC_ARRAY_APPEND((*services), service);
                         } else if (memcmp(node_d2, "hooks", 4) == 0){
                             node_d3 = string_copy((char* )name_data);
@@ -87,7 +93,7 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
         return EXIT_FAILURE;
 }
 
-int write_module_kdl(FILE* fid, [[maybe_unused]] struct module* module) {
+int write_module_kdl(FILE* fid, struct module* module) {
     kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
     kdl_emitter* emitter = kdl_create_stream_emitter(&write_func, (void* )fid, &e_opts);
 
