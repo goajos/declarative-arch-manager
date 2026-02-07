@@ -3,14 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include "utils.h"
+#include "command_utils.h"
 
 static int copy_file(char* src, char* dst)
 {
     FILE* src_fid = fopen(src, "r");
-    if (src_fid == NULL) return EXIT_FAILURE;
+    if (src_fid == nullptr) return EXIT_FAILURE;
     FILE* dst_fid = fopen(dst, "w");
-    if (dst_fid == NULL) return EXIT_FAILURE;
+    if (dst_fid == nullptr) return EXIT_FAILURE;
     char c;
     while ((c = fgetc(src_fid)) != EOF) {
         fputc(c, dst_fid);
@@ -27,9 +27,9 @@ static int recursive_init_state(struct stat st, char* src, char* dst)
     stat(src, &st); // get src file stats
     if (S_ISDIR(st.st_mode)) { // src is a directory
         DIR* damngr_dir = opendir(src); 
-        if (damngr_dir == NULL) return EXIT_FAILURE;
+        if (damngr_dir == nullptr) return EXIT_FAILURE;
         struct dirent* ent;
-        while ((ent = readdir(damngr_dir)) != NULL) {
+        while ((ent = readdir(damngr_dir)) != nullptr) {
             char* d_name = ent->d_name;
             // skip the . and .. dir entries
             if (memcmp(d_name, ".", 1) == 0 || memcmp(d_name, "..", 2) == 0) continue; // don't break here
@@ -40,7 +40,7 @@ static int recursive_init_state(struct stat st, char* src, char* dst)
             // stats returns -1 if the path doesn't exist
             if (stat(dst_fidbuf, &st) == -1) {
                 // ensure the dst path is a directory
-                if (strstr(dst_fidbuf, ".kdl") == NULL) mkdir(dst_fidbuf, 0777);
+                if (strstr(dst_fidbuf, ".kdl") == nullptr) mkdir(dst_fidbuf, 0777);
             }
             ret = recursive_init_state(st, src_fidbuf, dst_fidbuf);
         }

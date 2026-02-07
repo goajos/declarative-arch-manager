@@ -1,6 +1,7 @@
 #include <kdl/kdl.h> 
+#include <string.h>
 #include "state.h"
-#include "utils.c"
+#include "state_utils.h"
 
 int parse_config_kdl(FILE* fid, struct config* config)  {
     kdl_parser* parser = kdl_create_stream_parser(&read_func, (void* )fid, KDL_DEFAULTS);

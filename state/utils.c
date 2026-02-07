@@ -2,17 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-static size_t read_func(void* user_data, char* buf, size_t bufsize) {
+size_t read_func(void* user_data, char* buf, size_t bufsize) {
     FILE* fid = (FILE* )user_data;
     return fread(buf, 1, bufsize, fid);
 }
 
-static size_t write_func(void* user_data, char const* data, size_t nbytes) {
+size_t write_func(void* user_data, char const* data, size_t nbytes) {
     FILE* fid = (FILE* )user_data;
     return fwrite(data, 1, nbytes, fid);
 }
 
-static char* string_copy(char* str) {
+char* string_copy(char* str) {
     char* ret = nullptr;
     size_t len = strlen(str); 
     if (len) {
@@ -24,9 +24,11 @@ static char* string_copy(char* str) {
 }
 
 // will be added in glibc 2.43
-[[maybe_unused]] static void free_sized(void *ptr, size_t /*size*/)
+void free_sized(void *ptr, size_t /*size*/)
 {
     free(ptr);
 }
 
-
+int qstrcmp(const void *p1, const void *p2) {
+    return strcmp(*(const char** )p1, *(const char** )p2);
+}
