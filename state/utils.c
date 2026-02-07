@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "state.h"
 
 size_t read_func(void* user_data, char* buf, size_t bufsize) {
     FILE* fid = (FILE* )user_data;
@@ -29,6 +30,12 @@ void free_sized(void *ptr, size_t /*size*/)
     free(ptr);
 }
 
-int qstrcmp(const void *p1, const void *p2) {
+int qcharcmp(const void *p1, const void *p2) {
     return strcmp(*(const char** )p1, *(const char** )p2);
+}
+
+int qnamecmp(const void *p1, const void *p2) {
+    struct module* m1 = (struct module* )p1;
+    struct module* m2 = (struct module* )p2;
+    return strcmp(m1->name, m2->name);
 }

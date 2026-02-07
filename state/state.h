@@ -1,6 +1,7 @@
 #ifndef STATE_H
 #define STATE_H
 #include <stdio.h>
+#include "state_utils.h"
 
 #define DYNAMIC_ARRAY_APPEND(da, item)\
     do {\
@@ -12,7 +13,7 @@
         da.items[da.count++] = item;\
     } while(0)
 
-#define PERMISSIONS_FREE(da)\
+#define DYNAMIC_ARRAY_NAME_FREE(da)\
     do {\
         for (size_t i = 0; i < da.count; ++i) {\
             char* item = da.items[i].name;\
@@ -23,7 +24,7 @@
         da.items = nullptr;\
     } while(0)
 
-#define PACKAGES_FREE(da)\
+#define DYNAMIC_ARRAY_FREE(da)\
     do {\
         for (size_t i = 0; i < da.count; ++i) {\
             char* item = da.items[i];\
@@ -85,12 +86,94 @@ int write_host_kdl(FILE* fid, struct host* host);
 int parse_module_kdl(FILE* fid, struct module* module);
 int write_module_kdl(FILE* fid, struct module* module);
 
-int calculate_config_diff(struct config* old_config,
-                        struct config* new_config
-                        // struct packages* to_remove,
-                        // struct packages* to_install,
-                        // struct packages* to_keep
-                        );
+#define COMPUTE_DYNAMIC_ARRAY_DIFF(to_install, to_remove, to_keep, old_da, new_da)\
+    do {\
+        qsort(old_da.items, old_da.count, sizeof(old_da.items[0]), qcharcmp);\
+        qsort(new_da.items, new_da.count, sizeof(new_da.items[0]), qcharcmp);\
+        size_t i = 0;\
+        size_t j = 0;\
+        while (i < old_da.count && j < new_da.count) {\
+            int res = strcmp(old_da.items[i], new_da.items[j]);\
+            if (res < 0) {\
+                DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i]);\
+                ++i;\
+            } else if (res > 0) {\
+                DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j]);\
+                ++j;\
+            } else {\
+                DYNAMIC_ARRAY_APPEND((*to_keep), old_da.items[i]);\
+                ++i;\
+                ++j;\
+            }\
+        }\
+        while (i < old_da.count) {\
+            DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i]);\
+            ++i;\
+        }\
+        while (j < new_da.count) {\
+            DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j]);\
+            ++j;\
+        }\
+    } while(0)
+
+#define COMPUTE_DYNAMIC_ARRAY_NAME_DIFF(to_install, to_remove, to_keep, old_da, new_da)\
+    do {\
+        qsort(old_da.items, old_da.count, sizeof(old_da.items[0]), qnamecmp);\
+        qsort(new_da.items, new_da.count, sizeof(new_da.items[0]), qnamecmp);\
+        size_t i = 0;\
+        size_t j = 0;\
+        while (i < old_da.count && j < new_da.count) {\
+            int res = strcmp(old_da.items[i].name, new_da.items[j].name);\
+            if (res < 0) {\
+                DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i].name);\
+                ++i;\
+            } else if (res > 0) {\
+                DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j].name);\
+                ++j;\
+            } else {\
+                DYNAMIC_ARRAY_APPEND((*to_keep), old_da.items[i].name);\
+                ++i;\
+                ++j;\
+            }\
+        }\
+        while (i < old_da.count) {\
+            DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i].name);\
+            ++i;\
+        }\
+        while (j < new_da.count) {\
+            DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j].name);\
+            ++j;\
+        }\
+    } while(0)
+
+struct service_action {
+    char* name;
+    bool to_enable;
+};
+struct service_actions {
+    struct service_action* items;
+    size_t capacity;
+    size_t count;
+};
+struct package_action {
+    char* name;
+    bool to_install;
+};
+struct package_actions {
+    struct package_action* items;
+    size_t capacity;
+    size_t count;
+};
+
+int determine_actions(struct config* old_config,
+                        struct config* new_config,
+                        struct service_actions* root_service_actions,
+                        struct dynamic_array* root_hook_actions,
+                        struct package_actions* package_actions,
+                        struct package_actions* aur_package_actions,
+                        struct dynamic_array* dotfile_actions,
+                        struct service_actions* user_service_actions,
+                        struct dynamic_array* user_hook_actions);
 
 int free_config(struct config config);
 int free_host(struct host host);
