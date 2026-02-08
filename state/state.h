@@ -102,6 +102,7 @@ int write_module_kdl(FILE* fid, struct module* module);
                 ++j;\
             } else {\
                 DYNAMIC_ARRAY_APPEND((*to_keep), old_da.items[i]);\
+                DYNAMIC_ARRAY_APPEND((*to_keep), new_da.items[i]);\
                 ++i;\
                 ++j;\
             }\
@@ -125,23 +126,24 @@ int write_module_kdl(FILE* fid, struct module* module);
         while (i < old_da.count && j < new_da.count) {\
             int res = strcmp(old_da.items[i].name, new_da.items[j].name);\
             if (res < 0) {\
-                DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i].name);\
+                DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i]);\
                 ++i;\
             } else if (res > 0) {\
-                DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j].name);\
+                DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j]);\
                 ++j;\
             } else {\
-                DYNAMIC_ARRAY_APPEND((*to_keep), old_da.items[i].name);\
+                DYNAMIC_ARRAY_APPEND((*to_keep), old_da.items[i]);\
+                DYNAMIC_ARRAY_APPEND((*to_keep), new_da.items[i]);\
                 ++i;\
                 ++j;\
             }\
         }\
         while (i < old_da.count) {\
-            DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i].name);\
+            DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i]);\
             ++i;\
         }\
         while (j < new_da.count) {\
-            DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j].name);\
+            DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j]);\
             ++j;\
         }\
     } while(0)
@@ -164,19 +166,40 @@ struct package_actions {
     size_t capacity;
     size_t count;
 };
+struct dotfile_action {
+    char* name;
+    bool to_sync;
+};
+struct dotfile_actions {
+    struct dotfile_action* items;
+    size_t capacity;
+    size_t count;
+};
+
+enum action {
+    TO_INSTALL,
+    TO_REMOVE,
+};
 
 int determine_actions(struct config* old_config,
                         struct config* new_config,
                         struct service_actions* root_service_actions,
-                        struct dynamic_array* root_hook_actions,
+                        struct service_actions* user_service_actions,
                         struct package_actions* package_actions,
                         struct package_actions* aur_package_actions,
-                        struct dynamic_array* dotfile_actions,
-                        struct service_actions* user_service_actions,
+                        struct dotfile_actions* dotfile_actions,
+                        struct dynamic_array* root_hook_actions,
                         struct dynamic_array* user_hook_actions);
 
 int free_config(struct config config);
 int free_host(struct host host);
 int free_module(struct module module);
+int free_actions(struct service_actions root_service_actions,
+                struct service_actions user_service_actions,
+                struct package_actions package_actions,
+                struct package_actions aur_package_actions,
+                struct dotfile_actions dotfile_actions,
+                struct dynamic_array root_hook_actions,
+                struct dynamic_array user_hook_actions);
 
 #endif /* STATE_H */
