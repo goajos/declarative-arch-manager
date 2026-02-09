@@ -13,17 +13,6 @@
         da.items[da.count++] = item;\
     } while(0)
 
-#define DYNAMIC_ARRAY_NAME_FREE(da)\
-    do {\
-        for (size_t i = 0; i < da.count; ++i) {\
-            char* item = da.items[i].name;\
-            free_sized(item, strlen(item));\
-            item = nullptr;\
-        }\
-        free_sized(da.items, da.capacity*sizeof(*da.items));\
-        da.items = nullptr;\
-    } while(0)
-
 #define DYNAMIC_ARRAY_FREE(da)\
     do {\
         for (size_t i = 0; i < da.count; ++i) {\
@@ -35,17 +24,16 @@
         da.items = nullptr;\
     } while(0)
 
-struct permission {
-    char* name;
-    bool root;
-};
-
-// a dynamic array with a permission item instead of a char*
-struct permissions {
-    struct permission* items;
-    size_t capacity;
-    size_t count;
-};
+#define MODULES_FREE(modules)\
+    do {\
+        for (size_t i = 0; i < modules.count; ++i) {\
+            char* item = modules.items[i].name;\
+            free_sized(item, strlen(item));\
+            item = nullptr;\
+        }\
+        free_sized(modules.items, modules.capacity*sizeof(*modules.items));\
+        modules.items = nullptr;\
+    } while(0)
 
 struct dynamic_array {
     char** items;
@@ -58,8 +46,9 @@ struct module {
     bool sync;
     struct dynamic_array packages;
     struct dynamic_array aur_packages;
-    struct permissions services;
-    struct permissions hooks;
+    struct dynamic_array user_services;
+    struct dynamic_array root_hooks;
+    struct dynamic_array user_hooks;
 };
 
 struct modules {
@@ -71,7 +60,7 @@ struct modules {
 struct host {
     char* name;
     struct modules modules;
-    struct permissions services;
+    struct dynamic_array root_services;
 };
 
 struct config {
@@ -117,38 +106,37 @@ int write_module_kdl(FILE* fid, struct module* module);
         }\
     } while(0)
 
-#define COMPUTE_DYNAMIC_ARRAY_NAME_DIFF(to_install, to_remove, to_keep, old_da, new_da)\
+#define COMPUTE_MODULES_DIFF(to_install, to_remove, to_keep, old_modules, new_modules)\
     do {\
-        qsort(old_da.items, old_da.count, sizeof(old_da.items[0]), qnamecmp);\
-        qsort(new_da.items, new_da.count, sizeof(new_da.items[0]), qnamecmp);\
+        qsort(old_modules.items, old_modules.count, sizeof(old_modules.items[0]), qnamecmp);\
+        qsort(new_modules.items, new_modules.count, sizeof(new_modules.items[0]), qnamecmp);\
         size_t i = 0;\
         size_t j = 0;\
-        while (i < old_da.count && j < new_da.count) {\
-            int res = strcmp(old_da.items[i].name, new_da.items[j].name);\
+        while (i < old_modules.count && j < new_modules.count) {\
+            int res = strcmp(old_modules.items[i].name, new_modules.items[j].name);\
             if (res < 0) {\
-                DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i]);\
+                DYNAMIC_ARRAY_APPEND((*to_remove), old_modules.items[i]);\
                 ++i;\
             } else if (res > 0) {\
-                DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j]);\
+                DYNAMIC_ARRAY_APPEND((*to_install), new_modules.items[j]);\
                 ++j;\
             } else {\
-                DYNAMIC_ARRAY_APPEND((*to_keep), old_da.items[i]);\
-                DYNAMIC_ARRAY_APPEND((*to_keep), new_da.items[i]);\
+                DYNAMIC_ARRAY_APPEND((*to_keep), old_modules.items[i]);\
+                DYNAMIC_ARRAY_APPEND((*to_keep), new_modules.items[i]);\
                 ++i;\
                 ++j;\
             }\
         }\
-        while (i < old_da.count) {\
-            DYNAMIC_ARRAY_APPEND((*to_remove), old_da.items[i]);\
+        while (i < old_modules.count) {\
+            DYNAMIC_ARRAY_APPEND((*to_remove), old_modules.items[i]);\
             ++i;\
         }\
-        while (j < new_da.count) {\
-            DYNAMIC_ARRAY_APPEND((*to_install), new_da.items[j]);\
+        while (j < new_modules.count) {\
+            DYNAMIC_ARRAY_APPEND((*to_install), new_modules.items[j]);\
             ++j;\
         }\
     } while(0)
-
-
+ 
 struct service_actions {
     struct dynamic_array root_to_disable;
     struct dynamic_array root_to_enable;

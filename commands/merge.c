@@ -162,6 +162,7 @@
 
 // TODO: atomic operation? either everything works or full rollback? (atomic merge or write only?)
 // TODO: merge should create a state-bak folder that gets deleted if succesful or restored otherwise
+// TODO: rewrite all if else with { }?
 int damngr_merge() {
     puts("hello from damngr merge...");
     int ret;

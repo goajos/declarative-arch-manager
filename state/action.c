@@ -3,12 +3,12 @@
 #include "state.h"
 
 static int get_service_actions(struct service_actions* actions,
-                            struct permissions services,
+                            struct dynamic_array services,
                             bool to_enable,
                             bool root) {
     for (size_t i = 0; i < services.count; ++i) {
-        struct permission service = services.items[i];
-        char* ret = string_copy(service.name);
+        char* service = services.items[i];
+        char* ret = string_copy(service);
         if (ret == nullptr) return EXIT_FAILURE;
         if (to_enable) {
             if (root) DYNAMIC_ARRAY_APPEND(actions->root_to_enable, ret);
@@ -29,7 +29,7 @@ static int get_package_actions(struct package_actions* actions,
         char* ret = string_copy(package);
         if (ret == nullptr) return EXIT_FAILURE;
         if (to_install) DYNAMIC_ARRAY_APPEND(actions->to_install, ret);
-        DYNAMIC_ARRAY_APPEND(actions->to_remove, ret);
+        else DYNAMIC_ARRAY_APPEND(actions->to_remove, ret);
     }
     return EXIT_SUCCESS;
 }
@@ -44,24 +44,25 @@ static int get_dotfile_actions(struct dotfile_actions* actions,
             // to_sync=true, sync the module dotfiles
             ret = string_copy(name);
             if (ret == nullptr) return EXIT_FAILURE;
-            DYNAMIC_ARRAY_APPEND(actions->to_sync, ret);
+            else DYNAMIC_ARRAY_APPEND(actions->to_sync, ret);
         } else if (!to_sync) {
             // to_sync=false, unsync the module dotfiles
             ret = string_copy(name);
             if (ret == nullptr) return EXIT_FAILURE;
-            DYNAMIC_ARRAY_APPEND(actions->to_unsync, ret);
+            else DYNAMIC_ARRAY_APPEND(actions->to_unsync, ret);
         }
     }
     return EXIT_SUCCESS;
 }
 
 static int get_hook_actions(struct hook_actions* actions,
-                            struct permissions hooks) {
+                            struct dynamic_array hooks,
+                            bool root) {
     for (size_t i = 0; i < hooks.count; ++i) {
-        struct permission hook = hooks.items[i];
-        char* ret = string_copy(hook.name);
+        char* hook = hooks.items[i];
+        char* ret = string_copy(hook);
         if (ret == nullptr) return EXIT_FAILURE;
-        if (hook.root) {
+        if (root) {
             // if root is true add the module name to the root_actions for reference
             DYNAMIC_ARRAY_APPEND(actions->root, ret);
         } else DYNAMIC_ARRAY_APPEND(actions->user, ret); // otherwise to the user_actions
@@ -79,7 +80,7 @@ static int get_module_actions(struct module module,
     int ret;
     switch(action) {
         case TO_INSTALL:
-            ret = get_service_actions(service_actions, module.services, true, false);
+            ret = get_service_actions(service_actions, module.user_services, true, false);
             if (ret == EXIT_FAILURE) return ret;
             ret = get_package_actions(package_actions, module.packages, true);
             if (ret == EXIT_FAILURE) return ret;
@@ -87,11 +88,13 @@ static int get_module_actions(struct module module,
             if (ret == EXIT_FAILURE) return ret;
             ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_hook_actions(hook_actions, module.hooks);
+            ret = get_hook_actions(hook_actions, module.root_hooks, true);
+            if (ret == EXIT_FAILURE) return ret;
+            ret = get_hook_actions(hook_actions, module.user_hooks, false);
             if (ret == EXIT_FAILURE) return ret;
             break;
         case TO_REMOVE:
-            ret = get_service_actions(service_actions, module.services, false, false);
+            ret = get_service_actions(service_actions, module.user_services, false, false);
             if (ret == EXIT_FAILURE) return ret;
             ret = get_package_actions(package_actions, module.packages, false);
             if (ret == EXIT_FAILURE) return ret;
@@ -106,14 +109,14 @@ static int get_module_actions(struct module module,
 }
 
 
-static int determine_actions_from_services_diff(struct permissions old_services,
-                                                struct permissions new_services,
+static int determine_actions_from_services_diff(struct dynamic_array old_services,
+                                                struct dynamic_array new_services,
                                                 struct service_actions* actions) {
     int ret;
-    struct permissions services_to_enable = { };
-    struct permissions services_to_disable = { };
-    struct permissions services_to_keep = { };
-    COMPUTE_DYNAMIC_ARRAY_NAME_DIFF(&services_to_enable,
+    struct dynamic_array services_to_enable = { };
+    struct dynamic_array services_to_disable = { };
+    struct dynamic_array services_to_keep = { };
+    COMPUTE_DYNAMIC_ARRAY_DIFF(&services_to_enable,
                                     &services_to_disable,
                                     &services_to_keep,
                                     old_services,
@@ -184,20 +187,20 @@ static int determine_actions_from_dotfiles_diff(struct module old_module,
 }
 
 // TODO: to implement a hook reset, delete the hook from the old hooks list!
-static int determine_actions_from_hooks_diff(struct permissions old_hooks,
-                                            struct permissions new_hooks,
-                                            struct hook_actions* hook_actions) {
+static int determine_actions_from_hooks_diff(struct dynamic_array old_hooks,
+                                            struct dynamic_array new_hooks,
+                                            struct hook_actions* hook_actions,
+                                            bool root) {
     int ret;
-    struct permissions hooks_to_install = { };
-    struct permissions hooks_to_remove = { };
-    struct permissions hooks_to_keep = { };
-    COMPUTE_DYNAMIC_ARRAY_NAME_DIFF(&hooks_to_install,
+    struct dynamic_array hooks_to_install = { };
+    struct dynamic_array hooks_to_remove = { };
+    struct dynamic_array hooks_to_keep = { };
+    COMPUTE_DYNAMIC_ARRAY_DIFF(&hooks_to_install,
                                     &hooks_to_remove,
                                     &hooks_to_keep,
                                     old_hooks,
                                     new_hooks);
-    ret = get_hook_actions(hook_actions,
-                        hooks_to_install);
+    ret = get_hook_actions(hook_actions, hooks_to_install, root);
     // hooks_to_remove are ignored (can't undo a script)
     // hooks_to_keep are ignored (hooks have been ran in the past)
 
@@ -212,8 +215,8 @@ static int determine_actions_from_module_diff(struct module old_module,
                                             struct dotfile_actions* dotfile_actions,
                                             struct hook_actions* hook_actions) {
     int ret;
-    ret = determine_actions_from_services_diff(old_module.services,
-                                            new_module.services,
+    ret = determine_actions_from_services_diff(old_module.user_services,
+                                            new_module.user_services,
                                             service_actions);
     if (ret == EXIT_FAILURE) return ret;
     ret = determine_actions_from_packages_diff(old_module.packages,
@@ -228,9 +231,15 @@ static int determine_actions_from_module_diff(struct module old_module,
                                             new_module,
                                             dotfile_actions);
     if (ret == EXIT_FAILURE) return ret;
-    ret = determine_actions_from_hooks_diff(old_module.hooks,
-                                            new_module.hooks,
-                                            hook_actions);
+    ret = determine_actions_from_hooks_diff(old_module.root_hooks,
+                                            new_module.root_hooks,
+                                            hook_actions,
+                                            true);
+    if (ret == EXIT_FAILURE) return ret;
+    ret = determine_actions_from_hooks_diff(old_module.user_hooks,
+                                            new_module.user_hooks,
+                                            hook_actions,
+                                            false);
 
     return ret;
 }
@@ -247,11 +256,11 @@ static int determine_actions_from_modules_diff(struct modules old_modules,
     struct modules modules_to_install = { };
     struct modules modules_to_remove = { };
     struct modules modules_to_keep = { };
-    COMPUTE_DYNAMIC_ARRAY_NAME_DIFF(&modules_to_install,
-                                    &modules_to_remove,
-                                    &modules_to_keep,
-                                    old_modules,
-                                    new_modules);
+    COMPUTE_MODULES_DIFF(&modules_to_install,
+                        &modules_to_remove,
+                        &modules_to_keep,
+                        old_modules,
+                        new_modules);
     for (size_t i = 0; i < modules_to_install.count; ++i) { 
         ret = get_module_actions(modules_to_install.items[i],
                                 TO_INSTALL,
@@ -301,10 +310,10 @@ int determine_actions(struct config* old_config,
         // no config state available
         no_config_state:
             new_host = new_config->active_host;
-            ret = get_service_actions(service_actions, new_host.services, true, true);
+            ret = get_service_actions(service_actions, new_host.root_services, true, true);
             for (size_t i = 0; i < new_host.modules.count; ++i) {
                 struct module module = new_host.modules.items[i];
-                ret = get_service_actions(service_actions, module.services, true, false);
+                ret = get_service_actions(service_actions, module.user_services, true, false);
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_package_actions(package_actions, module.packages, true);
                 if (ret == EXIT_FAILURE) return ret;
@@ -312,7 +321,9 @@ int determine_actions(struct config* old_config,
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_hook_actions(hook_actions, module.hooks);
+                ret = get_hook_actions(hook_actions, module.root_hooks, true);
+                if (ret == EXIT_FAILURE) return ret;
+                ret = get_hook_actions(hook_actions, module.user_hooks, false);
                 if (ret == EXIT_FAILURE) return ret;
             }
     } else {
@@ -321,8 +332,8 @@ int determine_actions(struct config* old_config,
         new_host = new_config->active_host;
         if (memcmp(old_host.name, new_host.name, strlen(old_host.name)) == 0) {
             // old and new config host are equal
-            ret = determine_actions_from_services_diff(old_host.services,
-                                                    new_host.services, 
+            ret = determine_actions_from_services_diff(old_host.root_services,
+                                                    new_host.root_services, 
                                                     service_actions);
             if (ret == EXIT_FAILURE) return ret;
             ret = determine_actions_from_modules_diff(old_host.modules,

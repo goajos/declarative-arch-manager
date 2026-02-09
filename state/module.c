@@ -36,19 +36,14 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
                         break;
                     case 3: // child level
                         if (memcmp(node_d2, "packages", 8) == 0) {
-                            struct dynamic_array* packages = &module->packages;
                             char* package = string_copy((char* )name_data);
-                            DYNAMIC_ARRAY_APPEND((*packages), package);
+                            DYNAMIC_ARRAY_APPEND(module->packages, package);
                         } else if (memcmp(node_d2, "aur_packages", 12) == 0) {
-                            struct dynamic_array* aur_packages = &module->aur_packages;
                             char* aur_package = string_copy((char* )name_data);
-                            DYNAMIC_ARRAY_APPEND((*aur_packages), aur_package);
+                            DYNAMIC_ARRAY_APPEND(module->aur_packages, aur_package);
                         } else if (memcmp(node_d2, "services", 8) == 0){
-                            struct permissions* services = &module->services;
-                            struct permission service = { 
-                                                    .name=string_copy((char* )name_data),
-                                                    .root=false }; // implicit root=#false
-                            DYNAMIC_ARRAY_APPEND((*services), service);
+                            char* service = string_copy((char* )name_data); // implicit root=#false
+                            DYNAMIC_ARRAY_APPEND(module->user_services, service);
                         } else if (memcmp(node_d2, "hooks", 4) == 0){
                             node_d3 = string_copy((char* )name_data);
                         }
@@ -65,9 +60,9 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
                 if (memcmp(node_d2, "dotfiles", 8) == 0) {
                     if (value.boolean) module->sync = true; // dotfiles sync=#true
                 } else if (memcmp(node_d2, "hooks", 5) == 0) {
-                    struct permissions* hooks = &module->hooks;
-                    struct permission hook = { .name=string_copy(node_d3), .root=value.boolean };
-                    DYNAMIC_ARRAY_APPEND((*hooks), hook);
+                    char* hook = string_copy(node_d3);
+                    if (value.boolean) DYNAMIC_ARRAY_APPEND(module->root_hooks, hook);
+                    else DYNAMIC_ARRAY_APPEND(module->user_hooks, hook);
                 }
                 break;
             case KDL_EVENT_PARSE_ERROR:
@@ -122,15 +117,20 @@ int write_module_kdl(FILE* fid, struct module* module) {
         kdl_finish_emitting_children(emitter); // close aur_packages level
         kdl_emit_node(emitter, kdl_str_from_cstr("services"));
         kdl_start_emitting_children(emitter); // open services level
-        for (size_t i = 0; i < module->services.count; ++i) {
-            kdl_emit_node(emitter, kdl_str_from_cstr(module->services.items[i].name));
+        for (size_t i = 0; i < module->user_services.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->user_services.items[i]));
         }
         kdl_finish_emitting_children(emitter); // close services level
         kdl_emit_node(emitter, kdl_str_from_cstr("hooks"));
         kdl_start_emitting_children(emitter); // open hooks level
-        for (size_t i = 0; i < module->hooks.count; ++i) {
-            kdl_emit_node(emitter, kdl_str_from_cstr(module->hooks.items[i].name));
-            kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=module->hooks.items[i].root };
+        for (size_t i = 0; i < module->root_hooks.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->root_hooks.items[i]));
+            kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=true };
+            kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
+        }
+        for (size_t i = 0; i < module->user_hooks.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->user_hooks.items[i]));
+            kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=false };
             kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
         }
         kdl_finish_emitting_children(emitter); // close hooks level
@@ -152,8 +152,9 @@ int write_module_kdl(FILE* fid, struct module* module) {
 int free_module(struct module module) {
     DYNAMIC_ARRAY_FREE(module.packages);
     DYNAMIC_ARRAY_FREE(module.aur_packages);
-    DYNAMIC_ARRAY_NAME_FREE(module.services);
-    DYNAMIC_ARRAY_NAME_FREE(module.hooks);
+    DYNAMIC_ARRAY_FREE(module.user_services);
+    DYNAMIC_ARRAY_FREE(module.root_hooks);
+    DYNAMIC_ARRAY_FREE(module.user_hooks);
     
     return EXIT_SUCCESS;
 }
