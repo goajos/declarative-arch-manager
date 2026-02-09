@@ -305,7 +305,7 @@ int determine_actions(struct config* old_config,
     int ret;
     struct host old_host;
     struct host new_host;
-    if (old_config == nullptr) {
+    if (old_config->aur_helper == nullptr) {
         // no config state available
         no_config_state:
             new_host = new_config->active_host;
