@@ -25,16 +25,16 @@ char* string_copy(char* str) {
 }
 
 // will be added in glibc 2.43
-void free_sized(void *ptr, size_t /*size*/)
+void free_sized(void* ptr, size_t /*size*/)
 {
     free(ptr);
 }
 
-int qcharcmp(const void *p1, const void *p2) {
+int qcharcmp(const void* p1, const void* p2) {
     return strcmp(*(const char** )p1, *(const char** )p2);
 }
 
-int qnamecmp(const void *p1, const void *p2) {
+int qnamecmp(const void* p1, const void* p2) {
     struct module* m1 = (struct module* )p1;
     struct module* m2 = (struct module* )p2;
     return strcmp(m1->name, m2->name);

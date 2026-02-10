@@ -44,9 +44,9 @@ struct dynamic_array {
 struct module {
     char* name;
     bool sync;
+    struct dynamic_array user_services;
     struct dynamic_array packages;
     struct dynamic_array aur_packages;
-    struct dynamic_array user_services;
     struct dynamic_array root_hooks;
     struct dynamic_array user_hooks;
 };
