@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include "../state/state.h"
 #include "command_utils.h"
 
@@ -131,8 +126,8 @@ int damngr_merge() {
     ret = handle_package_actions(package_actions);
     ret = handle_aur_package_actions(aur_package_actions, new_config.aur_helper);
     ret = handle_service_actions(service_actions);
-    // ret = handle_dotfile_actions(dotfile_actions);
-    // ret = handle_hook_actions(root_hook_actions, user_hook_actions);
+    ret = handle_dotfile_actions(dotfile_actions);
+    ret = handle_hook_actions(hook_actions);
 
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/config_state.kdl", get_user());
     FILE* new_config_state_fid = fopen(fidbuf, "w");
