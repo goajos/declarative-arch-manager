@@ -54,6 +54,7 @@ Use `damngr merge` to merge the declared state, currently the command will:
     | <host>_state.kdl
     | <module1>_state.kdl
     | <module2>_state.kdl
+```
 
 ## damngr config.kdl
 Stored in `~/.config/damngr/config.kdl`. Declares the aur\_helper to use (currently tested with yay and paru) and the active host. E.g.
