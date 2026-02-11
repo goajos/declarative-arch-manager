@@ -58,6 +58,7 @@ int recursive_init_state(struct stat st, char* src, char* dst)
         closedir(damngr_dir);
     } else if (S_ISREG(st.st_mode)) { // src is a file
         ret = copy_file(src, dst);
+        if (strstr(dst, "hook") != nullptr) chmod(dst, 0777); // ensure hooks are executable
     }
 
     return ret;
@@ -171,10 +172,16 @@ int execute_hook_command(bool privileged, [[maybe_unused]] char* hook) {
     pid_t pid = fork();
     if (pid == -1) return EXIT_FAILURE;
     if (pid == 0) {
+        char fidbuf[path_max];
+        snprintf(fidbuf,
+                sizeof(fidbuf),
+                "/home/%s/.config/damngr/hooks/%s",
+                get_user(),
+                hook);
         if (privileged) {
-             
+            execl("/usr/bin/sudo", "sudo", fidbuf, nullptr);
         } else {
-
+            execl(fidbuf, hook, nullptr);
         }
     } else {
         waitpid(pid, nullptr, 0);

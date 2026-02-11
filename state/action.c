@@ -35,39 +35,32 @@ static int get_package_actions(struct package_actions* actions,
     return EXIT_SUCCESS;
 }
 
-// TODO: use the new /dotfiles/<module> structure
 static int get_dotfile_actions(struct dotfile_actions* actions,
                             bool module_sync,
                             char* module_name,
                             bool to_sync) {
     if (module_sync) {
-        char* ret;
         char fidbuf[path_max];
         snprintf(fidbuf,
                 sizeof(fidbuf),
-                "/home/%s/.config/damngr/modules/%s",
+                "/home/%s/.config/damngr/dotfiles/%s",
                 get_user(),
                 module_name);
+        char* ret = string_copy(fidbuf);
+        if (ret == nullptr) return EXIT_FAILURE;
         if (to_sync) {
             // to_sync=true, sync the module dotfiles
-            ret = string_copy(module_name);
-            if (ret == nullptr) return EXIT_FAILURE;
-            else DYNAMIC_ARRAY_APPEND(actions->to_sync, fidbuf);
+            DYNAMIC_ARRAY_APPEND(actions->to_sync, ret);
         } else if (!to_sync) {
             // to_sync=false, unsync the module dotfiles
-            ret = string_copy(module_name);
-            if (ret == nullptr) return EXIT_FAILURE;
-            else DYNAMIC_ARRAY_APPEND(actions->to_unsync, fidbuf);
+            DYNAMIC_ARRAY_APPEND(actions->to_unsync, ret);
         }
     }
     return EXIT_SUCCESS;
 }
 
-// TODO: add the path to hook action instead
-// TODO: how to set up the hook folder structure
 static int get_hook_actions(struct hook_actions* actions,
                             struct dynamic_array hooks,
-                            [[maybe_unused]] char* module_name,
                             bool root) {
     for (size_t i = 0; i < hooks.count; ++i) {
         char* hook = hooks.items[i];
@@ -99,9 +92,9 @@ static int get_module_actions(struct module module,
             if (ret == EXIT_FAILURE) return ret;
             ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_hook_actions(hook_actions, module.root_hooks, module.name, true);
+            ret = get_hook_actions(hook_actions, module.root_hooks, true);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_hook_actions(hook_actions, module.user_hooks, module.name, false);
+            ret = get_hook_actions(hook_actions, module.user_hooks, false);
             if (ret == EXIT_FAILURE) return ret;
             break;
         case TO_REMOVE:
@@ -211,7 +204,7 @@ static int determine_actions_from_hooks_diff(struct module old_module,
                             &hooks_to_keep,
                             ((root) ? old_module.root_hooks : old_module.user_hooks),
                             ((root) ? new_module.root_hooks : new_module.user_hooks));
-    ret = get_hook_actions(hook_actions, hooks_to_install, new_module.name, root);
+    ret = get_hook_actions(hook_actions, hooks_to_install, root);
     // hooks_to_remove are ignored (can't undo a script)
     // hooks_to_keep are ignored (hooks have been ran in the past)
 
@@ -332,9 +325,9 @@ int determine_actions(struct config* old_config,
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_hook_actions(hook_actions, module.root_hooks, module.name, true);
+                ret = get_hook_actions(hook_actions, module.root_hooks, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_hook_actions(hook_actions, module.user_hooks, module.name, false);
+                ret = get_hook_actions(hook_actions, module.user_hooks, false);
                 if (ret == EXIT_FAILURE) return ret;
             }
     } else {
@@ -426,7 +419,7 @@ int handle_hook_actions(struct hook_actions hook_actions) {
         }
     }
     if (hook_actions.user.count > 0) {
-        for (size_t i = 0; i < hook_actions.root.count; ++i) {
+        for (size_t i = 0; i < hook_actions.user.count; ++i) {
             ret = execute_hook_command(false, hook_actions.user.items[i]);
         }
     }

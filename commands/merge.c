@@ -10,7 +10,7 @@ int damngr_merge() {
 
     char fidbuf[path_max];
     struct config old_config = { }; 
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/config_state.kdl", get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damngr/config_state.kdl", get_user());
     FILE* old_config_fid = fopen(fidbuf, "r");
     if (old_config_fid != nullptr) { 
         // if old state exists, parse the old state config.kdl
@@ -38,7 +38,7 @@ int damngr_merge() {
         active_host = &old_config.active_host;
         snprintf(fidbuf,
                 sizeof(fidbuf),
-                "/home/%s/.local/share/damngr/%s_state.kdl",
+                "/home/%s/.local/state/damngr/%s_state.kdl",
                 get_user(),
                 active_host->name);
         FILE* old_host_fid = fopen(fidbuf, "r");
@@ -76,7 +76,7 @@ int damngr_merge() {
             module = &modules->items[i];
             snprintf(fidbuf,
                     sizeof(fidbuf),
-                    "/home/%s/.local/share/damngr/%s_state.kdl",
+                    "/home/%s/.local/state/damngr/%s_state.kdl",
                     get_user(),
                     module->name);
             FILE* old_module_fid = fopen(fidbuf, "r");
@@ -123,13 +123,13 @@ int damngr_merge() {
                     &hook_actions);
     if (ret == EXIT_FAILURE) goto action_cleanup;
    
-    ret = handle_package_actions(package_actions);
-    ret = handle_aur_package_actions(aur_package_actions, new_config.aur_helper);
-    ret = handle_service_actions(service_actions);
-    ret = handle_dotfile_actions(dotfile_actions);
+    // ret = handle_package_actions(package_actions);
+    // ret = handle_aur_package_actions(aur_package_actions, new_config.aur_helper);
+    // ret = handle_service_actions(service_actions);
+    // ret = handle_dotfile_actions(dotfile_actions);
     ret = handle_hook_actions(hook_actions);
 
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/config_state.kdl", get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damngr/config_state.kdl", get_user());
     FILE* new_config_state_fid = fopen(fidbuf, "w");
     if (new_config_state_fid == nullptr) {
         ret = EXIT_FAILURE;
@@ -140,7 +140,7 @@ int damngr_merge() {
     if (ret == EXIT_FAILURE) goto exit_cleanup; 
     snprintf(fidbuf,
             sizeof(fidbuf),
-            "/home/%s/.local/share/damngr/%s_state.kdl",
+            "/home/%s/.local/state/damngr/%s_state.kdl",
             get_user(),
             active_host->name);
     FILE* new_host_state_fid = fopen(fidbuf, "w");
@@ -155,7 +155,7 @@ int damngr_merge() {
     for (size_t i = 0; i < modules->count; ++i) {
         snprintf(fidbuf,
                 sizeof(fidbuf),
-                "/home/%s/.local/share/damngr/%s_state.kdl",
+                "/home/%s/.local/state/damngr/%s_state.kdl",
                 get_user(),
                 modules->items[i].name);
         new_module_state_fid = fopen(fidbuf, "w");
