@@ -11,8 +11,8 @@ or
 
 ## Available damngr commands:
 - `damngr init`
-- `damngr update`
-- `damngr merge`
+- ~`damngr update`~
+- ~`damngr merge`~
 
 ### damngr init
 Use `damngr init` to set up an example folder structure (`~/.config/damngr`).
