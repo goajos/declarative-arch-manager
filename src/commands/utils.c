@@ -50,7 +50,7 @@ int recursive_init_state(struct stat st, char* src, char* dst)
                 // stats returns -1 if the path doesn't exist
                 if (stat(dst_fidbuf, &st) == -1) {
                     // ensure the dst directory exists
-                    mkdir(dst_fidbuf, 0777);    
+                    mkdir(dst_fidbuf, 0755);    
                 }
             }
             ret = recursive_init_state(st, src_fidbuf, dst_fidbuf);
@@ -58,7 +58,7 @@ int recursive_init_state(struct stat st, char* src, char* dst)
         closedir(damngr_dir);
     } else if (S_ISREG(st.st_mode)) { // src is a file
         ret = copy_file(src, dst);
-        if (strstr(dst, "hook") != nullptr) chmod(dst, 0777); // ensure hooks are executable
+        if (strstr(dst, "hook") != nullptr) chmod(dst, 0755); // ensure hooks are executable
     }
 
     return ret;
