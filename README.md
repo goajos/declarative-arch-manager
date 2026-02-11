@@ -1,5 +1,95 @@
 # declarative-arch-manager
-A Declarative Arch (System) Manager
+A declarative arch system manager (damngr) 
 
-## Build command
-`gcc main.c commands/utils.c state/utils.c state/action.c state/config.c state/host.c state/module.c -o bin/damngr -g -lc -lkdl -lm -std=c23 -Wall -Wextra -Werror -pedantic`
+## Building damngr
+1. Clone the repository: 
+    -`git clone --recurse-submodules https://github.com/goajos/declarative-arch-manager.git`
+    or
+    -`git clone --recurse-submodules git@github.com:goajos/declarative-arch-manager.git`
+2. Run `sudo make install`
+
+## Available damngr commands:
+- `damngr init`
+- `damngr update`
+- `damngr merge`
+
+### damngr init
+Use `damngr init` to set up an example folder structure (~/.config/damngr).
+It also ensures that the ~/.local/state/damngr folder is available.
+
+### damngr update
+Currently unavailable.
+
+### damngr merge
+Use `damngr merge` to merge the declared state, currently the command will:
+    - check for removed modules:
+        - remove the (aur)-packages
+        - disable the services
+        - unlink the dotfiles
+    - check for new modules:
+        - install the packages
+        - install the aur-packages
+        - link the dotfiles
+        - run the post install hooks
+
+## damngr folder structure
+```
+.config/damngr/
+    | config.kdl
+    | dotfiles/
+        | <module>/
+            | ...
+    | hooks/
+        | user_hook.sh
+    | hosts/
+        | <host>.kdl
+    | modules\
+        | <module>.kdl
+```
+
+## damngr config.kdl
+Stored in `~/.config/damngr/config.kdl`. Declares the aur_helper to use (currently tested with yay and paru) and the active host. E.g.
+```
+config {
+    aur_helper paru
+    active_host example_host
+}
+```
+
+## damngr <host>.kdl
+Stored in `~/.config/damngr/hosts/<host>.kdl`. Declares the hosts modules and root services. E.g.
+```
+host {
+    example_host {
+        modules {
+            example_module
+        }
+        services {
+            example_root_service // implicit root=#true
+        }
+    }
+}
+```
+
+## damngr <module>.kdl
+Stored in `~/.config/damngr/modules/<module>.kdl`. Declares the modules dotfile linking, (aur-)packages, services and hooks. E.g.
+```
+module {
+    example_module {
+        dotfiles link=#true
+        packages {
+            example_package
+        }
+        aur_packages {
+            example_aur_package
+        }
+        services {
+            example_user_service // implicit root=#false
+        }
+        hooks {
+            example_user_hook.sh root=#false
+            example_root_hook.sh root=#true
+        }
+    }    
+}
+```
