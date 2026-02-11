@@ -39,6 +39,10 @@ clean:
 
 install: $(BIN)
 	install -m 755 $(BIN) $(BIN_DIR)/damngr
+	mkdir -p /usr/share/damngr
+	cp -r damngr/* /usr/share/damngr
 
 uninstall:
 	rm -f $(BIN_DIR)/damngr
+	rm -rf /usr/share/damngr # clear share data
+	rm -rf /usr/state/damngr # clear state data
