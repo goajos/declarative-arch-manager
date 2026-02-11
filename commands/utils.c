@@ -44,10 +44,14 @@ int recursive_init_state(struct stat st, char* src, char* dst)
             char dst_fidbuf[path_max]; 
             snprintf(src_fidbuf, sizeof(src_fidbuf), "%s/%s", src, d_name);
             snprintf(dst_fidbuf, sizeof(dst_fidbuf), "%s/%s", dst, d_name);                 
-            // stats returns -1 if the path doesn't exist
-            if (stat(dst_fidbuf, &st) == -1) {
-                // ensure the dst path is a directory
-                if (strstr(dst_fidbuf, ".kdl") == nullptr) mkdir(dst_fidbuf, 0777);
+            // check if the new src is a directory
+            stat(src_fidbuf, &st);
+            if (S_ISDIR(st.st_mode)) {
+                // stats returns -1 if the path doesn't exist
+                if (stat(dst_fidbuf, &st) == -1) {
+                    // ensure the dst directory exists
+                    mkdir(dst_fidbuf, 0777);    
+                }
             }
             ret = recursive_init_state(st, src_fidbuf, dst_fidbuf);
         }
@@ -163,7 +167,7 @@ int execute_dotfile_unsync_command() {
 int execute_dotfile_sync_command() {
     return EXIT_SUCCESS;
 }
-int execute_hook_command(bool privileged,char* hook) {
+int execute_hook_command(bool privileged, [[maybe_unused]] char* hook) {
     pid_t pid = fork();
     if (pid == -1) return EXIT_FAILURE;
     if (pid == 0) {
