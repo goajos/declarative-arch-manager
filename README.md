@@ -1,11 +1,12 @@
 # declarative-arch-manager
-A declarative arch system manager (damngr) 
+A declarative arch system manager (damngr).
+It's written in C23 to declaratively setup your arch installation.
 
 ## Building damngr
 1. Clone the repository: 
-    -`git clone --recurse-submodules https://github.com/goajos/declarative-arch-manager.git`
-    or
-    -`git clone --recurse-submodules git@github.com:goajos/declarative-arch-manager.git`
+- `git clone --recurse-submodules https://github.com/goajos/declarative-arch-manager.git`
+or
+- `git clone --recurse-submodules git@github.com:goajos/declarative-arch-manager.git`
 2. Run `sudo make install`
 
 ## Available damngr commands:
@@ -14,23 +15,23 @@ A declarative arch system manager (damngr)
 - `damngr merge`
 
 ### damngr init
-Use `damngr init` to set up an example folder structure (~/.config/damngr).
-It also ensures that the ~/.local/state/damngr folder is available.
+Use `damngr init` to set up an example folder structure (`~/.config/damngr`).
+It also ensures that the `~/.local/state/damngr` folder is available for merging.
 
 ### damngr update
 Currently unavailable.
 
 ### damngr merge
 Use `damngr merge` to merge the declared state, currently the command will:
-    - check for removed modules:
-        - remove the (aur)-packages
-        - disable the services
-        - unlink the dotfiles
-    - check for new modules:
-        - install the packages
-        - install the aur-packages
-        - link the dotfiles
-        - run the post install hooks
+- check for removed modules:
+    - remove the (aur)-packages
+    - disable the services
+    - unlink the dotfiles
+- check for new modules:
+    - install the packages
+    - install the aur-packages
+    - link the dotfiles
+    - run the post install hooks
 
 ## damngr folder structure
 ```
@@ -48,7 +49,7 @@ Use `damngr merge` to merge the declared state, currently the command will:
 ```
 
 ## damngr config.kdl
-Stored in `~/.config/damngr/config.kdl`. Declares the aur_helper to use (currently tested with yay and paru) and the active host. E.g.
+Stored in `~/.config/damngr/config.kdl`. Declares the aur\_helper to use (currently tested with yay and paru) and the active host. E.g.
 ```
 config {
     aur_helper paru
@@ -56,7 +57,7 @@ config {
 }
 ```
 
-## damngr <host>.kdl
+## damngr \<host\>.kdl
 Stored in `~/.config/damngr/hosts/<host>.kdl`. Declares the hosts modules and root services. E.g.
 ```
 host {
@@ -71,7 +72,7 @@ host {
 }
 ```
 
-## damngr <module>.kdl
+## damngr \<module\>.kdl
 Stored in `~/.config/damngr/modules/<module>.kdl`. Declares the modules dotfile linking, (aur-)packages, services and hooks. E.g.
 ```
 module {
