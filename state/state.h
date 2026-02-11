@@ -44,7 +44,7 @@ struct dynamic_array {
 
 struct module {
     char* name;
-    bool sync;
+    bool link;
     struct dynamic_array user_services;
     struct dynamic_array packages;
     struct dynamic_array aur_packages;
@@ -151,8 +151,8 @@ struct package_actions {
 };
 
 struct dotfile_actions {
-    struct dynamic_array to_unsync;
-    struct dynamic_array to_sync;
+    struct dynamic_array to_unlink;
+    struct dynamic_array to_link;
 };
 
 struct hook_actions {

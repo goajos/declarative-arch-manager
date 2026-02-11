@@ -3,6 +3,7 @@
 #include "state_utils.h"
 #include "state.h"
 
+//TODO: how to make all the actions atomic?
 static int get_service_actions(struct service_actions* actions,
                             struct dynamic_array services,
                             bool to_enable,
@@ -36,25 +37,16 @@ static int get_package_actions(struct package_actions* actions,
 }
 
 static int get_dotfile_actions(struct dotfile_actions* actions,
-                            bool module_sync,
                             char* module_name,
-                            bool to_sync) {
-    if (module_sync) {
-        char fidbuf[path_max];
-        snprintf(fidbuf,
-                sizeof(fidbuf),
-                "/home/%s/.config/damngr/dotfiles/%s",
-                get_user(),
-                module_name);
-        char* ret = string_copy(fidbuf);
-        if (ret == nullptr) return EXIT_FAILURE;
-        if (to_sync) {
-            // to_sync=true, sync the module dotfiles
-            DYNAMIC_ARRAY_APPEND(actions->to_sync, ret);
-        } else if (!to_sync) {
-            // to_sync=false, unsync the module dotfiles
-            DYNAMIC_ARRAY_APPEND(actions->to_unsync, ret);
-        }
+                            bool to_link) {
+    char* ret = string_copy(module_name);
+    if (ret == nullptr) return EXIT_FAILURE;
+    if (to_link) {
+        // to_link=true, link the module dotfiles
+        DYNAMIC_ARRAY_APPEND(actions->to_link, ret);
+    } else if (!to_link) {
+        // to_link=false, unlink the module dotfiles
+        DYNAMIC_ARRAY_APPEND(actions->to_unlink, ret);
     }
     return EXIT_SUCCESS;
 }
@@ -90,7 +82,7 @@ static int get_module_actions(struct module module,
             if (ret == EXIT_FAILURE) return ret;
             ret = get_package_actions(aur_package_actions, module.aur_packages, true);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
+            ret = get_dotfile_actions(dotfile_actions, module.name, module.link);
             if (ret == EXIT_FAILURE) return ret;
             ret = get_hook_actions(hook_actions, module.root_hooks, true);
             if (ret == EXIT_FAILURE) return ret;
@@ -104,7 +96,7 @@ static int get_module_actions(struct module module,
             if (ret == EXIT_FAILURE) return ret;
             ret = get_package_actions(aur_package_actions, module.aur_packages, false);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, false);
+            ret = get_dotfile_actions(dotfile_actions, module.name, false);
             if (ret == EXIT_FAILURE) return ret;
             // can't reverse post install hooks...
             break;
@@ -173,16 +165,16 @@ static int determine_actions_from_dotfiles_diff(struct module old_module,
                                               struct module new_module,
                                               struct dotfile_actions* dotfile_actions) {
     int ret;
-    if (old_module.sync) {
-        if (!new_module.sync) {
-            // desync the dotfiles
-            ret = get_dotfile_actions(dotfile_actions, new_module.sync, new_module.name, false);
+    if (old_module.link) {
+        if (!new_module.link) {
+            // delink the dotfiles
+            ret = get_dotfile_actions(dotfile_actions, new_module.name, false);
             if (ret == EXIT_FAILURE) return ret;
         }
-    } else if (!old_module.sync) {
-        if (new_module.sync) {
-            // sync the dotfiles
-            ret = get_dotfile_actions(dotfile_actions, new_module.sync, new_module.name, true);
+    } else if (!old_module.link) {
+        if (new_module.link) {
+            // link the dotfiles
+            ret = get_dotfile_actions(dotfile_actions, new_module.name, true);
             if (ret == EXIT_FAILURE) return ret;
         }
     }
@@ -323,7 +315,7 @@ int determine_actions(struct config* old_config,
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_package_actions(aur_package_actions, module.aur_packages, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
+                ret = get_dotfile_actions(dotfile_actions, module.name, module.link);
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_hook_actions(hook_actions, module.root_hooks, true);
                 if (ret == EXIT_FAILURE) return ret;
@@ -358,7 +350,6 @@ int determine_actions(struct config* old_config,
     return ret;
 }
 
-// TODO: how to make atomic?
 int handle_package_actions(struct package_actions package_actions) {
     int ret;
     if (package_actions.to_remove.count > 0) {
@@ -370,7 +361,6 @@ int handle_package_actions(struct package_actions package_actions) {
     return ret;
 }
 
-// TODO: how to make atomic?
 int handle_aur_package_actions(struct package_actions aur_package_actions,
                             char* aur_helper) {
     int ret;
@@ -387,7 +377,6 @@ int handle_aur_package_actions(struct package_actions aur_package_actions,
     return ret;
 }
 
-// TODO: how to make atomic?
 int handle_service_actions(struct service_actions service_actions) {
     int ret;
     if (service_actions.root_to_disable.count > 0) {
@@ -405,23 +394,24 @@ int handle_service_actions(struct service_actions service_actions) {
     return ret;
 }
 
-// TODO: how to make atomic?
-int handle_dotfile_actions([[maybe_unused]] struct dotfile_actions dotfile_actions) {
-    return EXIT_SUCCESS;
+int handle_dotfile_actions(struct dotfile_actions dotfile_actions) {
+    int ret;
+    if (dotfile_actions.to_unlink.count > 0)  {
+        ret = execute_dotfile_link_command(false, dotfile_actions.to_unlink);
+    }
+    if (dotfile_actions.to_link.count > 0)  {
+        ret = execute_dotfile_link_command(true, dotfile_actions.to_link);
+    }
+    return ret;
 }
 
-// TODO: how to make atomic?
 int handle_hook_actions(struct hook_actions hook_actions) {
     int ret;
     if (hook_actions.root.count > 0) {
-        for (size_t i = 0; i < hook_actions.root.count; ++i) {
-            ret = execute_hook_command(true, hook_actions.root.items[i]); 
-        }
+        ret = execute_hook_command(true, hook_actions.root); 
     }
     if (hook_actions.user.count > 0) {
-        for (size_t i = 0; i < hook_actions.user.count; ++i) {
-            ret = execute_hook_command(false, hook_actions.user.items[i]);
-        }
+        ret = execute_hook_command(false, hook_actions.user);
     }
     return ret;
 }
@@ -441,8 +431,8 @@ int free_actions(struct service_actions service_actions,
     DYNAMIC_ARRAY_FREE(package_actions.to_install);
     DYNAMIC_ARRAY_FREE(aur_package_actions.to_remove);
     DYNAMIC_ARRAY_FREE(aur_package_actions.to_install);
-    DYNAMIC_ARRAY_FREE(dotfile_actions.to_unsync);
-    DYNAMIC_ARRAY_FREE(dotfile_actions.to_sync);
+    DYNAMIC_ARRAY_FREE(dotfile_actions.to_unlink);
+    DYNAMIC_ARRAY_FREE(dotfile_actions.to_link);
     DYNAMIC_ARRAY_FREE(hook_actions.root);
     DYNAMIC_ARRAY_FREE(hook_actions.user);
 

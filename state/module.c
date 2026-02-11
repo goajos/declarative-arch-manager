@@ -58,7 +58,7 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
                 break;
             case KDL_EVENT_PROPERTY:
                 if (memcmp(node_d2, "dotfiles", 8) == 0) {
-                    if (value.boolean) module->sync = true; // dotfiles sync=#true
+                    if (value.boolean) module->link = true; // dotfiles link=#true
                 } else if (memcmp(node_d2, "hooks", 5) == 0) {
                     char* hook = string_copy(node_d3);
                     if (value.boolean) DYNAMIC_ARRAY_APPEND(module->root_hooks, hook);
@@ -98,10 +98,10 @@ int write_module_kdl(FILE* fid, struct module* module) {
     if (module->name != nullptr) {
         kdl_emit_node(emitter, kdl_str_from_cstr(module->name));
         kdl_start_emitting_children(emitter); // open example_module level
-        if (module->sync) {
+        if (module->link) {
             kdl_emit_node(emitter, kdl_str_from_cstr("dotfiles"));
             kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=true };
-            kdl_emit_property(emitter, kdl_str_from_cstr("sync"), &value);
+            kdl_emit_property(emitter, kdl_str_from_cstr("link"), &value);
         }
         kdl_emit_node(emitter, kdl_str_from_cstr("packages"));
         kdl_start_emitting_children(emitter); // open packages level

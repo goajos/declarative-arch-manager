@@ -161,30 +161,64 @@ int execute_service_command(bool privileged, bool enable, struct dynamic_array s
     return EXIT_SUCCESS;
 }
 
-// TODO: finish these commands
-int execute_dotfile_unsync_command() {
-    return EXIT_SUCCESS;
-}
-int execute_dotfile_sync_command() {
-    return EXIT_SUCCESS;
-}
-int execute_hook_command(bool privileged, [[maybe_unused]] char* hook) {
+static int link_dotfiles(bool link, char* src, char* dst) {
     pid_t pid = fork();
     if (pid == -1) return EXIT_FAILURE;
     if (pid == 0) {
-        char fidbuf[path_max];
-        snprintf(fidbuf,
-                sizeof(fidbuf),
-                "/home/%s/.config/damngr/hooks/%s",
-                get_user(),
-                hook);
-        if (privileged) {
-            execl("/usr/bin/sudo", "sudo", fidbuf, nullptr);
+        if (link) {
+            execl("/usr/bin/ln", "ln", "--symbolic", src, dst, nullptr);
         } else {
-            execl(fidbuf, hook, nullptr);
+            execl("/usr/bin/rm", "rm", dst, nullptr);
         }
     } else {
         waitpid(pid, nullptr, 0);
+    }
+    return EXIT_SUCCESS;
+}
+
+int execute_dotfile_link_command(bool link, struct dynamic_array dotfiles) {
+    int ret;
+    struct stat st;
+    for (size_t i = 0; i < dotfiles.count; ++i) {
+        char src_fidbuf[path_max];
+        snprintf(src_fidbuf,
+                sizeof(src_fidbuf),
+                "/home/%s/.config/damngr/dotfiles/%s",
+                get_user(),
+                dotfiles.items[i]); 
+        stat(src_fidbuf, &st);
+        if (S_ISDIR(st.st_mode)) {
+            char dst_fidbuf[path_max];
+            snprintf(dst_fidbuf,
+                    sizeof(dst_fidbuf),
+                    "/home/%s/.config/%s",
+                    get_user(),
+                    dotfiles.items[i]);
+            ret = link_dotfiles(link, src_fidbuf, dst_fidbuf);
+        } else return EXIT_FAILURE;
+    }
+    return ret;
+}
+
+int execute_hook_command(bool privileged, struct dynamic_array hooks) {
+    for (size_t i = 0; i < hooks.count; ++i) {
+        pid_t pid = fork();
+        if (pid == -1) return EXIT_FAILURE;
+        if (pid == 0) {
+            char fidbuf[path_max];
+            snprintf(fidbuf,
+                    sizeof(fidbuf),
+                    "/home/%s/.config/damngr/hooks/%s",
+                    get_user(),
+                    hooks.items[i]);
+            if (privileged) {
+                execl("/usr/bin/sudo", "sudo", fidbuf, nullptr);
+            } else {
+                execl(fidbuf, hooks.items[i], nullptr);
+            }
+        } else {
+            waitpid(pid, nullptr, 0);
+        }
     }
     return EXIT_SUCCESS;
 }
