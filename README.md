@@ -13,7 +13,7 @@ or
 ## Available damngr commands:
 - `damngr init`
 - `damngr merge`
-- ~`damngr update`~
+- `damngr update`
 
 ### damngr init
 Use `damngr init` to set up an example folder structure (`~/.config/damngr`).
@@ -32,7 +32,7 @@ Use `damngr merge` to merge the declared state, currently the command will:
     - run the post install hooks
 
 ### damngr update
-Currently unavailable.
+Use `damngr update` to update the installed packages. If aur\_helper is available it will use this over native pacman to update.
 
 ## damngr folder structure
 ```
