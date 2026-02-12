@@ -1,25 +1,23 @@
 # declarative-arch-manager
 A declarative arch system manager (damngr).
-It's written in C23 to declaratively setup your arch installation.
+It's written in C23 to declaratively set up your arch installation.
 
 ## Building damngr
 1. Clone the repository: 
 - `git clone --recurse-submodules https://github.com/goajos/declarative-arch-manager.git`
 or
 - `git clone --recurse-submodules git@github.com:goajos/declarative-arch-manager.git`
-2. Run `sudo make install`
+2. cd damngr
+3. Run `sudo make install`
 
 ## Available damngr commands:
 - `damngr init`
+- `damngr merge`
 - ~`damngr update`~
-- ~`damngr merge`~
 
 ### damngr init
 Use `damngr init` to set up an example folder structure (`~/.config/damngr`).
 It also ensures that the `~/.local/state/damngr` folder is available for merging.
-
-### damngr update
-Currently unavailable.
 
 ### damngr merge
 Use `damngr merge` to merge the declared state, currently the command will:
@@ -33,12 +31,15 @@ Use `damngr merge` to merge the declared state, currently the command will:
     - link the dotfiles
     - run the post install hooks
 
+### damngr update
+Currently unavailable.
+
 ## damngr folder structure
 ```
 .config/damngr/
     | config.kdl
     | dotfiles/
-        | <module1>/
+        | <module1>/ // implicit modules dotfile folder
             | ...
     | hooks/
         | user_hook.sh
