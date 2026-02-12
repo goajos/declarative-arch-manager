@@ -222,3 +222,25 @@ int execute_hook_command(bool privileged, struct dynamic_array hooks) {
     }
     return EXIT_SUCCESS;
 }
+
+int execute_aur_update_command(char* fid, char* aur_helper) {
+    pid_t pid = fork();
+    if (pid == -1) return EXIT_FAILURE;
+    if (pid == 0) {
+        execl(fid, aur_helper, "-Syu", nullptr);
+    } else {
+        waitpid(pid, nullptr, 0);
+    }
+    return EXIT_SUCCESS;
+}
+
+int execute_update_command() {
+    pid_t pid = fork();
+    if (pid == -1) return EXIT_FAILURE;
+    if (pid == 0) { 
+        execl("/usr/bin/sudo", "sudo", "pacman", "-Syu", nullptr);
+    } else {
+        waitpid(pid, nullptr, 0);
+    }
+    return EXIT_SUCCESS;
+}

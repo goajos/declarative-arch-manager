@@ -20,4 +20,7 @@ int execute_service_command(bool privileged,
 int execute_dotfile_link_command(bool link, struct dynamic_array dotfiles);
 int execute_hook_command(bool privileged, struct dynamic_array hooks);
 
+int execute_aur_update_command(char* fid, char* aur_helper);
+int execute_update_command();
+
 #endif /* COMMAND_UTILS_H */
