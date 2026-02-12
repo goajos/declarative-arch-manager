@@ -1,6 +1,6 @@
 # declarative-arch-manager
 A declarative arch system manager (damngr).
-It's written in C23 to declaratively set up your arch installation.
+It's written in C23 to declaratively set up an Arch system.
 
 ## Building damngr
 1. Clone the repository: 
