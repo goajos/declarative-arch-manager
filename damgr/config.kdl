@@ -1,4 +1,4 @@
 config {
-    aur_helper paru
+    aur_helper paru // or yay
     active_host example_host
 }

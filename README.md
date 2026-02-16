@@ -1,26 +1,26 @@
 # declarative-arch-manager
-A declarative arch system manager (damngr).
+A declarative arch system manager (damgr).
 It's written in C23 to declaratively set up an Arch system.
 
-## Building damngr
+## Building damgr
 1. Clone the repository: 
 - `git clone --recurse-submodules https://github.com/goajos/declarative-arch-manager.git`
 or
 - `git clone --recurse-submodules git@github.com:goajos/declarative-arch-manager.git`
-2. cd damngr
+2. cd damgr
 3. Run `sudo make install`
 
-## Available damngr commands:
-- `damngr init`
-- `damngr merge`
-- `damngr update`
+## Available damgr commands:
+- `damgr init`
+- `damgr merge`
+- `damgr update`
 
-### damngr init
-Use `damngr init` to set up an example folder structure (`~/.config/damngr`).
-It also ensures that the `~/.local/state/damngr` folder is available for merging.
+### damgr init
+Use `damgr init` to set up an example folder structure (`~/.config/damgr`).
+It also ensures that the `~/.local/state/damgr` folder is available for merging.
 
-### damngr merge
-Use `damngr merge` to merge the declared state, currently the command will:
+### damgr merge
+Use `damgr merge` to merge the declared state, currently the command will:
 - check for removed modules:
     - remove the (aur)-packages
     - disable the services
@@ -31,12 +31,12 @@ Use `damngr merge` to merge the declared state, currently the command will:
     - link the dotfiles
     - run the post install hooks
 
-### damngr update
-Use `damngr update` to update the installed packages. If aur\_helper is available it will use this over native pacman to update.
+### damgr update
+Use `damgr update` to update the installed packages. If aur\_helper is available it will use this over native pacman to update.
 
-## damngr folder structure
+## damgr folder structure
 ```
-.config/damngr/
+.config/damgr/
     | config.kdl
     | dotfiles/
         | <module1>/ // implicit modules dotfile folder
@@ -50,15 +50,15 @@ Use `damngr update` to update the installed packages. If aur\_helper is availabl
         | <module2>.kdl
 ```
 ```
-.state/damngr/
+.state/damgr/
     | config_state.kdl
     | <host>_state.kdl
     | <module1>_state.kdl
     | <module2>_state.kdl
 ```
 
-## damngr config.kdl
-Stored in `~/.config/damngr/config.kdl`. Declares the aur\_helper to use (currently tested with yay and paru) and the active host. E.g.
+## damgr config.kdl
+Stored in `~/.config/damgr/config.kdl`. Declares the aur\_helper to use (currently tested with yay and paru) and the active host. E.g.
 ```
 config {
     aur_helper paru
@@ -66,8 +66,8 @@ config {
 }
 ```
 
-## damngr \<host\>.kdl
-Stored in `~/.config/damngr/hosts/<host>.kdl`. Declares the hosts modules and root services. E.g.
+## damgr \<host\>.kdl
+Stored in `~/.config/damgr/hosts/<host>.kdl`. Declares the hosts modules and root services. E.g.
 ```
 host {
     example_host {
@@ -81,8 +81,8 @@ host {
 }
 ```
 
-## damngr \<module\>.kdl
-Stored in `~/.config/damngr/modules/<module>.kdl`. Declares the modules dotfile linking, (aur-)packages, services and hooks. E.g.
+## damgr \<module\>.kdl
+Stored in `~/.config/damgr/modules/<module>.kdl`. Declares the modules dotfile linking, (aur-)packages, services and hooks. E.g.
 ```
 module {
     example_module {
@@ -104,6 +104,6 @@ module {
 }
 ```
 ## More make commands:
-- `sudo make uninstall` to remove the damngr executable and clear the share/damngr folder
+- `sudo make uninstall` to remove the damgr executable and clear the share/damgr folder
 - `sudo make clean` to remove the local build folders 
 

@@ -4,13 +4,13 @@
 // TODO: atomic operation? either everything works or full rollback? (atomic merge or write only?)
 // TODO: merge should create a state-bak folder that gets deleted if succesful or restored otherwise
 // TODO: rewrite all if else with { }?
-int damngr_merge() {
-    puts("hello from damngr merge...");
+int damgr_merge() {
+    puts("hello from damgr merge...");
     int ret;
 
     char fidbuf[path_max];
     struct config old_config = { }; 
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damngr/config_state.kdl", get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/config_state.kdl", get_user());
     FILE* old_config_fid = fopen(fidbuf, "r");
     if (old_config_fid != nullptr) { 
         // if old state exists, parse the old state config.kdl
@@ -20,7 +20,7 @@ int damngr_merge() {
     }
 
     struct config new_config = { };
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damngr/config.kdl", get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/config.kdl", get_user());
     FILE* new_config_fid = fopen(fidbuf, "r");
     if (new_config_fid == nullptr) {
         ret = EXIT_FAILURE;
@@ -38,7 +38,7 @@ int damngr_merge() {
         active_host = &old_config.active_host;
         snprintf(fidbuf,
                 sizeof(fidbuf),
-                "/home/%s/.local/state/damngr/%s_state.kdl",
+                "/home/%s/.local/state/damgr/%s_state.kdl",
                 get_user(),
                 active_host->name);
         FILE* old_host_fid = fopen(fidbuf, "r");
@@ -54,7 +54,7 @@ int damngr_merge() {
     active_host = &new_config.active_host;
     snprintf(fidbuf,
             sizeof(fidbuf),
-            "/home/%s/.config/damngr/hosts/%s.kdl",
+            "/home/%s/.config/damgr/hosts/%s.kdl",
             get_user(),
             active_host->name);
     FILE* new_host_fid = fopen(fidbuf, "r");
@@ -76,7 +76,7 @@ int damngr_merge() {
             module = &modules->items[i];
             snprintf(fidbuf,
                     sizeof(fidbuf),
-                    "/home/%s/.local/state/damngr/%s_state.kdl",
+                    "/home/%s/.local/state/damgr/%s_state.kdl",
                     get_user(),
                     module->name);
             FILE* old_module_fid = fopen(fidbuf, "r");
@@ -96,7 +96,7 @@ int damngr_merge() {
         module = &modules->items[i];
         snprintf(fidbuf,
                 sizeof(fidbuf),
-                "/home/%s/.config/damngr/modules/%s.kdl",
+                "/home/%s/.config/damgr/modules/%s.kdl",
                 get_user(),
                 module->name);
         FILE* new_module_fid = fopen(fidbuf, "r");
@@ -137,7 +137,7 @@ int damngr_merge() {
     // //TODO: print some info about the hooks being handled?
     // ret = handle_hook_actions(post_hook_actions);
 
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damngr/config_state.kdl", get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/config_state.kdl", get_user());
     FILE* new_config_state_fid = fopen(fidbuf, "w");
     if (new_config_state_fid == nullptr) {
         ret = EXIT_FAILURE;
@@ -148,7 +148,7 @@ int damngr_merge() {
     if (ret == EXIT_FAILURE) goto exit_cleanup; 
     snprintf(fidbuf,
             sizeof(fidbuf),
-            "/home/%s/.local/state/damngr/%s_state.kdl",
+            "/home/%s/.local/state/damgr/%s_state.kdl",
             get_user(),
             active_host->name);
     FILE* new_host_state_fid = fopen(fidbuf, "w");
@@ -163,7 +163,7 @@ int damngr_merge() {
     for (size_t i = 0; i < modules->count; ++i) {
         snprintf(fidbuf,
                 sizeof(fidbuf),
-                "/home/%s/.local/state/damngr/%s_state.kdl",
+                "/home/%s/.local/state/damgr/%s_state.kdl",
                 get_user(),
                 modules->items[i].name);
         new_module_state_fid = fopen(fidbuf, "w");

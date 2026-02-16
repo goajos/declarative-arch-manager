@@ -81,6 +81,7 @@ int write_config_kdl(FILE* fid, struct config* config) {
 
     kdl_emit_node(emitter, kdl_str_from_cstr("config_state"));
     kdl_start_emitting_children(emitter);
+    // TODO: is not having an aur helper invalid state?
     if (config->aur_helper != nullptr) {
         kdl_emit_node(emitter, kdl_str_from_cstr("aur_helper"));
         kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->aur_helper) };
@@ -99,6 +100,7 @@ int write_config_kdl(FILE* fid, struct config* config) {
     kdl_destroy_emitter(emitter);
     return EXIT_SUCCESS;
 
+    // TODO: a wrong/empty config state can be written when this block gets triggered
     invalid_state:
         puts("Not a valid config state for writing config_state.kdl\n");
         kdl_destroy_emitter(emitter);

@@ -33,10 +33,10 @@ int recursive_init_state(struct stat st, char* src, char* dst)
     int ret;
     stat(src, &st); // get src file stats
     if (S_ISDIR(st.st_mode)) { // src is a directory
-        DIR* damngr_dir = opendir(src); 
-        if (damngr_dir == nullptr) return EXIT_FAILURE;
+        DIR* damgr_dir = opendir(src); 
+        if (damgr_dir == nullptr) return EXIT_FAILURE;
         struct dirent* ent;
-        while ((ent = readdir(damngr_dir)) != nullptr) {
+        while ((ent = readdir(damgr_dir)) != nullptr) {
             char* d_name = ent->d_name;
             // skip the . and .. dir entries
             if (memcmp(d_name, ".", 1) == 0 || memcmp(d_name, "..", 2) == 0) continue; // don't break here
@@ -55,7 +55,7 @@ int recursive_init_state(struct stat st, char* src, char* dst)
             }
             ret = recursive_init_state(st, src_fidbuf, dst_fidbuf);
         }
-        closedir(damngr_dir);
+        closedir(damgr_dir);
     } else if (S_ISREG(st.st_mode)) { // src is a file
         ret = copy_file(src, dst);
         if (strstr(dst, "hook") != nullptr) chmod(dst, 0755); // ensure hooks are executable
@@ -183,7 +183,7 @@ int execute_dotfile_link_command(bool link, struct dynamic_array dotfiles) {
         char src_fidbuf[path_max];
         snprintf(src_fidbuf,
                 sizeof(src_fidbuf),
-                "/home/%s/.config/damngr/dotfiles/%s",
+                "/home/%s/.config/damgr/dotfiles/%s",
                 get_user(),
                 dotfiles.items[i]); 
         stat(src_fidbuf, &st);
@@ -208,7 +208,7 @@ int execute_hook_command(bool privileged, struct dynamic_array hooks) {
             char fidbuf[path_max];
             snprintf(fidbuf,
                     sizeof(fidbuf),
-                    "/home/%s/.config/damngr/hooks/%s",
+                    "/home/%s/.config/damgr/hooks/%s",
                     get_user(),
                     hooks.items[i]);
             if (privileged) {

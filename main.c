@@ -7,11 +7,11 @@
 
 int main(int argc, char* argv[]) {
     if (argc == 1 || argc > 2) {
-        puts("Not a valid damngr <command> parameter, possible commands:");
-        puts("\tdamngr init");
-        puts("\tdamngr merge");
-        puts("\tdamngr update");
-        // puts("\tdamngr validate");
+        puts("Not a valid damgr <command> parameter, possible commands:");
+        puts("\tdamgr init");
+        puts("\tdamgr merge");
+        puts("\tdamgr update");
+        // puts("\tdamgr validate");
         return EXIT_FAILURE;
     } 
     
@@ -21,30 +21,30 @@ int main(int argc, char* argv[]) {
     else if (memcmp(argv[1], "update", 6) == 0) command_idx = 2;
     // else if (memcmp(argv[1], "validate", 8) == 0) command_idx = 3;
     else {
-        puts("Not a valid damngr <command> parameter, possible commands:");
-        puts("\tdamngr init");
-        puts("\tdamngr merge");
-        puts("\tdamngr update");
-        // puts("\tdamngr validate");
+        puts("Not a valid damgr <command> parameter, possible commands:");
+        puts("\tdamgr init");
+        puts("\tdamgr merge");
+        puts("\tdamgr update");
+        // puts("\tdamgr validate");
         return EXIT_FAILURE;
     }
 
     int ret;
     switch (command_idx) {
         case 0:
-            puts("damngr init...");
-            ret = damngr_init();
+            puts("damgr init...");
+            ret = damgr_init();
             break;
         case 1:
-            puts("damngr merge...");
-            ret = damngr_merge();
+            puts("damgr merge...");
+            ret = damgr_merge();
             break;
         case 2:
-            puts("damngr update...");
-            ret = damngr_update();
+            puts("damgr update...");
+            ret = damgr_update();
             break;
         // case 3:
-        //     puts("damngr validate...");
+        //     puts("damgr validate...");
         //     ret = 0;
         //     break;
     }

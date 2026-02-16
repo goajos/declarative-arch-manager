@@ -1,12 +1,12 @@
 #include "command_utils.h"
 
-int damngr_update() {
-    puts("hello from damngr update...");
+int damgr_update() {
+    puts("hello from damgr update...");
     int ret;
     
     char fidbuf[path_max];
     struct config config = { };
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damngr/config.kdl", get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/config.kdl", get_user());
     FILE* config_fid = fopen(fidbuf, "r");
     if (config_fid == nullptr) {
         ret = EXIT_FAILURE;
