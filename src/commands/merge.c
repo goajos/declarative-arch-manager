@@ -113,16 +113,20 @@ int damngr_merge() {
     struct package_actions package_actions = { };
     struct package_actions aur_package_actions = { };
     struct dotfile_actions dotfile_actions = { };
-    struct hook_actions hook_actions = { };
+    struct hook_actions pre_hook_actions = { };
+    struct hook_actions post_hook_actions = { };
     ret = determine_actions(&old_config,
                     &new_config,
                     &service_actions,
                     &package_actions,
                     &aur_package_actions,
                     &dotfile_actions,
-                    &hook_actions);
+                    &pre_hook_actions,
+                    &post_hook_actions);
     if (ret == EXIT_FAILURE) goto action_cleanup;
    
+    //TODO: print some info about the hooks being handled?
+    ret = handle_hook_actions(pre_hook_actions);
     ret = handle_package_actions(package_actions);
     ret = handle_aur_package_actions(aur_package_actions, new_config.aur_helper);
     //TODO: print some info about the services being handled?
@@ -131,7 +135,7 @@ int damngr_merge() {
     //TODO: print some info about the dotfiles being handled?
     ret = handle_dotfile_actions(dotfile_actions);
     //TODO: print some info about the hooks being handled?
-    ret = handle_hook_actions(hook_actions);
+    ret = handle_hook_actions(post_hook_actions);
 
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damngr/config_state.kdl", get_user());
     FILE* new_config_state_fid = fopen(fidbuf, "w");
