@@ -61,7 +61,10 @@ int parse_host_kdl(FILE* fid, struct host* host)  {
         }
         if (eof) break; // while break
     }
-
+    // no need to keep, since valuable data is stored in the args
+    if (node_d2 != nullptr) {
+        free_sized(node_d2, strlen(node_d2));
+    }
     kdl_destroy_parser(parser); 
     return EXIT_SUCCESS;
     
