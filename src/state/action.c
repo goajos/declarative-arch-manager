@@ -357,7 +357,10 @@ int determine_actions(struct config* old_config,
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_package_actions(aur_package_actions, module.aur_packages, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_dotfile_actions(dotfile_actions, module.name, module.link);
+                if (module.link) {
+                    // only link initial dotfiles if link=#true
+                    ret = get_dotfile_actions(dotfile_actions, module.name, module.link);
+                }
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_hook_actions(pre_hook_actions, module.pre_root_hooks, true);
                 if (ret == EXIT_FAILURE) return ret;
