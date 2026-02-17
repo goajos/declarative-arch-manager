@@ -125,17 +125,17 @@ int damgr_merge() {
                     &post_hook_actions);
     if (ret == EXIT_FAILURE) goto action_cleanup;
    
-    //TODO: print some info about the hooks being handled?
-    ret = handle_hook_actions(pre_hook_actions);
-    ret = handle_package_actions(package_actions);
-    ret = handle_aur_package_actions(aur_package_actions, new_config.aur_helper);
-    //TODO: print some info about the services being handled?
-    ret = handle_service_actions(service_actions);
-    //TODO: how to handle explicit dotfiles?
-    //TODO: print some info about the dotfiles being handled?
-    ret = handle_dotfile_actions(dotfile_actions);
-    //TODO: print some info about the hooks being handled?
-    ret = handle_hook_actions(post_hook_actions);
+    // //TODO: print some info about the hooks being handled?
+    // ret = handle_hook_actions(pre_hook_actions);
+    // ret = handle_package_actions(package_actions);
+    // ret = handle_aur_package_actions(aur_package_actions, new_config.aur_helper);
+    // //TODO: print some info about the services being handled?
+    // ret = handle_service_actions(service_actions);
+    // //TODO: how to handle explicit dotfiles?
+    // //TODO: print some info about the dotfiles being handled?
+    // ret = handle_dotfile_actions(dotfile_actions);
+    // //TODO: print some info about the hooks being handled?
+    // ret = handle_hook_actions(post_hook_actions);
 
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/config_state.kdl", get_user());
     FILE* new_config_state_fid = fopen(fidbuf, "w");
