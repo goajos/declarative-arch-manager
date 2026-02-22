@@ -1,2 +1,3 @@
 .rgignore
-build
+build/
+bin/

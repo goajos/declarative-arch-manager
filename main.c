@@ -6,6 +6,7 @@
 #include <string.h>
 
 int main(int argc, char *argv[]) {
+  puts("damgr started!");
   if (argc == 1 || argc > 2) {
     puts("Not a valid damgr <command> parameter, possible commands:");
     // puts("\tdamgr init");
