@@ -6,10 +6,10 @@
 #include <string.h>
 
 int main(int argc, char *argv[]) {
-  logger(LOG_INFO, "damgr started!");
+  LOG(LOG_INFO, "damgr started!");
   if (argc == 1 || argc > 2) {
-    logger(LOG_ERROR, "No damgr argument given, possible commands "
-                      "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
+    LOG(LOG_ERROR, "No damgr argument given, possible commands "
+                   "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
     return EXIT_FAILURE;
   }
 
@@ -22,20 +22,19 @@ int main(int argc, char *argv[]) {
     command_idx = 2;
     // else if (memcmp(argv[1], "validate", 8) == 0) command_idx = 3;
   } else {
-    logger(LOG_ERROR, "Not a valid damgr argument, possible commands "
-                      "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
+    LOG(LOG_ERROR, "Not a valid damgr argument, possible commands "
+                   "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
     return EXIT_FAILURE;
   }
 
-  int ret;
   switch (command_idx) {
   case 0:
     break;
   case 1:
-    logger(LOG_INFO, "starting damgr merge...");
-    if ((ret = damgr_merge()) != EXIT_SUCCESS) {
-      logger(LOG_ERROR, "exit status: %s", ret);
-      return ret;
+    LOG(LOG_INFO, "starting damgr merge...");
+    if (damgr_merge() != EXIT_SUCCESS) {
+      LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
+      return EXIT_FAILURE;
     }
     break;
   case 2:
@@ -44,6 +43,6 @@ int main(int argc, char *argv[]) {
     //     break;
   }
 
-  logger(LOG_INFO, "damgr finished!");
+  LOG(LOG_INFO, "damgr finished!");
   return EXIT_SUCCESS;
 }
