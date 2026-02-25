@@ -3,15 +3,16 @@ BIN=bin/damgr
 # code can be found in . and lib
 CODEDIRS=. lib
 # include can be found in . and include/kdl
-INCDIRS=. ./include/kdl
+INCDIRS=include include/kdl
 # generate files that encode make rules for the user header deps (-MD includes system headers)
 DEPFLAGS=-MMD
 CFLAGS=-Wall -Wextra -Werror -pedantic -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)) $(DEPFLAGS)
 
 BUILDDIR=build
 CFILES=main.c \
-			 src/logging.c \
-			 src/utils.c \
+			 src/utils/logging.c \
+			 src/utils/utils.c \
+			 src/state/state.c \
 			 src/state/config.c \
 			 src/state/host.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))

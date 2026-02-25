@@ -1,6 +1,6 @@
-#include "../logging.h"
-#include "../state.h"
-#include "../utils.h"
+#include "damgr/logging.h"
+#include "damgr/state.h"
+#include "damgr/utils.h"
 #include <stdlib.h>
 
 int damgr_merge() {
@@ -9,7 +9,7 @@ int damgr_merge() {
   char fidbuf[PATH_MAX];
   struct config old_config = {};
   snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr", get_user());
-  int ret = is_state_dir_empty(fidbuf);
+  int ret = is_damgr_state_dir_empty(fidbuf);
   if (ret == EXIT_FAILURE) {
     LOG(LOG_ERROR, "failed to open state directory: %s", fidbuf);
     return EXIT_FAILURE;

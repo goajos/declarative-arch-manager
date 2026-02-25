@@ -4,7 +4,7 @@
 
 constexpr int PATH_MAX = 4096;
 
-int is_state_dir_empty(char *dir);
+int is_damgr_state_dir_empty(char *dir);
 
 char *get_user();
 

@@ -1,7 +1,7 @@
-#include "../../include/kdl/kdl.h"
-#include "../logging.h"
-#include "../state.h"
-#include "../utils.h"
+#include "damgr/logging.h"
+#include "damgr/state.h"
+#include "damgr/utils.h"
+#include "kdl/kdl.h"
 #include <stdlib.h>
 #include <string.h>
 
