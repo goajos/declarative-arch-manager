@@ -1,4 +1,4 @@
-#include "damgr/logging.h"
+#include "damgr/log.h"
 #include "damgr/state.h"
 #include "damgr/utils.h"
 #include "kdl/kdl.h"
@@ -6,22 +6,18 @@
 #include <string.h>
 
 static int validate_host(struct host host, char *fidbuf) {
-  // TODO: root services can be empty?
-  if (host.root_services.count == 0) {
-    LOG(LOG_ERROR, "failed to parse root_services for host: %s", fidbuf);
-    return EXIT_FAILURE;
-  }
+  // TODO: is there any more validation to do for the host?
   if (host.modules.count == 0) {
-    LOG(LOG_ERROR, "failed to parse modules for host: %s", fidbuf);
+    LOG(LOG_ERROR, "no modules found for active host: %s", fidbuf);
     return EXIT_FAILURE;
   }
   LOG(LOG_INFO, "successfully parsed host: %s", fidbuf);
   return EXIT_SUCCESS;
 }
 
-int get_host(struct host *host, bool state) {
+int get_host(struct host *host, bool is_state) {
   char fidbuf[PATH_MAX];
-  if (state) {
+  if (is_state) {
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
              get_user(), host->name);
   } else {
@@ -39,7 +35,7 @@ int get_host(struct host *host, bool state) {
     fclose(host_fid);
     return validate_host(*host, fidbuf);
   } else {
-    if (state) {
+    if (is_state) {
       LOG(LOG_ERROR, "failed to open state host: %s", fidbuf);
       return EXIT_FAILURE;
     } else {

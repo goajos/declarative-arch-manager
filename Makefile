@@ -14,7 +14,8 @@ CFILES=main.c \
 			 src/utils/utils.c \
 			 src/state/state.c \
 			 src/state/config.c \
-			 src/state/host.c
+			 src/state/host.c \
+			 src/state/module.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 
