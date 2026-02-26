@@ -13,4 +13,6 @@ size_t read_func(void *user_data, char *buf, size_t bufsize);
 char *string_copy(char *str);
 bool string_contains(char *haystack, char *needle);
 
+int qcharcmp(const void *p1, const void *p2);
+
 #endif /* UTILS_H */

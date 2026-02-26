@@ -1,4 +1,4 @@
-#include "damgr/logging.h"
+#include "damgr/log.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>

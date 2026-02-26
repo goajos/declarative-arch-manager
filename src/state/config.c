@@ -19,7 +19,7 @@ static int validate_config(struct config config, char *fidbuf) {
   return EXIT_SUCCESS;
 }
 
-int get_config(struct config *config, bool is_state) {
+int read_config(struct config *config, bool is_state) {
   char fidbuf[PATH_MAX];
   if (is_state) {
     snprintf(fidbuf, sizeof(fidbuf),
