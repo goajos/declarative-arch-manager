@@ -131,5 +131,6 @@ int damgr_merge() {
   } else {
     LOG(LOG_INFO, "no actions to do...");
   }
+  // TODO: do memory cleanup?
   return EXIT_SUCCESS;
 }

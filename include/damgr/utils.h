@@ -25,4 +25,7 @@ int execute_hook_command(bool privileged, char *hook);
 int execute_service_command(bool privileged, bool to_enable, char *service);
 int execute_dotfile_command(bool to_link, char *service);
 
+int execute_aur_update_command(char *aur_helper);
+int execute_update_command();
+
 #endif /* UTILS_H */

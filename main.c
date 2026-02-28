@@ -1,7 +1,7 @@
 // #include "src/commands/init.c"
-#include "src/commands/merge.c"
-// #include "src/commands/update.c"
 #include "damgr/log.h"
+#include "src/commands/merge.c"
+#include "src/commands/update.c"
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,6 +38,11 @@ int main(int argc, char *argv[]) {
     }
     break;
   case 2:
+    LOG(LOG_INFO, "starting damgr update...");
+    if (damgr_update() != EXIT_SUCCESS) {
+      LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
+      return EXIT_FAILURE;
+    }
     break;
     // case 3:
     //     break;
