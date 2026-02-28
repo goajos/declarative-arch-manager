@@ -275,6 +275,7 @@ static void free_darray(struct darray array) {
     free_sized(item, strlen(item));
     item = nullptr;
   }
+  free(array.items);
   array.items = nullptr;
 }
 

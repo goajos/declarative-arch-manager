@@ -45,6 +45,8 @@ int damgr_merge() {
   if (read_host(&new_config.active_host, false) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
+  // TODO: setup a nested read -> get actions -> do actions -> write loop for
+  // modules?
   struct actions actions = {};
   if (get_actions_from_services_diff(
           &actions, old_config.active_host.root_services,
@@ -132,6 +134,7 @@ int damgr_merge() {
     LOG(LOG_INFO, "no actions to do...");
   }
 
+  // TODO: .kdls are emtpy and hitting a double free with this setup
   free_config(old_config);
   free_config(new_config);
   free_actions(actions);
