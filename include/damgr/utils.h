@@ -10,6 +10,7 @@ int is_damgr_state_dir_empty(char *dir);
 char *get_user();
 
 size_t read_func(void *user_data, char *buf, size_t bufsize);
+size_t write_func(void *user_data, char const *buf, size_t bufsize);
 
 char *string_copy(char *str);
 bool string_contains(char *haystack, char *needle);

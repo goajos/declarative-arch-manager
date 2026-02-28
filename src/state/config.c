@@ -19,37 +19,7 @@ static int validate_config(struct config config, char *fidbuf) {
   return EXIT_SUCCESS;
 }
 
-int read_config(struct config *config, bool is_state) {
-  char fidbuf[PATH_MAX];
-  if (is_state) {
-    snprintf(fidbuf, sizeof(fidbuf),
-             "/home/%s/.local/state/damgr/config_state.kdl", get_user());
-  } else {
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/config.kdl",
-             get_user());
-  }
-  FILE *config_fid = fopen(fidbuf, "r");
-  if (config_fid != nullptr) {
-    LOG(LOG_INFO, "parsing config: %s", fidbuf);
-    if (parse_config(config_fid, config) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to parse config: %s", fidbuf);
-      fclose(config_fid);
-      return EXIT_FAILURE;
-    }
-    fclose(config_fid);
-    return validate_config(*config, fidbuf);
-  } else {
-    if (is_state) {
-      LOG(LOG_ERROR, "failed to open state config: %s", fidbuf);
-      return EXIT_FAILURE;
-    } else {
-      LOG(LOG_ERROR, "failed to open new config: %s", fidbuf);
-      return EXIT_FAILURE;
-    }
-  }
-}
-
-int parse_config(FILE *fid, struct config *config) {
+static int parse_config(FILE *fid, struct config *config) {
   kdl_parser *parser =
       kdl_create_stream_parser(&read_func, (void *)fid, KDL_DEFAULTS);
 
@@ -112,5 +82,63 @@ int parse_config(FILE *fid, struct config *config) {
   }
   kdl_destroy_parser(parser);
 
+  return EXIT_SUCCESS;
+}
+
+int read_config(struct config *config, bool is_state) {
+  char fidbuf[PATH_MAX];
+  if (is_state) {
+    snprintf(fidbuf, sizeof(fidbuf),
+             "/home/%s/.local/state/damgr/config_state.kdl", get_user());
+  } else {
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/config.kdl",
+             get_user());
+  }
+  FILE *config_fid = fopen(fidbuf, "r");
+  if (config_fid != nullptr) {
+    LOG(LOG_INFO, "parsing config: %s", fidbuf);
+    if (parse_config(config_fid, config) != EXIT_SUCCESS) {
+      LOG(LOG_ERROR, "failed to parse config: %s", fidbuf);
+      fclose(config_fid);
+      return EXIT_FAILURE;
+    }
+    fclose(config_fid);
+    return validate_config(*config, fidbuf);
+  } else {
+    if (is_state) {
+      LOG(LOG_ERROR, "failed to open state config: %s", fidbuf);
+      return EXIT_FAILURE;
+    } else {
+      LOG(LOG_ERROR, "failed to open new config: %s", fidbuf);
+      return EXIT_FAILURE;
+    }
+  }
+}
+
+int write_config(struct config config) {
+  char fidbuf[PATH_MAX];
+  snprintf(fidbuf, sizeof(fidbuf),
+           "/home/%s/.local/state/damgr/config_state.kdl", get_user());
+  FILE *config_fid = fopen(fidbuf, "w");
+
+  kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
+  kdl_emitter *emitter =
+      kdl_create_stream_emitter(&write_func, (void *)config_fid, &e_opts);
+
+  kdl_emit_node(emitter, kdl_str_from_cstr("config_state"));
+  kdl_start_emitting_children(emitter);
+  kdl_emit_node(emitter, kdl_str_from_cstr("aur_helper"));
+  kdl_value aur_helper = {.type = KDL_TYPE_STRING,
+                          .string = kdl_str_from_cstr(config.aur_helper)};
+  kdl_emit_arg(emitter, &aur_helper);
+  kdl_emit_node(emitter, kdl_str_from_cstr("active_host"));
+  kdl_value active_host = {.type = KDL_TYPE_STRING,
+                           .string =
+                               kdl_str_from_cstr(config.active_host.name)};
+  kdl_emit_arg(emitter, &active_host);
+  kdl_finish_emitting_children(emitter);
+  kdl_emit_end(emitter);
+
+  kdl_destroy_emitter(emitter);
   return EXIT_SUCCESS;
 }

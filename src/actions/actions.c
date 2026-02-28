@@ -409,6 +409,7 @@ int do_action(struct action action, char *aur_helper) {
   return EXIT_SUCCESS;
 }
 
+// TODO: finish the undo action loop?
 int undo_action(struct action action, [[maybe_unused]] char *aur_helper) {
   switch (action.type) {
   case ROOT_SERVICE:
@@ -417,9 +418,9 @@ int undo_action(struct action action, [[maybe_unused]] char *aur_helper) {
     break;
   case PRE_ROOT_HOOK:
   case POST_ROOT_HOOK:
-    break;
   case PRE_USER_HOOK:
   case POST_USER_HOOK:
+    // can't undo hooks...
     break;
   case PACKAGE:
     break;

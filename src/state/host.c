@@ -15,36 +15,6 @@ static int validate_host(struct host host, char *fidbuf) {
   return EXIT_SUCCESS;
 }
 
-int read_host(struct host *host, bool is_state) {
-  char fidbuf[PATH_MAX];
-  if (is_state) {
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
-             get_user(), host->name);
-  } else {
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/hosts/%s.kdl",
-             get_user(), host->name);
-  }
-  FILE *host_fid = fopen(fidbuf, "r");
-  if (host_fid != nullptr) {
-    LOG(LOG_INFO, "parsing host: %s", fidbuf);
-    if (parse_host(host_fid, host) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to parse host: %s", fidbuf);
-      fclose(host_fid);
-      return EXIT_FAILURE;
-    }
-    fclose(host_fid);
-    return validate_host(*host, fidbuf);
-  } else {
-    if (is_state) {
-      LOG(LOG_ERROR, "failed to open state host: %s", fidbuf);
-      return EXIT_FAILURE;
-    } else {
-      LOG(LOG_ERROR, "failed to open new host: %s", fidbuf);
-      return EXIT_FAILURE;
-    }
-  }
-}
-
 int parse_host(FILE *fid, struct host *host) {
   kdl_parser *parser =
       kdl_create_stream_parser(&read_func, (void *)fid, KDL_DEFAULTS);
@@ -113,5 +83,69 @@ int parse_host(FILE *fid, struct host *host) {
   }
   kdl_destroy_parser(parser);
 
+  return EXIT_SUCCESS;
+}
+
+int read_host(struct host *host, bool is_state) {
+  char fidbuf[PATH_MAX];
+  if (is_state) {
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
+             get_user(), host->name);
+  } else {
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/hosts/%s.kdl",
+             get_user(), host->name);
+  }
+  FILE *host_fid = fopen(fidbuf, "r");
+  if (host_fid != nullptr) {
+    LOG(LOG_INFO, "parsing host: %s", fidbuf);
+    if (parse_host(host_fid, host) != EXIT_SUCCESS) {
+      LOG(LOG_ERROR, "failed to parse host: %s", fidbuf);
+      fclose(host_fid);
+      return EXIT_FAILURE;
+    }
+    fclose(host_fid);
+    return validate_host(*host, fidbuf);
+  } else {
+    if (is_state) {
+      LOG(LOG_ERROR, "failed to open state host: %s", fidbuf);
+      return EXIT_FAILURE;
+    } else {
+      LOG(LOG_ERROR, "failed to open new host: %s", fidbuf);
+      return EXIT_FAILURE;
+    }
+  }
+}
+
+int write_host(struct host host) {
+  char fidbuf[PATH_MAX];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
+           get_user(), host.name);
+  FILE *host_fid = fopen(fidbuf, "w");
+
+  kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
+  kdl_emitter *emitter =
+      kdl_create_stream_emitter(&write_func, (void *)host_fid, &e_opts);
+
+  kdl_emit_node(emitter, kdl_str_from_cstr("host_state"));
+  kdl_start_emitting_children(emitter); // open host_state level
+  kdl_emit_node(emitter, kdl_str_from_cstr(host.name));
+  kdl_start_emitting_children(emitter); // open host level
+  kdl_emit_node(emitter, kdl_str_from_cstr("modules"));
+  kdl_start_emitting_children(emitter); // open modules level
+  for (size_t i = 0; i < host.modules.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(host.modules.items[i].name));
+  }
+  kdl_finish_emitting_children(emitter); // close modules level
+  kdl_emit_node(emitter, kdl_str_from_cstr("services"));
+  kdl_start_emitting_children(emitter); // open services level
+  for (size_t i = 0; i < host.root_services.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(host.root_services.items[i]));
+  }
+  kdl_finish_emitting_children(emitter); // close services level
+  kdl_finish_emitting_children(emitter); // close host level
+  kdl_finish_emitting_children(emitter); // clsoe host_state level
+  kdl_emit_end(emitter);
+
+  kdl_destroy_emitter(emitter);
   return EXIT_SUCCESS;
 }
