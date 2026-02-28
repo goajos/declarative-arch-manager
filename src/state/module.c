@@ -107,9 +107,9 @@ int parse_module(FILE *fid, struct module *module) {
       // depth 3 for parsing the properties of dotfiles/hooks
       if (memcmp(node_d2, "dotfiles", 8) == 0) {
         if (value.boolean)
-          module->link = true; // dotfiles link=#true
+          module->to_link = true; // dotfiles link=#true
         else {
-          module->link = false; // dotfiles link=#false
+          module->to_link = false; // dotfiles link=#false
         }
       } else if (memcmp(node_d2, "pre_hooks", 9) == 0) {
         char *hook = string_copy(node_d3);

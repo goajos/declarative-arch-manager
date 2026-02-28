@@ -12,7 +12,8 @@ void darray_append(struct darray *array, char *item);
 
 struct module {
   char *name;
-  bool link;
+  bool to_link;
+  bool is_orphan;
   struct darray pre_root_hooks;
   struct darray pre_user_hooks;
   struct darray packages;
