@@ -1,5 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
+#include "damgr/actions.h"
 #include "damgr/state.h"
 #include <stdlib.h>
 
@@ -29,5 +30,8 @@ int execute_dotfile_command(bool to_link, char *service);
 
 int execute_aur_update_command(char *aur_helper);
 int execute_update_command();
+
+void free_config(struct config config);
+void free_actions(struct actions actions);
 
 #endif /* UTILS_H */
