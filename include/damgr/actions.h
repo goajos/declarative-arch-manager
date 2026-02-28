@@ -16,23 +16,17 @@ enum action_type {
   POST_USER_HOOK,
 };
 
-// TODO: use a union for the actions?
-struct action {
-  enum action_type type;
-  bool is_positive;
-  enum action_status status;
-  union {
-    char *name;
-    struct darray packages;
-  } payload;
+struct payload {
+  struct darray packages;
+  char *name;
 };
 
-// struct action {
-//   char *name;
-//   enum action_type type;
-//   bool is_positive;
-//   enum action_status status;
-// };
+struct action {
+  struct payload payload;
+  enum action_status status;
+  enum action_type type;
+  bool is_positive;
+};
 
 struct actions {
   struct action *items;
@@ -49,11 +43,7 @@ int get_actions_from_modules_diff(struct actions *actions,
 int get_actions_from_module(struct actions *actions, struct module module,
                             bool is_postive);
 
-// TODO: actions can be handled sequentially?
-// set status from pending to either succeeded or failed
-// succeeded means go forward and do next action
-// failed means go back and undo all actions?
-// int do_actions();
-// int undo_actions();
+int do_action(struct action action, char *aur_helper);
+int undo_action(struct action action, char *aur_helper);
 
 #endif /* ACTIONS_H */

@@ -36,7 +36,7 @@ int damgr_merge() {
     for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
       // work with pointer here so that we can use the old modules as orphans
       struct module *module = &old_config.active_host.modules.items[i];
-      module->is_orphan = true;
+      module->boolean.is_orphan = true;
       if (read_module(module, true) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
       }
@@ -54,45 +54,70 @@ int damgr_merge() {
   }
   for (size_t i = 0; i < new_config.active_host.modules.count; ++i) {
     struct module module = new_config.active_host.modules.items[i];
+    module.boolean.is_handled = false;
     if (read_module(&module, false) != EXIT_SUCCESS) {
       return EXIT_FAILURE;
     }
     for (size_t j = 0; j < old_config.active_host.modules.count; ++j) {
-      struct module old_module = old_config.active_host.modules.items[j];
+      struct module *old_module = &old_config.active_host.modules.items[j];
       // first check if the name lengths are equal, if so perform needle in
       // haystack search, else skip
-      if (strlen(old_module.name) == strlen(module.name) &&
-          string_contains(old_module.name, module.name)) {
+      if (strlen(old_module->name) == strlen(module.name) &&
+          string_contains(old_module->name, module.name)) {
         // old and new module available
-        old_module.is_orphan = false;
-        if (get_actions_from_modules_diff(&actions, old_module, module) !=
+        old_module->boolean.is_orphan = false;
+        module.boolean.is_handled = true;
+        if (get_actions_from_modules_diff(&actions, *old_module, module) !=
             EXIT_SUCCESS) {
           LOG(LOG_ERROR, "failed to get actions for modules: %s %s",
-              old_module.name, module.name);
+              old_module->name, module.name);
           return EXIT_FAILURE;
         }
-      } else {
-        if (get_actions_from_module(&actions, module, true) != EXIT_SUCCESS) {
-          LOG(LOG_ERROR, "failed to get actions for module: %s", module.name);
-          return EXIT_FAILURE;
-        }
+        break;
+      }
+    }
+    if (!module.boolean.is_handled) {
+      if (get_actions_from_module(&actions, module, true) != EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to get actions for new module: %s", module.name);
+        return EXIT_FAILURE;
       }
     }
   }
   for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
     struct module old_module = old_config.active_host.modules.items[i];
-    if (old_module.is_orphan) {
+    if (old_module.boolean.is_orphan) {
       if (get_actions_from_module(&actions, old_module, false) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to get actions for module: %s", old_module.name);
+        LOG(LOG_ERROR, "failed to get actions for orphan module: %s",
+            old_module.name);
         return EXIT_FAILURE;
       }
     }
   }
-  // TODO: handle actions
+  // TODO: actions can be handled sequentially?
+  // set status from pending to either succeeded or failed
+  // succeeded means go forward and do next action
+  // failed means go back and undo all actions?
   // is success => do_action()
   // if failure => undo_action()
-  printf("eureka?");
-
+  size_t i = 0;
+  for (; i < actions.count; ++i) {
+    struct action action = actions.items[i];
+    if (action.status == PENDING) {
+      if (do_action(actions.items[i], new_config.aur_helper) != EXIT_SUCCESS) {
+        action.status = FAILED;
+        break; // early exit
+      }
+      action.status = SUCCEEDED;
+    }
+  }
+  for (size_t j = i; j > 0; --j) {
+    struct action action = actions.items[j];
+    if (action.status == SUCCEEDED) {
+      if (undo_action(actions.items[j], new_config.aur_helper) !=
+          EXIT_SUCCESS) {
+      }
+    }
+  }
   return EXIT_SUCCESS;
 }
