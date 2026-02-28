@@ -11,10 +11,14 @@ int damgr_update() {
   };
   if (new_config.aur_helper) {
     LOG(LOG_INFO, "executing aur update...");
-    execute_aur_update_command(new_config.aur_helper);
+    if (execute_aur_update_command(new_config.aur_helper) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   } else {
     LOG(LOG_INFO, "executing pacman update...");
-    execute_update_command();
+    if (execute_update_command() != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
 
   return EXIT_SUCCESS;

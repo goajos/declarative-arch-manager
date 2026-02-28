@@ -1,5 +1,5 @@
-// #include "src/commands/init.c"
 #include "damgr/log.h"
+#include "src/commands/init.c"
 #include "src/commands/merge.c"
 #include "src/commands/update.c"
 #include <stdlib.h>
@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
     command_idx = 1;
   } else if (memcmp(argv[1], "update", 6) == 0) {
     command_idx = 2;
+    // TODO: add validate command?
     // else if (memcmp(argv[1], "validate", 8) == 0) command_idx = 3;
   } else {
     LOG(LOG_ERROR, "Not a valid damgr argument, possible commands "
@@ -29,6 +30,11 @@ int main(int argc, char *argv[]) {
 
   switch (command_idx) {
   case 0:
+    LOG(LOG_INFO, "starting damgr init..");
+    if (damgr_init() != EXIT_SUCCESS) {
+      LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
+      return EXIT_FAILURE;
+    }
     break;
   case 1:
     LOG(LOG_INFO, "starting damgr merge...");
@@ -39,7 +45,7 @@ int main(int argc, char *argv[]) {
     break;
   case 2:
     LOG(LOG_INFO, "starting damgr update...");
-    if (damgr_update() != EXIT_SUCCESS) {
+    if (damgr_merge() != EXIT_SUCCESS) {
       LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
       return EXIT_FAILURE;
     }

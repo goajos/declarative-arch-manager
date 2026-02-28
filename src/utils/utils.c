@@ -1,4 +1,5 @@
 #include "damgr/utils.h"
+#include "damgr/log.h"
 #include "damgr/state.h"
 #include <dirent.h>
 #include <pwd.h>
@@ -6,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -24,6 +26,35 @@ int is_damgr_state_dir_empty(char *dir) {
   return cnt;
 }
 
+int init_damgr_state_dir() {
+  struct stat st;
+  char fidbuf[PATH_MAX];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr", get_user());
+  // stat returns -1 if fidbuf doesn't exist
+  if (stat(fidbuf, &st) == -1) {
+    mkdir(fidbuf, 0777);
+    LOG(LOG_INFO, "successfully created damgr state directory: %s", fidbuf);
+  } else {
+    LOG(LOG_ERROR, "damgr state directory already exists");
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+}
+
+int init_damgr_config_dir() {
+  struct stat st;
+  char fidbuf[PATH_MAX];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr", get_user());
+  // stat returns -1 if fidbuf doesn't exist
+  if (stat(fidbuf, &st) == -1) {
+    mkdir(fidbuf, 0777);
+    LOG(LOG_INFO, "successfully created damgr config directory: %s", fidbuf);
+  } else {
+    LOG(LOG_ERROR, "damgr config directory already exists");
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+}
 char *get_user() {
   struct passwd *pwd = getpwuid(geteuid());
   return pwd->pw_name;
