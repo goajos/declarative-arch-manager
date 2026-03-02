@@ -2,7 +2,8 @@
 #define ACTIONS_H
 #include "state.h"
 
-enum action_status { PENDING, SUCCEEDED, FAILED };
+// TODO: undo action?
+// enum action_status { PENDING, SUCCEEDED, FAILED };
 
 enum action_type {
   ROOT_SERVICE,
@@ -16,21 +17,20 @@ enum action_type {
   POST_USER_HOOK,
 };
 
-union payload {
+struct payload {
   char *name;
   struct darray packages;
 };
 
 struct action {
-  union payload payload;
-  enum action_status status;
+  struct payload payload;
+  // enum action_status status;
   enum action_type type;
   bool is_positive;
 };
 
-// TODO: or do_actions()?
 int get_actions(struct config *old_config, struct config *config);
-int do_action(struct action action, char *aur_helper);
+int do_actions(struct config *old_config, struct config *config);
 // int undo_action(struct action action, char *aur_helper);
 
 #endif /* ACTIONS_H */

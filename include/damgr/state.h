@@ -43,6 +43,7 @@ struct host {
   struct actions host_actions;
   struct modules modules;
   struct darray root_services;
+  size_t modules_actions_count;
   char *name;
 };
 
