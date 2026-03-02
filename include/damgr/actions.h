@@ -36,7 +36,7 @@ struct actions {
 
 int get_actions_from_services_diff(struct actions *actions,
                                    struct darray old_services,
-                                   struct darray ervices, bool is_root);
+                                   struct darray services, bool is_root);
 int get_actions_from_modules_diff(struct actions *actions,
                                   struct module old_module,
                                   struct module module);

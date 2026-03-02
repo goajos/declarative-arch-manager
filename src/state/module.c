@@ -146,10 +146,10 @@ int read_module(struct module *module, bool is_state) {
   }
 }
 
-int write_module(struct module module) {
+int write_module(struct module *module) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
-           get_user(), module.name);
+           get_user(), module->name);
   FILE *module_fid = fopen(fidbuf, "w");
 
   kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
@@ -158,53 +158,53 @@ int write_module(struct module module) {
 
   kdl_emit_node(emitter, kdl_str_from_cstr("module_state"));
   kdl_start_emitting_children(emitter); // open module_state level
-  kdl_emit_node(emitter, kdl_str_from_cstr(module.name));
+  kdl_emit_node(emitter, kdl_str_from_cstr(module->name));
   kdl_start_emitting_children(emitter); // open module level
-  if (module.to_link) {
+  if (module->to_link) {
     kdl_emit_node(emitter, kdl_str_from_cstr("dotfiles"));
     kdl_value value = {.type = KDL_TYPE_BOOLEAN, .boolean = true};
     kdl_emit_property(emitter, kdl_str_from_cstr("link"), &value);
   }
   kdl_emit_node(emitter, kdl_str_from_cstr("packages"));
   kdl_start_emitting_children(emitter); // open packages level
-  for (size_t i = 0; i < module.packages.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(module.packages.items[i]));
+  for (size_t i = 0; i < module->packages.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(module->packages.items[i]));
   }
   kdl_finish_emitting_children(emitter); // close packages level
   kdl_emit_node(emitter, kdl_str_from_cstr("aur_packages"));
   kdl_start_emitting_children(emitter); // open aur_packages level
-  for (size_t i = 0; i < module.aur_packages.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(module.aur_packages.items[i]));
+  for (size_t i = 0; i < module->aur_packages.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(module->aur_packages.items[i]));
   }
   kdl_finish_emitting_children(emitter); // close aur_packages level
   kdl_emit_node(emitter, kdl_str_from_cstr("services"));
   kdl_start_emitting_children(emitter); // open services level
-  for (size_t i = 0; i < module.user_services.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(module.user_services.items[i]));
+  for (size_t i = 0; i < module->user_services.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(module->user_services.items[i]));
   }
   kdl_finish_emitting_children(emitter); // close services level
   kdl_emit_node(emitter, kdl_str_from_cstr("pre_hooks"));
   kdl_start_emitting_children(emitter); // open pre hooks level
-  for (size_t i = 0; i < module.pre_root_hooks.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(module.pre_root_hooks.items[i]));
+  for (size_t i = 0; i < module->pre_root_hooks.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(module->pre_root_hooks.items[i]));
     kdl_value value = {.type = KDL_TYPE_BOOLEAN, .boolean = true};
     kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
   }
-  for (size_t i = 0; i < module.pre_user_hooks.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(module.pre_user_hooks.items[i]));
+  for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(module->pre_user_hooks.items[i]));
     kdl_value value = {.type = KDL_TYPE_BOOLEAN, .boolean = false};
     kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
   }
   kdl_finish_emitting_children(emitter); // close pre hooks level
   kdl_emit_node(emitter, kdl_str_from_cstr("post_hooks"));
   kdl_start_emitting_children(emitter); // open post hooks level
-  for (size_t i = 0; i < module.post_root_hooks.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(module.post_root_hooks.items[i]));
+  for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(module->post_root_hooks.items[i]));
     kdl_value value = {.type = KDL_TYPE_BOOLEAN, .boolean = true};
     kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
   }
-  for (size_t i = 0; i < module.post_user_hooks.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(module.post_user_hooks.items[i]));
+  for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(module->post_user_hooks.items[i]));
     kdl_value value = {.type = KDL_TYPE_BOOLEAN, .boolean = false};
     kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
   }
@@ -214,5 +214,6 @@ int write_module(struct module module) {
   kdl_emit_end(emitter);
 
   kdl_destroy_emitter(emitter);
+  fclose(module_fid);
   return EXIT_SUCCESS;
 }

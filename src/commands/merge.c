@@ -88,12 +88,12 @@ int damgr_merge() {
     }
   }
   for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
-    struct module old_module = old_config.active_host.modules.items[i];
-    if (old_module.boolean.is_orphan) {
-      if (get_actions_from_module(&actions, old_module, false) !=
+    struct module *old_module = &old_config.active_host.modules.items[i];
+    if (old_module->boolean.is_orphan) {
+      if (get_actions_from_module(&actions, *old_module, false) !=
           EXIT_SUCCESS) {
         LOG(LOG_ERROR, "failed to get actions for orphan module: %s",
-            old_module.name);
+            old_module->name);
         return EXIT_FAILURE;
       }
     }
@@ -125,10 +125,10 @@ int damgr_merge() {
         return EXIT_FAILURE;
       }
     }
-    write_config(new_config);
-    write_host(new_config.active_host);
+    write_config(&new_config);
+    write_host(&new_config.active_host);
     for (size_t i = 0; i < new_config.active_host.modules.count; ++i) {
-      write_module(new_config.active_host.modules.items[i]);
+      write_module(&new_config.active_host.modules.items[i]);
     }
   } else {
     LOG(LOG_INFO, "no actions to do...");
