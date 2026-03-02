@@ -133,7 +133,9 @@ int write_host(struct host *host) {
   kdl_emit_node(emitter, kdl_str_from_cstr("modules"));
   kdl_start_emitting_children(emitter); // open modules level
   for (size_t i = 0; i < host->modules.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(host->modules.items[i].name));
+    if (host->modules.items[i].boolean.is_done) {
+      kdl_emit_node(emitter, kdl_str_from_cstr(host->modules.items[i].name));
+    }
   }
   kdl_finish_emitting_children(emitter); // close modules level
   kdl_emit_node(emitter, kdl_str_from_cstr("services"));

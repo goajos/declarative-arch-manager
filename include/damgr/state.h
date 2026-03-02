@@ -10,7 +10,14 @@ struct darray {
 };
 void darray_append(struct darray *array, char *item);
 
+struct actions {
+  struct action *items;
+  size_t capacity;
+  size_t count;
+};
+
 struct module {
+  struct actions module_actions;
   struct darray pre_root_hooks;
   struct darray pre_user_hooks;
   struct darray packages;
@@ -22,7 +29,7 @@ struct module {
   bool to_link;
   union {
     bool is_orphan;
-    bool is_handled;
+    bool is_done;
   } boolean;
 };
 struct modules {
@@ -33,6 +40,7 @@ struct modules {
 void modules_append(struct modules *modules, struct module module);
 
 struct host {
+  struct actions host_actions;
   struct modules modules;
   struct darray root_services;
   char *name;
