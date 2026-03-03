@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200112L
+
 #include "damgr/utils.h"
 #include "damgr/actions.h"
 #include "damgr/log.h"
@@ -242,21 +244,32 @@ int execute_service_command(bool privileged, bool to_enable, char *service) {
 }
 
 int execute_dotfile_command(bool to_link, char *dotfile) {
+  char src_fidbuf[PATH_MAX];
+  snprintf(src_fidbuf, sizeof(src_fidbuf), "/home/%s/.config/damgr/dotfiles/%s",
+           get_user(), dotfile);
+  char dst_fidbuf[PATH_MAX];
+  snprintf(dst_fidbuf, sizeof(dst_fidbuf), "/home/%s/.config/%s", get_user(),
+           dotfile);
+
+  if (to_link) {
+    struct stat st;
+    if (lstat(dst_fidbuf, &st) == 0) { // dst file exists
+      if (S_ISLNK(st.st_mode)) {
+        // dotfile symbolic link already exists
+        return EXIT_SUCCESS;
+      }
+    }
+  } else {
+    unlink(dst_fidbuf);
+    return EXIT_SUCCESS;
+  }
+
+  // dotfile symbolic link doesn't exist
   pid_t pid = fork();
   if (pid == -1)
     return EXIT_FAILURE;
   if (pid == 0) {
-    char src_fidbuf[PATH_MAX];
-    snprintf(src_fidbuf, sizeof(src_fidbuf),
-             "/home/%s/.config/damgr/dotfiles/%s", get_user(), dotfile);
-    char dst_fidbuf[PATH_MAX];
-    snprintf(dst_fidbuf, sizeof(dst_fidbuf), "/home/%s/.config/%s", get_user(),
-             dotfile);
-    if (to_link) {
-      execl("/usr/bin/ln", "ln", "--symbolic", src_fidbuf, dst_fidbuf, nullptr);
-    } else {
-      execl("/usr/bin/rm", "rm", dst_fidbuf, nullptr);
-    }
+    execl("/usr/bin/ln", "ln", "--symbolic", src_fidbuf, dst_fidbuf, nullptr);
     exit(EXIT_FAILURE);
   } else {
     int status;
