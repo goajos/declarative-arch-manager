@@ -37,7 +37,8 @@ int damgr_merge() {
     for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
       struct module *module = &old_config.active_host.modules.items[i];
       module->boolean.is_orphan = true;
-      if (read_module(module, true) != EXIT_SUCCESS) {
+      if (read_module(&old_config.active_host.modules.items[i], true) !=
+          EXIT_SUCCESS) {
         goto cleanup;
       }
     }
@@ -58,21 +59,29 @@ int damgr_merge() {
   }
 
   if (old_config.active_host.host_actions.count == 0 &&
-      old_config.active_host.modules_actions_count == 0 &&
+      old_config.active_host.all_modules_actions_count == 0 &&
       config.active_host.host_actions.count == 0 &&
-      config.active_host.modules_actions_count == 0) {
+      config.active_host.all_modules_actions_count == 0) {
     LOG(LOG_INFO, "got no actions, nothing to do...");
   } else {
     if (do_actions(&old_config, &config) != EXIT_SUCCESS) {
       goto cleanup;
     }
 
-    write_config(&config);
-    write_host(&config.active_host);
+    write_config(config);
+    write_host(config.active_host);
     for (size_t i = 0; i < config.active_host.modules.count; ++i) {
       struct module module = config.active_host.modules.items[i];
       if (module.boolean.is_done) {
-        write_module(&module);
+        write_module(module);
+      } else {
+        report_module_actions(module, false);
+      }
+    }
+    for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
+      struct module module = old_config.active_host.modules.items[i];
+      if (!module.boolean.is_done) {
+        report_module_actions(module, true);
       }
     }
   }
@@ -80,9 +89,7 @@ int damgr_merge() {
   ret = EXIT_SUCCESS;
 
 cleanup:
-  if (old_config.aur_helper != nullptr) {
-    free_config(old_config);
-  }
+  free_config(old_config);
   free_config(config);
   return ret;
 }

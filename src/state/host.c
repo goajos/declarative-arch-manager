@@ -23,6 +23,7 @@ int parse_host(FILE *fid, struct host *host) {
   char *node_d2 = nullptr;
   bool eof = false;
 
+  int ret;
   while (true) {
     kdl_event_data *next_event = kdl_parser_next_event(parser);
     kdl_event event = next_event->event;
@@ -33,13 +34,15 @@ int parse_host(FILE *fid, struct host *host) {
       case 0: // host(_state) level
         // reading host
         if (strlen(name_data) == 4 && memcmp(name_data, "host", 4) != 0) {
-          return EXIT_FAILURE; // host kdl should start with host {...}
+          ret = EXIT_FAILURE; // host kdl should start with host {...}
+          goto cleanup;
         }
         // reading state host
         if (strlen(name_data) == 10 &&
             memcmp(name_data, "host_state", 10) != 0) {
-          return EXIT_FAILURE; // state host kdl should start with host_state
-                               // {...}
+          ret = EXIT_FAILURE; // state host kdl should start with host_state
+                              // {...}
+          goto cleanup;
         }
         break;
       case 1: // host level
@@ -78,12 +81,15 @@ int parse_host(FILE *fid, struct host *host) {
       break; // while break
   }
 
+  ret = EXIT_SUCCESS;
+
+cleanup:
   if (node_d2 != nullptr) {
-    free_sized(node_d2, strlen(node_d2));
+    free(node_d2);
   }
   kdl_destroy_parser(parser);
 
-  return EXIT_SUCCESS;
+  return ret;
 }
 
 int read_host(struct host *host, bool is_state) {
@@ -116,10 +122,10 @@ int read_host(struct host *host, bool is_state) {
   }
 }
 
-int write_host(struct host *host) {
+int write_host(struct host host) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
-           get_user(), host->name);
+           get_user(), host.name);
   FILE *host_fid = fopen(fidbuf, "w");
 
   kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
@@ -128,20 +134,20 @@ int write_host(struct host *host) {
 
   kdl_emit_node(emitter, kdl_str_from_cstr("host_state"));
   kdl_start_emitting_children(emitter); // open host_state level
-  kdl_emit_node(emitter, kdl_str_from_cstr(host->name));
+  kdl_emit_node(emitter, kdl_str_from_cstr(host.name));
   kdl_start_emitting_children(emitter); // open host level
   kdl_emit_node(emitter, kdl_str_from_cstr("modules"));
   kdl_start_emitting_children(emitter); // open modules level
-  for (size_t i = 0; i < host->modules.count; ++i) {
-    if (host->modules.items[i].boolean.is_done) {
-      kdl_emit_node(emitter, kdl_str_from_cstr(host->modules.items[i].name));
+  for (size_t i = 0; i < host.modules.count; ++i) {
+    if (host.modules.items[i].boolean.is_done) {
+      kdl_emit_node(emitter, kdl_str_from_cstr(host.modules.items[i].name));
     }
   }
   kdl_finish_emitting_children(emitter); // close modules level
   kdl_emit_node(emitter, kdl_str_from_cstr("services"));
   kdl_start_emitting_children(emitter); // open services level
-  for (size_t i = 0; i < host->root_services.count; ++i) {
-    kdl_emit_node(emitter, kdl_str_from_cstr(host->root_services.items[i]));
+  for (size_t i = 0; i < host.root_services.count; ++i) {
+    kdl_emit_node(emitter, kdl_str_from_cstr(host.root_services.items[i]));
   }
   kdl_finish_emitting_children(emitter); // close services level
   kdl_finish_emitting_children(emitter); // close host level

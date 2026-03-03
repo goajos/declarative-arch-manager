@@ -43,7 +43,7 @@ struct host {
   struct actions host_actions;
   struct modules modules;
   struct darray root_services;
-  size_t modules_actions_count;
+  size_t all_modules_actions_count;
   char *name;
 };
 
@@ -52,13 +52,15 @@ struct config {
   char *aur_helper;
 };
 
+// TODO: proper error handling for read/write functions
+// memory/string fucntions can fail?
 int read_config(struct config *config, bool is_state);
-int write_config(struct config *config);
+int write_config(struct config config);
 
 int read_host(struct host *host, bool is_state);
-int write_host(struct host *host);
+int write_host(struct host host);
 
 int read_module(struct module *module, bool is_state);
-int write_module(struct module *module);
+int write_module(struct module module);
 
 #endif /* STATE_H */
