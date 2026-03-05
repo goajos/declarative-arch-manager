@@ -7,7 +7,7 @@
 
 static int validate_module([[maybe_unused]] struct module module,
                            char *fidbuf) {
-  LOG(LOG_INFO, "successfully parsed module: %s", fidbuf);
+  damgr_log(INFO, "successfully parsed module: %s", fidbuf);
   return EXIT_SUCCESS;
 }
 
@@ -132,9 +132,9 @@ int read_module(struct module *module, bool is_state) {
   }
   FILE *module_fid = fopen(fidbuf, "r");
   if (module_fid != nullptr) {
-    LOG(LOG_INFO, "parsing module: %s", fidbuf);
+    damgr_log(INFO, "parsing module: %s", fidbuf);
     if (parse_module(module_fid, module) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to parse module: %s", fidbuf);
+      damgr_log(ERROR, "failed to parse module: %s", fidbuf);
       fclose(module_fid);
       return EXIT_FAILURE;
     }
@@ -142,10 +142,10 @@ int read_module(struct module *module, bool is_state) {
     return validate_module(*module, fidbuf);
   } else {
     if (is_state) {
-      LOG(LOG_ERROR, "failed to open state module: %s", fidbuf);
+      damgr_log(ERROR, "failed to open state module: %s", fidbuf);
       return EXIT_FAILURE;
     } else {
-      LOG(LOG_ERROR, "failed to open new module: %s", fidbuf);
+      damgr_log(ERROR, "failed to open new module: %s", fidbuf);
       return EXIT_FAILURE;
     }
   }

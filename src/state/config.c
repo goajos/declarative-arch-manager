@@ -8,14 +8,14 @@
 static int validate_config(struct config config, char *fidbuf) {
   // TODO: aur helper can be empty?
   if (config.aur_helper == nullptr) {
-    LOG(LOG_ERROR, "failed to parse aur_helper for config: %s", fidbuf);
+    damgr_log(ERROR, "failed to parse aur_helper for config: %s", fidbuf);
     return EXIT_FAILURE;
   }
   if (config.active_host.name == nullptr) {
-    LOG(LOG_ERROR, "failed to parse host name for config: %s", fidbuf);
+    damgr_log(ERROR, "failed to parse host name for config: %s", fidbuf);
     return EXIT_FAILURE;
   }
-  LOG(LOG_INFO, "successfully parsed config: %s", fidbuf);
+  damgr_log(INFO, "successfully parsed config: %s", fidbuf);
   return EXIT_SUCCESS;
 }
 
@@ -103,9 +103,9 @@ int read_config(struct config *config, bool is_state) {
   }
   FILE *config_fid = fopen(fidbuf, "r");
   if (config_fid != nullptr) {
-    LOG(LOG_INFO, "parsing config: %s", fidbuf);
+    damgr_log(INFO, "parsing config: %s", fidbuf);
     if (parse_config(config_fid, config) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to parse config: %s", fidbuf);
+      damgr_log(ERROR, "failed to parse config: %s", fidbuf);
       fclose(config_fid);
       return EXIT_FAILURE;
     }
@@ -113,10 +113,10 @@ int read_config(struct config *config, bool is_state) {
     return validate_config(*config, fidbuf);
   } else {
     if (is_state) {
-      LOG(LOG_ERROR, "failed to open state config: %s", fidbuf);
+      damgr_log(ERROR, "failed to open state config: %s", fidbuf);
       return EXIT_FAILURE;
     } else {
-      LOG(LOG_ERROR, "failed to open new config: %s", fidbuf);
+      damgr_log(ERROR, "failed to open new config: %s", fidbuf);
       return EXIT_FAILURE;
     }
   }

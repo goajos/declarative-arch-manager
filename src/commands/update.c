@@ -3,19 +3,19 @@
 #include <stdlib.h>
 
 int damgr_update() {
-  LOG(LOG_INFO, "running damgr update...");
+  damgr_log(INFO, "running damgr update...");
 
   struct config new_config = {};
   if (read_config(&new_config, false) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   };
   if (new_config.aur_helper) {
-    LOG(LOG_INFO, "executing aur update...");
+    damgr_log(INFO, "executing aur update...");
     if (execute_aur_update_command(new_config.aur_helper) != EXIT_SUCCESS) {
       return EXIT_FAILURE;
     }
   } else {
-    LOG(LOG_INFO, "executing pacman update...");
+    damgr_log(INFO, "executing pacman update...");
     if (execute_update_command() != EXIT_SUCCESS) {
       return EXIT_FAILURE;
     }

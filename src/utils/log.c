@@ -1,24 +1,27 @@
 #include "damgr/log.h"
-#include <stdarg.h>
-#include <stdio.h>
-#include <time.h>
 
-static const char *log_levels[] = {"INFO", "ERROR"};
+static damgr_log_handler *damgr__log_handler = &damgr_default_log_handler;
 
-void LOG(enum log_level level, const char *log, ...) {
-  time_t now = time(nullptr);
-  struct tm *tm_info = localtime(&now);
-  char tstring[10];
-  strftime(tstring, sizeof(tstring), "%H:%M:%S", tm_info);
+void damgr_default_log_handler(enum damgr_log_level level, const char *fmt,
+                               va_list args) {
+  switch (level) {
+  case INFO:
+    fprintf(stderr, "[INFO] ");
+    break;
+  case WARNING:
+    fprintf(stderr, "[WARNING] ");
+    break;
+  case ERROR:
+    fprintf(stderr, "[ERROR] ");
+    break;
+  }
+  vfprintf(stderr, fmt, args);
+  fprintf(stderr, "\n");
+}
 
-  FILE *stream = (level == LOG_ERROR) ? stderr : stdout;
-  fprintf(stream, "[%s] [%s] ", tstring, log_levels[level]);
-
+void damgr_log(enum damgr_log_level level, const char *fmt, ...) {
   va_list args;
-  va_start(args, log);
-  vfprintf(stream, log, args);
+  va_start(args, fmt);
+  damgr__log_handler(level, fmt, args);
   va_end(args);
-
-  fprintf(stream, "\n");
-  fflush(stream);
 }

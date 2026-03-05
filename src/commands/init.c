@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 int damgr_init() {
-  LOG(LOG_INFO, "running damgr init...");
+  damgr_log(INFO, "running damgr init...");
 
   if (init_damgr_state_dir() != EXIT_SUCCESS) {
     return EXIT_FAILURE;

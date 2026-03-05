@@ -8,10 +8,10 @@
 static int validate_host(struct host host, char *fidbuf) {
   // TODO: is there any more validation to do for the host?
   if (host.modules.count == 0) {
-    LOG(LOG_ERROR, "no modules found for active host: %s", fidbuf);
+    damgr_log(ERROR, "no modules found for active host: %s", fidbuf);
     return EXIT_FAILURE;
   }
-  LOG(LOG_INFO, "successfully parsed host: %s", fidbuf);
+  damgr_log(INFO, "successfully parsed host: %s", fidbuf);
   return EXIT_SUCCESS;
 }
 
@@ -103,9 +103,9 @@ int read_host(struct host *host, bool is_state) {
   }
   FILE *host_fid = fopen(fidbuf, "r");
   if (host_fid != nullptr) {
-    LOG(LOG_INFO, "parsing host: %s", fidbuf);
+    damgr_log(INFO, "parsing host: %s", fidbuf);
     if (parse_host(host_fid, host) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to parse host: %s", fidbuf);
+      damgr_log(ERROR, "failed to parse host: %s", fidbuf);
       fclose(host_fid);
       return EXIT_FAILURE;
     }
@@ -113,10 +113,10 @@ int read_host(struct host *host, bool is_state) {
     return validate_host(*host, fidbuf);
   } else {
     if (is_state) {
-      LOG(LOG_ERROR, "failed to open state host: %s", fidbuf);
+      damgr_log(ERROR, "failed to open state host: %s", fidbuf);
       return EXIT_FAILURE;
     } else {
-      LOG(LOG_ERROR, "failed to open new host: %s", fidbuf);
+      damgr_log(ERROR, "failed to open new host: %s", fidbuf);
       return EXIT_FAILURE;
     }
   }
