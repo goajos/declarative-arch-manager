@@ -111,13 +111,9 @@ int read_config(char *user, struct config *config, bool is_state) {
     fclose(config_fid);
     return validate_config(*config, fidbuf);
   } else {
-    if (is_state) {
-      damgr_log(ERROR, "failed to open state config: %s", fidbuf);
-      return EXIT_FAILURE;
-    } else {
-      damgr_log(ERROR, "failed to open new config: %s", fidbuf);
-      return EXIT_FAILURE;
-    }
+    char *fmt = (is_state) ? "state" : "new";
+    damgr_log(ERROR, "failed to open %s config: %s", fmt, fidbuf);
+    return EXIT_FAILURE;
   }
 }
 

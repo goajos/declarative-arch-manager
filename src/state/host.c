@@ -112,13 +112,9 @@ int read_host(char *user, struct host *host, bool is_state) {
     fclose(host_fid);
     return validate_host(*host, fidbuf);
   } else {
-    if (is_state) {
-      damgr_log(ERROR, "failed to open state host: %s", fidbuf);
-      return EXIT_FAILURE;
-    } else {
-      damgr_log(ERROR, "failed to open new host: %s", fidbuf);
-      return EXIT_FAILURE;
-    }
+    char *fmt = (is_state) ? "state" : "new";
+    damgr_log(ERROR, "failed to open %s host: %s", fmt, fidbuf);
+    return EXIT_FAILURE;
   }
 }
 
