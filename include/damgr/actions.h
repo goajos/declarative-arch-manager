@@ -41,6 +41,6 @@ struct action {
 };
 
 int get_actions(struct config *old_config, struct config *config);
-int do_actions(struct config *old_config, struct config *config);
+int do_actions(char *user, struct config *old_config, struct config *config);
 
 #endif /* DAMGR_ACTIONS_H */

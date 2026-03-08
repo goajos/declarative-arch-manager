@@ -25,14 +25,14 @@ int execute_aur_package_install_command(struct darray packages,
 int execute_package_remove_command(struct darray packages);
 // TODO: add a check to see if the shell commands are executable or not
 // TODO: can the shell commands output be supressed?
-int execute_hook_command(bool privileged, char *hook);
+int execute_hook_command(char *user, bool privileged, char *hook);
 int execute_service_command(bool privileged, bool to_enable, char *service);
-int execute_dotfile_command(bool to_link, char *service);
+int execute_dotfile_command(char *user, bool to_link, char *service);
 
 int execute_aur_update_command(char *aur_helper);
 int execute_update_command();
 
-void report_module_actions(struct module module, bool is_state);
+void log_module_actions(struct module module, bool is_state);
 
 void free_config(struct config config);
 void free_actions(struct actions actions);
