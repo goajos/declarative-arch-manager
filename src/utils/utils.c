@@ -43,11 +43,11 @@ int init_damgr_dir(char *user, bool is_state) {
         damgr_log(INFO, "successfully created damgr %s directory: %s", fmt,
                   fidbuf);
       } else {
-        damgr_log(ERROR, "mkdir %s failed: %s", fidbuf, errno);
+        damgr_log(ERROR, "mkdir %s failed: %s", fidbuf, strerror(errno));
         return EXIT_FAILURE;
       }
     } else {
-      damgr_log(ERROR, "stat %s failed: %s", fidbuf, errno);
+      damgr_log(ERROR, "stat %s failed: %s", fidbuf, strerror(errno));
       return EXIT_FAILURE;
     }
   } else {
@@ -61,7 +61,7 @@ int init_damgr_dir(char *user, bool is_state) {
 char *get_user() {
   struct passwd *pwd = getpwuid(geteuid());
   if (pwd == nullptr) {
-    damgr_log(ERROR, "getpwuid failed: %s", errno);
+    damgr_log(ERROR, "getpwuid failed: %s", strerror(errno));
     return nullptr;
   }
   return pwd->pw_name;
@@ -108,86 +108,78 @@ int qcharcmp(const void *p1, const void *p2) {
   return strcmp(*(const char **)p1, *(const char **)p2);
 }
 
-int execute_package_install_command(struct darray packages) {
+static int execute_execv(char *path, char **argv) {
   pid_t pid = fork();
-  if (pid == -1)
+  if (pid == -1) {
+    damgr_log(ERROR, "fork failed: %s", strerror(errno));
     return EXIT_FAILURE;
-  if (pid == 0) {
-    char **argv = malloc((packages.count + 5) * sizeof(char *));
-    argv[0] = "sudo";
-    argv[1] = "pacman";
-    argv[2] = "-S";
-    argv[3] = "--needed";
-    for (size_t i = 0; i < packages.count; ++i) {
-      argv[4 + i] = packages.items[i];
-    }
-    argv[4 + packages.count] = nullptr;
-    execv("/usr/bin/sudo", argv);
-    free(argv);
-    exit(EXIT_FAILURE);
+  } else if (pid == 0) {
+    execv(path, argv);
   } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+    int wstatus;
+    if (waitpid(pid, &wstatus, 0) != EXIT_SUCCESS) {
+      damgr_log(ERROR, "execv waitpid failed: %s", strerror(errno));
+      return EXIT_FAILURE;
+    }
+    if (WIFEXITED(wstatus)) {
+      if (WEXITSTATUS(wstatus) != EXIT_SUCCESS) {
+        damgr_log(ERROR, "execv failed with exit code: %d",
+                  WEXITSTATUS(wstatus));
+        return EXIT_FAILURE;
+      }
+    }
+    if (WIFSIGNALED(wstatus)) {
+      damgr_log(ERROR, "execv was terminated by signal: %d", WTERMSIG(wstatus));
       return EXIT_FAILURE;
     }
   }
   return EXIT_SUCCESS;
+}
+
+int execute_package_install_command(struct darray packages) {
+  char **argv = malloc((packages.count + 5) * sizeof(char *));
+  argv[0] = "sudo";
+  argv[1] = "pacman";
+  argv[2] = "-S";
+  argv[3] = "--needed";
+  for (size_t i = 0; i < packages.count; ++i) {
+    argv[4 + i] = packages.items[i];
+  }
+  argv[4 + packages.count] = nullptr;
+  int ret = execute_execv("/usr/bin/sudo", argv);
+  free(argv);
+  return ret;
 }
 
 int execute_aur_package_install_command(struct darray packages,
                                         char *aur_helper) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "/usr/bin/%s", aur_helper);
-  pid_t pid = fork();
-  if (pid == -1)
-    return EXIT_FAILURE;
-  if (pid == 0) {
-    char **argv = malloc((packages.count + 4) * sizeof(char *));
-    argv[0] = aur_helper;
-    argv[1] = "-S";
-    argv[2] = "--needed";
-    for (size_t i = 0; i < packages.count; ++i) {
-      argv[3 + i] = packages.items[i];
-    }
-    argv[3 + packages.count] = nullptr;
-    execv(fidbuf, argv);
-    free(argv);
-    exit(EXIT_FAILURE);
-  } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
-    }
+  char **argv = malloc((packages.count + 4) * sizeof(char *));
+  argv[0] = aur_helper;
+  argv[1] = "-S";
+  argv[2] = "--needed";
+  for (size_t i = 0; i < packages.count; ++i) {
+    argv[3 + i] = packages.items[i];
   }
-  return EXIT_SUCCESS;
+  argv[3 + packages.count] = nullptr;
+  int ret = execute_execv(fidbuf, argv);
+  free(argv);
+  return ret;
 }
 
 int execute_package_remove_command(struct darray packages) {
-  pid_t pid = fork();
-  if (pid == -1)
-    return EXIT_FAILURE;
-  if (pid == 0) {
-    char **argv = malloc((packages.count + 5) * sizeof(char *));
-    argv[0] = "sudo";
-    argv[1] = "pacman";
-    argv[2] = "-Rns";
-    for (size_t i = 0; i < packages.count; ++i) {
-      argv[3 + i] = packages.items[i];
-    }
-    argv[3 + packages.count] = nullptr;
-    execv("/usr/bin/sudo", argv);
-    free(argv);
-    exit(EXIT_FAILURE);
-  } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
-    }
+  char **argv = malloc((packages.count + 5) * sizeof(char *));
+  argv[0] = "sudo";
+  argv[1] = "pacman";
+  argv[2] = "-Rns";
+  for (size_t i = 0; i < packages.count; ++i) {
+    argv[3 + i] = packages.items[i];
   }
-  return EXIT_SUCCESS;
+  argv[3 + packages.count] = nullptr;
+  int ret = execute_execv("/usr/bin/sudo", argv);
+  free(argv);
+  return ret;
 }
 
 int execute_hook_command(bool privileged, char *hook) {
@@ -215,36 +207,25 @@ int execute_hook_command(bool privileged, char *hook) {
 }
 
 int execute_service_command(bool privileged, bool to_enable, char *service) {
-  pid_t pid = fork();
-  if (pid == -1)
-    return EXIT_FAILURE;
-  if (pid == 0) {
-    char **argv = malloc(5 * sizeof(char *));
-    if (privileged) {
-      argv[0] = "sudo";
-      argv[1] = "systemctl";
-      argv[2] = (to_enable) ? "enable" : "disable";
-      argv[3] = service;
-      argv[4] = nullptr;
-      execv("/usr/bin/sudo", argv);
-    } else {
-      argv[0] = "systemctl";
-      argv[1] = "--user";
-      argv[2] = (to_enable) ? "enable" : "disable";
-      argv[3] = service;
-      argv[4] = nullptr;
-      execv("/usr/bin/systemctl", argv);
-    }
-    free(argv);
-    exit(EXIT_FAILURE);
+  int ret;
+  char **argv = malloc(5 * sizeof(char *));
+  if (privileged) {
+    argv[0] = "sudo";
+    argv[1] = "systemctl";
+    argv[2] = (to_enable) ? "enable" : "disable";
+    argv[3] = service;
+    argv[4] = nullptr;
+    ret = execute_execv("/usr/bin/sudo", argv);
   } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
-    }
+    argv[0] = "systemctl";
+    argv[1] = "--user";
+    argv[2] = (to_enable) ? "enable" : "disable";
+    argv[3] = service;
+    argv[4] = nullptr;
+    ret = execute_execv("/usr/bin/systemctl", argv);
   }
-  return EXIT_SUCCESS;
+  free(argv);
+  return ret;
 }
 
 int execute_dotfile_command(bool to_link, char *dotfile) {
@@ -288,48 +269,24 @@ int execute_dotfile_command(bool to_link, char *dotfile) {
 int execute_aur_update_command(char *aur_helper) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "/usr/bin/%s", aur_helper);
-  pid_t pid = fork();
-  if (pid == -1)
-    return EXIT_FAILURE;
-  if (pid == 0) {
-    char **argv = malloc(3 * sizeof(char *));
-    argv[0] = fidbuf;
-    argv[1] = "-Syu";
-    argv[2] = nullptr;
-    execv(fidbuf, argv);
-    free(argv);
-    exit(EXIT_FAILURE);
-  } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
-    }
-  }
-  return EXIT_SUCCESS;
+  char **argv = malloc(3 * sizeof(char *));
+  argv[0] = fidbuf;
+  argv[1] = "-Syu";
+  argv[2] = nullptr;
+  int ret = execute_execv(fidbuf, argv);
+  free(argv);
+  return ret;
 }
 
 int execute_update_command() {
-  pid_t pid = fork();
-  if (pid == -1)
-    return EXIT_FAILURE;
-  if (pid == 0) {
-    char **argv = malloc(4 * sizeof(char *));
-    argv[0] = "sudo";
-    argv[1] = "pacman";
-    argv[2] = "-Syu";
-    argv[3] = nullptr;
-    execv("/usr/bin/sudo", argv);
-    free(argv);
-    exit(EXIT_FAILURE);
-  } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
-    }
-  }
-  return EXIT_SUCCESS;
+  char **argv = malloc(4 * sizeof(char *));
+  argv[0] = "sudo";
+  argv[1] = "pacman";
+  argv[2] = "-Syu";
+  argv[3] = nullptr;
+  int ret = execute_execv("/usr/bin/sudo", argv);
+  free(argv);
+  return ret;
 }
 
 void report_module_actions(struct module module, bool is_state) {

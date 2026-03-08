@@ -1,5 +1,5 @@
-#ifndef ACTIONS_H
-#define ACTIONS_H
+#ifndef DAMGR_ACTIONS_H
+#define DAMGR_ACTIONS_H
 #include "state.h"
 
 enum action_status { PENDING, SUCCEEDED, FAILED };
@@ -17,15 +17,16 @@ enum action_type {
   POST_ROOT_HOOK,
   POST_USER_HOOK,
 };
-[[maybe_unused]] static const char *action_type_names[] = {[ROOT_SERVICE] = "ROOT_SERVICE",
-                                          [PRE_ROOT_HOOK] = "PRE_ROOT_HOOK",
-                                          [PRE_USER_HOOK] = "PRE_USER_HOOK",
-                                          [PACKAGE] = "PACKAGE",
-                                          [AUR_PACKAGE] = "AUR_PACKAGE",
-                                          [USER_SERVICE] = "USER_SERVICE",
-                                          [DOTFILE] = "DOTFILE",
-                                          [POST_ROOT_HOOK] = "POST_ROOT_HOOK",
-                                          [POST_USER_HOOK] = "POST_USER_HOOK"};
+[[maybe_unused]] static const char *action_type_names[] = {
+    [ROOT_SERVICE] = "ROOT_SERVICE",
+    [PRE_ROOT_HOOK] = "PRE_ROOT_HOOK",
+    [PRE_USER_HOOK] = "PRE_USER_HOOK",
+    [PACKAGE] = "PACKAGE",
+    [AUR_PACKAGE] = "AUR_PACKAGE",
+    [USER_SERVICE] = "USER_SERVICE",
+    [DOTFILE] = "DOTFILE",
+    [POST_ROOT_HOOK] = "POST_ROOT_HOOK",
+    [POST_USER_HOOK] = "POST_USER_HOOK"};
 
 struct payload {
   char *name;
@@ -42,4 +43,4 @@ struct action {
 int get_actions(struct config *old_config, struct config *config);
 int do_actions(struct config *old_config, struct config *config);
 
-#endif /* ACTIONS_H */
+#endif /* DAMGR_ACTIONS_H */

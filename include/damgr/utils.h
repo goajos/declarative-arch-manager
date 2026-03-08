@@ -1,5 +1,5 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef DAMGR_UTILS_H
+#define DAMGR_UTILS_H
 #include "damgr/actions.h"
 #include "damgr/state.h"
 #include <stdlib.h>
@@ -37,4 +37,4 @@ void report_module_actions(struct module module, bool is_state);
 void free_config(struct config config);
 void free_actions(struct actions actions);
 
-#endif /* UTILS_H */
+#endif /* DAMGR_UTILS_H */
