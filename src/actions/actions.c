@@ -344,8 +344,6 @@ static int get_actions_from_host(struct host *host) {
   return EXIT_SUCCESS;
 }
 
-// TODO: proper nested error handling for the get actions logic
-// memory/string functions ca fail
 int get_actions(struct config *old_config, struct config *config) {
   if (old_config->active_host.name != nullptr) {
     int ret = strcmp(old_config->active_host.name, config->active_host.name);

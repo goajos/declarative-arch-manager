@@ -8,10 +8,14 @@
 int damgr_merge() {
   damgr_log(INFO, "running damgr merge...");
 
+  char *user = get_user();
+  if (user == nullptr) {
+    return EXIT_FAILURE;
+  }
   int ret;
   char fidbuf[PATH_MAX];
   struct config old_config = {};
-  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr", get_user());
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr", user);
   ret = is_damgr_state_dir_empty(fidbuf);
   if (is_damgr_state_dir_empty(fidbuf) == EXIT_FAILURE) {
     damgr_log(ERROR, "failed to open state directory: %s", fidbuf);
@@ -20,36 +24,36 @@ int damgr_merge() {
     damgr_log(INFO, "no state to parse, the state directory is empty: %s",
               fidbuf);
   } else {
-    if (read_config(&old_config, true) != EXIT_SUCCESS) {
+    if (read_config(user, &old_config, true) != EXIT_SUCCESS) {
       goto cleanup;
     };
   }
   ret = EXIT_FAILURE;
   struct config config = {};
-  if (read_config(&config, false) != EXIT_SUCCESS) {
+  if (read_config(user, &config, false) != EXIT_SUCCESS) {
     goto cleanup;
   };
 
   if (old_config.active_host.name != nullptr) {
-    if (read_host(&old_config.active_host, true) != EXIT_SUCCESS) {
+    if (read_host(user, &old_config.active_host, true) != EXIT_SUCCESS) {
       goto cleanup;
     }
     for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
       struct module *module = &old_config.active_host.modules.items[i];
       module->boolean.is_orphan = true;
-      if (read_module(&old_config.active_host.modules.items[i], true) !=
+      if (read_module(user, &old_config.active_host.modules.items[i], true) !=
           EXIT_SUCCESS) {
         goto cleanup;
       }
     }
   }
-  if (read_host(&config.active_host, false) != EXIT_SUCCESS) {
+  if (read_host(user, &config.active_host, false) != EXIT_SUCCESS) {
     goto cleanup;
   }
   for (size_t i = 0; i < config.active_host.modules.count; ++i) {
     struct module *module = &config.active_host.modules.items[i];
     module->boolean.is_done = false;
-    if (read_module(module, false) != EXIT_SUCCESS) {
+    if (read_module(user, module, false) != EXIT_SUCCESS) {
       goto cleanup;
     }
   }
@@ -68,12 +72,12 @@ int damgr_merge() {
       goto cleanup;
     }
 
-    write_config(config);
-    write_host(config.active_host);
+    write_config(user, config);
+    write_host(user, config.active_host);
     for (size_t i = 0; i < config.active_host.modules.count; ++i) {
       struct module module = config.active_host.modules.items[i];
       if (module.boolean.is_done) {
-        write_module(module);
+        write_module(user, module);
       } else {
         report_module_actions(module, false);
       }

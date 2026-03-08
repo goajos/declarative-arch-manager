@@ -30,19 +30,18 @@ int is_damgr_state_dir_empty(char *dir) {
   return count;
 }
 
-int init_damgr_dir(bool state) {
+int init_damgr_dir(char *user, bool is_state) {
   struct stat st;
   char fidbuf[PATH_MAX];
   char *path =
-      (state) ? "/home/%s/.local/state/damgr" : "/home/%s/.config/damgr";
-  snprintf(fidbuf, sizeof(fidbuf), path, get_user());
-  char *fmt = (state) ? "state" : "config";
+      (is_state) ? "/home/%s/.local/state/damgr" : "/home/%s/.config/damgr";
+  snprintf(fidbuf, sizeof(fidbuf), path, user);
+  char *fmt = (is_state) ? "state" : "config";
   if (stat(fidbuf, &st) == -1) {
     if (errno == ENOENT) {
       if (mkdir(fidbuf, 0777) != -1) {
         damgr_log(INFO, "successfully created damgr %s directory: %s", fmt,
                   fidbuf);
-        return EXIT_SUCCESS;
       } else {
         damgr_log(ERROR, "mkdir %s failed: %s", fidbuf, errno);
         return EXIT_FAILURE;
@@ -55,10 +54,16 @@ int init_damgr_dir(bool state) {
     damgr_log(ERROR, "damgr %s directory already exists", fidbuf);
     return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
 }
 
 char *get_user() {
   struct passwd *pwd = getpwuid(geteuid());
+  if (pwd == nullptr) {
+    damgr_log(ERROR, "getpwuid failed: %s", errno);
+    return nullptr;
+  }
   return pwd->pw_name;
 }
 
@@ -328,19 +333,13 @@ int execute_update_command() {
 }
 
 void report_module_actions(struct module module, bool is_state) {
-  if (is_state) {
-    damgr_log(ERROR, "failed to do module actions for state module: %s",
-              module.name);
-  } else {
-    damgr_log(ERROR, "failed to do module actions for new module: %s",
-              module.name);
-  }
+  char *fmt = (is_state) ? "state" : "config";
+  damgr_log(ERROR, "failed to do module actions for %s module: %s", fmt,
+            module.name);
   for (size_t i = 0; i < module.module_actions.count; ++i) {
     struct action action = module.module_actions.items[i];
-    if (action.status == PENDING) {
-      damgr_log(ERROR, "  [%s] %s: %s", action_status_names[action.status],
-                action_type_names[action.type], action.payload.name);
-    }
+    damgr_log(ERROR, "  [%s] %s: %s", action_status_names[action.status],
+              action_type_names[action.type], action.payload.name);
   }
 }
 
