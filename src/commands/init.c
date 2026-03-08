@@ -5,10 +5,10 @@
 int damgr_init() {
   damgr_log(INFO, "running damgr init...");
 
-  if (init_damgr_state_dir() != EXIT_SUCCESS) {
+  if (init_damgr_dir(true) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
-  if (init_damgr_config_dir() != EXIT_SUCCESS) {
+  if (init_damgr_dir(false) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
 

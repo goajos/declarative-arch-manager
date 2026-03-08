@@ -7,8 +7,7 @@
 static const int PATH_MAX = 4096;
 
 int is_damgr_state_dir_empty(char *dir);
-int init_damgr_state_dir();
-int init_damgr_config_dir();
+int init_damgr_dir(bool state);
 
 char *get_user();
 
