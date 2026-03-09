@@ -3,62 +3,55 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct darray {
+typedef struct darray {
   char **items;
   size_t capacity;
   size_t count;
-};
-void darray_append(struct darray *array, char *item);
+} Damgr_Darray;
 
-struct actions {
-  struct action *items;
-  size_t capacity;
-  size_t count;
-};
-
-struct module {
-  struct actions module_actions;
-  struct darray pre_root_hooks;
-  struct darray pre_user_hooks;
-  struct darray packages;
-  struct darray aur_packages;
-  struct darray user_services;
-  struct darray post_root_hooks;
-  struct darray post_user_hooks;
+typedef struct module {
+  Damgr_Darray pre_root_hooks;
+  Damgr_Darray pre_user_hooks;
+  Damgr_Darray packages;
+  Damgr_Darray aur_packages;
+  Damgr_Darray user_services;
+  Damgr_Darray post_root_hooks;
+  Damgr_Darray post_user_hooks;
   char *name;
   bool to_link;
-  union {
-    bool is_orphan;
-    bool is_done;
-  } boolean;
-};
-struct modules {
-  struct module *items;
+} Damgr_Module;
+
+typedef struct modules {
+  Damgr_Module *items;
   size_t capacity;
   size_t count;
-};
-void modules_append(struct modules *modules, struct module module);
+} Damgr_Modules;
 
-struct host {
-  struct actions host_actions;
-  struct modules modules;
-  struct darray root_services;
-  size_t all_modules_actions_count;
+typedef struct host {
+  Damgr_Modules modules;
+  Damgr_Darray root_services;
   char *name;
-};
+} Damgr_Host;
 
-struct config {
-  struct host active_host;
+typedef struct config {
+  Damgr_Host active_host;
   char *aur_helper;
-};
+} Damgr_Config;
 
-int read_config(char *user, struct config *config, bool is_state);
-int write_config(char *user, struct config config);
+typedef enum conf_key {
+  AUR_HELPER,
+  ACTIVE_HOST,
+  MODULES,
+  SERVICES,
+  DOTFILES,
+  PACKAGES,
+  PRE_HOOKS,
+  POST_HOOKS,
+  MAX_CONF_KEY,
+} Damgr_Conf_Key;
 
-int read_host(char *user, struct host *host, bool is_state);
-int write_host(char *user, struct host host);
+extern const char *damgr_conf_keys[];
 
-int read_module(char *user, struct module *module, bool is_state);
-int write_module(char *user, struct module module);
+int damgr_read_config(char *user, Damgr_Config *config, bool is_state);
 
 #endif /* DAMGR_STATE_H */
