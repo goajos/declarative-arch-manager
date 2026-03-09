@@ -37,26 +37,20 @@ int damgr_merge() {
     if (damgr_read_host(user, &old_config, true) != EXIT_SUCCESS) {
       goto cleanup;
     }
-    // for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
-    //   struct module *module = &old_config.active_host.modules.items[i];
-    //   module->boolean.is_orphan = true;
-    //   if (read_module(user, &old_config.active_host.modules.items[i], true)
-    //   !=
-    //       EXIT_SUCCESS) {
-    //     goto cleanup;
-    //   }
-    // }
+    for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
+      if (damgr_read_module(user, &old_config, i, true) != EXIT_SUCCESS) {
+        goto cleanup;
+      }
+    }
   }
   if (damgr_read_host(user, &config, false) != EXIT_SUCCESS) {
     goto cleanup;
   }
-  // for (size_t i = 0; i < config.active_host.modules.count; ++i) {
-  //   struct module *module = &config.active_host.modules.items[i];
-  //   module->boolean.is_done = false;
-  //   if (read_module(user, module, false) != EXIT_SUCCESS) {
-  //     goto cleanup;
-  //   }
-  // }
+  for (size_t i = 0; i < config.active_host.modules.count; ++i) {
+    if (damgr_read_module(user, &config, i, false) != EXIT_SUCCESS) {
+      goto cleanup;
+    }
+  }
 
   ret = EXIT_SUCCESS;
 

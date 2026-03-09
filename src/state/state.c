@@ -2,13 +2,14 @@
 #include "damgr/log.h"
 #include "damgr/utils.h"
 #include <stdlib.h>
-// #include <string.h>
+#include <string.h>
 
 const char *damgr_conf_keys[] = {
-    [AUR_HELPER] = "aur_helper", [ACTIVE_HOST] = "active_host",
-    [MODULES] = "modules",       [SERVICES] = "services",
-    [DOTFILES] = "dotfiles",     [PACKAGES] = "packages",
-    [PRE_HOOKS] = "pre_hooks",   [POST_HOOKS] = "post_hooks"};
+    [AUR_HELPER] = "aur_helper",     [ACTIVE_HOST] = "active_host",
+    [MODULES] = "modules",           [SERVICES] = "services",
+    [DOTFILES] = "dotfiles",         [PACKAGES] = "packages",
+    [AUR_PACKAGES] = "aur_packages", [PRE_HOOKS] = "pre_hooks",
+    [POST_HOOKS] = "post_hooks"};
 
 void damgr_darray_append(Damgr_Darray *darray, char *item) {
   if (darray->count >= darray->capacity) {
@@ -36,48 +37,38 @@ void damgr_modules_append(Damgr_Modules *modules, Damgr_Module module) {
   modules->items[modules->count++] = module;
 }
 
-int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line) {
-  if (damgr_string_contains(line, "=")) {
-    char key[256];
-    char val[256];
-    int ret = sscanf(line, "%255[^=]=%255[^\n]", key, val);
-    if (ret != 1 && ret != 2) {
-      damgr_log(ERROR, "sscanf failed for line: %s", line);
-      return EXIT_FAILURE;
-    }
-    damgr_string_trim(key);
-    *conf_key = damgr_get_conf_key(key);
-    damgr_string_trim(val);
-    if (val[0] != '\0') {
-      switch (*conf_key) {
-      case AUR_HELPER:
-        config->aur_helper = damgr_string_copy(val);
-        break;
-      case ACTIVE_HOST:
-        config->active_host.name = damgr_string_copy(val);
-        break;
-      }
-    }
-  } else {
-    damgr_string_trim(line);
-    if (line[0] == '#' || line[0] == '\n') {
-      return EXIT_SUCCESS;
-    }
-    switch (*conf_key) {
-    case MODULES:
-      Damgr_Module module = {.name = damgr_string_copy(line)};
-      damgr_modules_append(&config->active_host.modules, module);
-      break;
-    case SERVICES:
-      damgr_darray_append(&config->active_host.root_services,
-                          damgr_string_copy(line));
-      break;
-    }
+int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line, ...) {
+  int ret = EXIT_SUCCESS;
+  va_list args;
+  va_start(args, line);
+  int *arg = va_arg(args, int *);
+  [[maybe_unused]] Damgr_Module *module = nullptr;
+  if (arg != nullptr) {
+    module = &config->active_host.modules.items[*arg];
   }
-  return EXIT_SUCCESS;
+  char key[256];
+  char val[256];
+  ret = sscanf(line, "%255[^=]=%255[^\n]", key, val);
+  if (ret != 1 && ret != 2) {
+    damgr_log(ERROR, "sscanf failed for line: %s", line);
+    ret = EXIT_FAILURE;
+    goto cleanup;
+  }
+  *conf_key = damgr_get_conf_key(key);
+
+  ret = EXIT_SUCCESS;
+
+cleanup:
+  va_end(args);
+  return ret;
 }
 
-int damgr_parse_conf(FILE *fid, Damgr_Config *config) {
+int damgr_parse_conf(FILE *fid, Damgr_Config *config, ...) {
+  va_list args;
+  va_start(args, config);
+  int *arg = va_arg(args, int *);
+
+  int ret = EXIT_SUCCESS;
   int conf_key;
   char line[512];
   size_t lines = 0;
@@ -86,11 +77,15 @@ int damgr_parse_conf(FILE *fid, Damgr_Config *config) {
     if (line[0] == '#') {
       continue;
     }
-    if (damgr_parse_line(&conf_key, config, line) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
+    if (damgr_parse_line(&conf_key, config, line, arg) != EXIT_SUCCESS) {
+      ret = EXIT_FAILURE;
+      goto cleanup;
     }
   }
-  return EXIT_SUCCESS;
+
+cleanup:
+  va_end(args);
+  return ret;
 }
 
 static int damgr_validate_config(Damgr_Config config, char *fidbuf) {
@@ -119,7 +114,7 @@ int damgr_read_config(char *user, Damgr_Config *config, bool is_state) {
   FILE *config_fid = fopen(fidbuf, "r");
   if (config_fid != nullptr) {
     damgr_log(INFO, "parsing config: %s", fidbuf);
-    if (damgr_parse_conf(config_fid, config) != EXIT_SUCCESS) {
+    if (damgr_parse_conf(config_fid, config, nullptr) != EXIT_SUCCESS) {
       damgr_log(ERROR, "failed to parse config: %s", fidbuf);
       fclose(config_fid);
       return EXIT_FAILURE;
@@ -156,7 +151,7 @@ int damgr_read_host(char *user, Damgr_Config *config, bool is_state) {
   FILE *host_fid = fopen(fidbuf, "r");
   if (host_fid != nullptr) {
     damgr_log(INFO, "parsing host: %s", fidbuf);
-    if (damgr_parse_conf(host_fid, config) != EXIT_SUCCESS) {
+    if (damgr_parse_conf(host_fid, config, nullptr) != EXIT_SUCCESS) {
       damgr_log(ERROR, "failed to parse host: %s", fidbuf);
       fclose(host_fid);
       return EXIT_FAILURE;
@@ -166,6 +161,40 @@ int damgr_read_host(char *user, Damgr_Config *config, bool is_state) {
   } else {
     char *fmt = (is_state) ? "state" : "new";
     damgr_log(ERROR, "failed to open %s host: %s", fmt, fidbuf);
+    return EXIT_FAILURE;
+  }
+}
+
+static int damgr_validate_module([[maybe_unused]] struct module module,
+                                 char *fidbuf) {
+  damgr_log(INFO, "successfully parsed module: %s", fidbuf);
+  return EXIT_SUCCESS;
+}
+
+int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
+                      bool is_state) {
+  struct module *module = &config->active_host.modules.items[module_idx];
+  char fidbuf[damgr_path_max];
+  if (is_state) {
+    snprintf(fidbuf, sizeof(fidbuf),
+             "/home/%s/.local/state/damgr/%s_state.conf", user, module->name);
+  } else {
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/modules/%s.conf",
+             user, module->name);
+  }
+  FILE *module_fid = fopen(fidbuf, "r");
+  if (module_fid != nullptr) {
+    damgr_log(INFO, "parsing module: %s", fidbuf);
+    if (damgr_parse_conf(module_fid, config, &module_idx) != EXIT_SUCCESS) {
+      damgr_log(ERROR, "failed to parse module: %s", fidbuf);
+      fclose(module_fid);
+      return EXIT_FAILURE;
+    }
+    fclose(module_fid);
+    return damgr_validate_module(*module, fidbuf);
+  } else {
+    char *fmt = (is_state) ? "state" : "new";
+    damgr_log(ERROR, "failed to open %s module: %s", fmt, fidbuf);
     return EXIT_FAILURE;
   }
 }
