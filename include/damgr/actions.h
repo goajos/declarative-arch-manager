@@ -25,15 +25,23 @@ typedef struct action {
   Damgr_Action_Payload payload;
   Damgr_Action_Status status;
   Damgr_Action_Type type;
+  bool is_action_positive;
 } Damgr_Action;
 
-typedef struct actions {
+typedef struct action_queue {
   Damgr_Action *items;
+  size_t capacity;
+  size_t count;
+} Damgr_Action_Queue;
+
+typedef struct actions {
+  Damgr_Action_Queue *queues;
   size_t capacity;
   size_t count;
 } Damgr_Actions;
 
-int damgr_get_actions(Damgr_Config *old_config, Damgr_Config *config);
+int damgr_get_actions(Damgr_Actions *actions, Damgr_Config *old_config,
+                      Damgr_Config *config);
 int damgr_do_actions(char *user, Damgr_Config *old_config,
                      Damgr_Config *config);
 

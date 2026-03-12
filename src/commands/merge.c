@@ -1,3 +1,4 @@
+#include "damgr/actions.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
 #include "damgr/utils.h"
@@ -52,10 +53,10 @@ int damgr_merge() {
     }
   }
 
-  // TODO: finish actions
-  // if (get_actions(&old_config, &config) != EXIT_SUCCESS) {
-  //   goto cleanup;
-  // }
+  Damgr_Actions actions = {};
+  if (damgr_get_actions(&actions, &old_config, &config) != EXIT_SUCCESS) {
+    goto cleanup;
+  }
 
   ret = EXIT_SUCCESS;
 
