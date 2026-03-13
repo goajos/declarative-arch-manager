@@ -25,7 +25,7 @@ typedef struct action {
   Damgr_Action_Payload payload;
   Damgr_Action_Status status;
   Damgr_Action_Type type;
-  bool is_action_positive;
+  bool is_new_state;
 } Damgr_Action;
 
 typedef struct action_queue {
