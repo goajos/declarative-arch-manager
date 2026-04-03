@@ -4,6 +4,42 @@
 #include "damgr/utils.h"
 #include <string.h>
 
+static void damgr_compute_darray_diff(Damgr_Darray *negative,
+                                      Damgr_Darray *positive,
+                                      Damgr_Darray *old_array,
+                                      Damgr_Darray *array) {
+  qsort(old_array->items, old_array->count, sizeof(old_array->items[0]),
+        damgr_qcharcmp);
+  qsort(array->items, array->count, sizeof(array->items[0]), damgr_qcharcmp);
+  size_t i = 0;
+  size_t j = 0;
+  while (i < old_array->count && j < array->count) {
+    int ret = strcmp(old_array->items[i], array->items[j]);
+    if (ret < 0) {
+      if (negative != nullptr) {
+        damgr_darray_append(negative, old_array->items[i]);
+      }
+      ++i;
+    } else if (ret > 0) {
+      damgr_darray_append(positive, array->items[j]);
+      ++j;
+    } else {
+      ++i;
+      ++j;
+    }
+  }
+  while (i < old_array->count) {
+    if (negative != nullptr) {
+      damgr_darray_append(negative, old_array->items[i]);
+    }
+    ++i;
+  }
+  while (j < array->count) {
+    damgr_darray_append(positive, array->items[j]);
+    ++j;
+  }
+}
+
 static void damgr_queue_append(Damgr_Task_Queue *queue, Damgr_Task task) {
   if (queue->count >= queue->capacity) {
     if (queue->capacity == 0) {
