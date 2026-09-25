@@ -141,13 +141,9 @@ int read_module(char *user, struct module *module, bool is_state) {
     fclose(module_fid);
     return validate_module(*module, fidbuf);
   } else {
-    if (is_state) {
-      damgr_log(ERROR, "failed to open state module: %s", fidbuf);
-      return EXIT_FAILURE;
-    } else {
-      damgr_log(ERROR, "failed to open new module: %s", fidbuf);
-      return EXIT_FAILURE;
-    }
+    char *fmt = (is_state) ? "state" : "new";
+    damgr_log(ERROR, "failed to open %s module: %s", fmt, fidbuf);
+    return EXIT_FAILURE;
   }
 }
 
