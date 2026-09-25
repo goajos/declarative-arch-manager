@@ -51,9 +51,20 @@ static void actions_append(struct actions *actions, struct action action) {
   actions->items[actions->count++] = action;
 }
 
+// TODO: use union for actions?
 static void get_actions(struct actions *actions, char *name,
                         enum action_type type, bool is_positive) {
-  struct action action = {.name = name,
+  struct action action = {.payload.name = name,
+                          .type = type,
+                          .is_positive = is_positive,
+                          .status = PENDING};
+  actions_append(actions, action);
+}
+
+static void get_packages_actions(struct actions *actions,
+                                 struct darray packages, enum action_type type,
+                                 bool is_positive) {
+  struct action action = {.payload.packages = packages,
                           .type = type,
                           .is_positive = is_positive,
                           .status = PENDING};
@@ -120,17 +131,61 @@ static int get_actions_from_hooks_diff(struct actions *actions,
 
   return EXIT_SUCCESS;
 }
-// TODO: finish these two blocks
-// static int get_actions_from_packages_diff(struct actions *actions,
-//                                           struct darray old_packages,
-//                                           struct darray packages) {
-//   return EXIT_SUCCESS;
-// }
-// static int get_actions_from_dotfiles_diff(struct actions *actions,
-//                                           bool old_link, bool link,
-//                                           char *name) {
-//   return EXIT_SUCCESS;
-// }
+static int get_actions_from_packages_diff(struct actions *actions,
+                                          struct darray old_packages,
+                                          struct darray packages, bool aur) {
+  struct darray to_remove = {};
+  struct darray to_install = {};
+  compute_darray_diff(&to_remove, &to_install, old_packages, packages);
+  // for (size_t i = 0; i < to_remove.count; ++i) {
+  //   char *package = string_copy(to_remove.items[i]);
+  //   if (package == nullptr) {
+  //     EXIT_FAILURE;
+  //   }
+  //   if (aur) {
+  //     get_actions(actions, package, AUR_PACKAGE, false);
+  //   } else {
+  //     get_actions(actions, package, PACKAGE, false);
+  //   }
+  // }
+  if (aur && to_remove.count > 0) {
+    get_packages_actions(actions, to_remove, AUR_PACKAGE, false);
+  } else {
+    get_packages_actions(actions, to_remove, PACKAGE, false);
+  }
+  // for (size_t i = 0; i < to_install.count; ++i) {
+  //   char *package = string_copy(to_install.items[i]);
+  //   if (package == nullptr) {
+  //     EXIT_FAILURE;
+  //   }
+  //   if (aur) {
+  //     get_actions(actions, package, AUR_PACKAGE, true);
+  //   } else {
+  //     get_actions(actions, package, PACKAGE, true);
+  //   }
+  // }
+  if (aur && to_install.count > 0) {
+    get_packages_actions(actions, to_install, AUR_PACKAGE, true);
+  } else {
+    get_packages_actions(actions, to_install, PACKAGE, true);
+  }
+  return EXIT_SUCCESS;
+}
+
+static int get_actions_from_dotfiles_diff(struct actions *actions,
+                                          bool old_link, bool link,
+                                          char *name) {
+  if (old_link) {
+    if (!link) {
+      get_actions(actions, name, DOTFILE, false);
+    }
+  } else {
+    if (link) {
+      get_actions(actions, name, DOTFILE, true);
+    }
+  }
+  return EXIT_SUCCESS;
+}
 
 int get_actions_from_modules_diff(struct actions *actions,
                                   struct module old_module,
@@ -145,23 +200,24 @@ int get_actions_from_modules_diff(struct actions *actions,
                                   true) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
-  // if (get_actions_from_packages_diff(actions, old_module.packages,
-  //                                    module.packages) != EXIT_SUCCESS) {
-  //   return EXIT_FAILURE;
-  // }
-  // if (get_actions_from_packages_diff(actions, old_module.aur_packages,
-  //                                    module.aur_packages) != EXIT_SUCCESS) {
-  //   return EXIT_FAILURE;
-  // }
+  if (get_actions_from_packages_diff(actions, old_module.packages,
+                                     module.packages, false) != EXIT_SUCCESS) {
+    return EXIT_FAILURE;
+  }
+  if (get_actions_from_packages_diff(actions, old_module.aur_packages,
+                                     module.aur_packages,
+                                     true) != EXIT_SUCCESS) {
+    return EXIT_FAILURE;
+  }
   if (get_actions_from_services_diff(actions, old_module.user_services,
                                      module.user_services,
                                      false) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
-  // if (get_actions_from_dotfiles_diff(actions, old_module.link, module.link,
-  //                                    module.name) != EXIT_SUCCESS) {
-  //   return EXIT_FAILURE;
-  // }
+  // no failure for dotfiles
+  get_actions_from_dotfiles_diff(actions, old_module.to_link, module.to_link,
+                                 module.name);
+
   if (get_actions_from_hooks_diff(actions, old_module.post_root_hooks,
                                   module.post_root_hooks, true,
                                   false) != EXIT_SUCCESS) {
@@ -173,5 +229,71 @@ int get_actions_from_modules_diff(struct actions *actions,
     return EXIT_FAILURE;
   }
 
+  return EXIT_SUCCESS;
+}
+
+int get_actions_from_module(struct actions *actions, struct module module,
+                            bool is_positive) {
+  // can't undo hooks
+  if (is_positive) {
+    for (size_t i = 0; i < module.pre_root_hooks.count; ++i) {
+      char *hook = string_copy(module.pre_root_hooks.items[i]);
+      if (hook == nullptr) {
+        EXIT_FAILURE;
+      }
+      get_actions(actions, hook, PRE_ROOT_HOOK, is_positive);
+    }
+    for (size_t i = 0; i < module.pre_user_hooks.count; ++i) {
+      char *hook = string_copy(module.pre_user_hooks.items[i]);
+      if (hook == nullptr) {
+        EXIT_FAILURE;
+      }
+      get_actions(actions, hook, PRE_USER_HOOK, is_positive);
+    }
+  }
+  // for (size_t i = 0; i < module.packages.count; ++i) {
+  //   char *package = string_copy(module.packages.items[i]);
+  //   if (package == nullptr) {
+  //     EXIT_FAILURE;
+  //   }
+  //   get_actions(actions, package, PACKAGE, is_positive);
+  // }
+  // for (size_t i = 0; i < module.aur_packages.count; ++i) {
+  //   char *package = string_copy(module.aur_packages.items[i]);
+  //   if (package == nullptr) {
+  //     EXIT_FAILURE;
+  //   }
+  //   get_actions(actions, package, AUR_PACKAGE, is_positive);
+  // }
+  // TODO: how is it possible that i do not have to copy the package strings
+  // here? do i really have to copy all the strings when parsing then?
+  get_packages_actions(actions, module.packages, PACKAGE, is_positive);
+  get_packages_actions(actions, module.aur_packages, PACKAGE, is_positive);
+  for (size_t i = 0; i < module.user_services.count; ++i) {
+    char *service = string_copy(module.user_services.items[i]);
+    if (service == nullptr) {
+      EXIT_FAILURE;
+    }
+    get_actions(actions, service, USER_SERVICE, is_positive);
+  }
+  if (module.to_link) {
+    get_actions(actions, module.name, DOTFILE, is_positive);
+  }
+  if (is_positive) {
+    for (size_t i = 0; i < module.post_root_hooks.count; ++i) {
+      char *hook = string_copy(module.post_root_hooks.items[i]);
+      if (hook == nullptr) {
+        EXIT_FAILURE;
+      }
+      get_actions(actions, hook, POST_ROOT_HOOK, is_positive);
+    }
+    for (size_t i = 0; i < module.post_user_hooks.count; ++i) {
+      char *hook = string_copy(module.post_user_hooks.items[i]);
+      if (hook == nullptr) {
+        EXIT_FAILURE;
+      }
+      get_actions(actions, hook, POST_USER_HOOK, is_positive);
+    }
+  }
   return EXIT_SUCCESS;
 }
