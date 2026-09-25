@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../state/state.h"
-#include "utils.c"
+#include "utils.h"
 
-// TODO: atomic operation? either everything works or full rollback?
-// TODO: every parse/write step needs a check for the file (mismatch filename and kdl entry) to circumvent a segfault
+// TODO: atomic operation? either everything works or full rollback? (atomic merge or write only?)
+// TODO: every parse/write step needs a check for the file (mismatch filename and kdl entry) to
+// circumvent a segfault
+// TODO: merge should create a state-bak folder that gets deleted if succesful or put back
 int damngr_merge() {
     puts("hello from damngr merge...");
     int ret;
@@ -33,7 +35,11 @@ int damngr_merge() {
     if (old_config_fid != nullptr) { 
         // if the old state exists, parse the old states active host.kdl
         active_host = &old_config.active_host;
-        snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/hosts/%s_state.kdl", get_user(), active_host->name);
+        snprintf(fidbuf,
+                sizeof(fidbuf),
+                "/home/%s/.local/share/damngr/hosts/%s_state.kdl",
+                get_user(),
+                active_host->name);
         FILE* old_host_fid = fopen(fidbuf, "r");
         ret = parse_host_kdl(old_host_fid, active_host);
         fclose(old_host_fid);
@@ -41,7 +47,11 @@ int damngr_merge() {
     } 
 
     active_host = &new_config.active_host;
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damngr/hosts/%s.kdl", get_user(), active_host->name);
+    snprintf(fidbuf,
+            sizeof(fidbuf),
+            "/home/%s/.config/damngr/hosts/%s.kdl",
+            get_user(),
+            active_host->name);
     FILE* new_host_fid = fopen(fidbuf, "r");
     // always parse the new states active host.kdl
     ret = parse_host_kdl(new_host_fid, active_host);
@@ -55,7 +65,11 @@ int damngr_merge() {
         modules = &old_config.active_host.modules;
         for (size_t i = 0; i < modules->count; ++i) {
             module = &modules->items[i];
-            snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/modules/%s_state.kdl", get_user(), module->name);
+            snprintf(fidbuf,
+                    sizeof(fidbuf),
+                    "/home/%s/.local/share/damngr/modules/%s_state.kdl",
+                    get_user(),
+                    module->name);
             FILE* old_module_fid = fopen(fidbuf, "r");
             ret = parse_module_kdl(old_module_fid, module);
             fclose(old_module_fid);
@@ -67,7 +81,11 @@ int damngr_merge() {
     modules = &new_config.active_host.modules;
     for (size_t i = 0; i < modules->count; ++i) {
         module = &modules->items[i];
-        snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damngr/modules/%s.kdl", get_user(), module->name);
+        snprintf(fidbuf,
+                sizeof(fidbuf),
+                "/home/%s/.config/damngr/modules/%s.kdl",
+                get_user(),
+                module->name);
         FILE* new_module_fid = fopen(fidbuf, "r");
         ret = parse_module_kdl(new_module_fid, module);
         fclose(new_module_fid);
@@ -84,19 +102,27 @@ int damngr_merge() {
     //      - enable services
     //      - run post hooks
 
-    // TODO: write to the correct .local/share/damngr location
-    FILE* new_config_state_fid = fopen("config_state.kdl", "w");
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/config_state.kdl", get_user());
+    FILE* new_config_state_fid = fopen(fidbuf, "w");
     ret = write_config_kdl(new_config_state_fid, &new_config);
     fclose(new_config_state_fid);
     if (ret == EXIT_FAILURE) goto exit_cleanup; 
-    snprintf(fidbuf, sizeof(fidbuf), "%s_state.kdl", active_host->name);
+    snprintf(fidbuf,
+            sizeof(fidbuf),
+            "/home/%s/.local/share/damngr/%s_state.kdl",
+            get_user(),
+            active_host->name);
     FILE* new_host_state_fid = fopen(fidbuf, "w");
     ret = write_host_kdl(new_host_state_fid, active_host);
     if (ret == EXIT_FAILURE) goto exit_cleanup; 
     fclose(new_host_state_fid);
     FILE* new_module_state_fid;
     for (size_t i = 0; i < modules->count; ++i) {
-        snprintf(fidbuf, sizeof(fidbuf), "%s_state.kdl", modules->items[i].name);
+        snprintf(fidbuf,
+                sizeof(fidbuf),
+                "/home/%s/.local/share/damngr/%s_state.kdl",
+                get_user(),
+                modules->items[i].name);
         new_module_state_fid = fopen(fidbuf, "w");
         ret = write_module_kdl(new_module_state_fid, &modules->items[i]);
         fclose(new_module_state_fid);
