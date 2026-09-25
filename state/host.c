@@ -34,15 +34,11 @@ int parse_host_kdl(FILE* fid, struct host* host)  {
                         break;
                     case 3: // child level
                         if (memcmp(node_d2, "modules", 7) == 0) {
-                            struct modules* modules = &host->modules;
                             struct module module = { .name=string_copy((char* )name_data) };
-                            DYNAMIC_ARRAY_APPEND((*modules), module);
+                            DYNAMIC_ARRAY_APPEND(host->modules, module);
                         } else if (memcmp(node_d2, "services", 8) == 0){
-                            struct permissions* services = &host->services;
-                            struct permission service = { 
-                                                    .name=string_copy((char* )name_data),
-                                                    .root=true }; // implicit root=#true
-                            DYNAMIC_ARRAY_APPEND((*services), service);
+                            char* service = string_copy((char* )name_data); // implicit root=#true
+                            DYNAMIC_ARRAY_APPEND(host->root_services, service);
                         }
                         break;
                 }
@@ -97,8 +93,8 @@ int write_host_kdl(FILE* fid, struct host* host) {
         kdl_finish_emitting_children(emitter); // close modules level
         kdl_emit_node(emitter, kdl_str_from_cstr("services"));
         kdl_start_emitting_children(emitter); // open services level
-        for (size_t i = 0; i < host->services.count; ++i) {
-            kdl_emit_node(emitter, kdl_str_from_cstr(host->services.items[i].name));
+        for (size_t i = 0; i < host->root_services.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(host->root_services.items[i]));
         }
         kdl_finish_emitting_children(emitter); // close services level
         kdl_finish_emitting_children(emitter); // close example_host level
@@ -120,7 +116,8 @@ int free_host(struct host host) {
     for (size_t i = 0; i < host.modules.count; ++i) {
         ret = free_module(host.modules.items[i]);
     }
-    DYNAMIC_ARRAY_NAME_FREE(host.services);
+    MODULES_FREE(host.modules); // also free the modules itself
+    DYNAMIC_ARRAY_FREE(host.root_services);
 
     return ret;
 }
