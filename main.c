@@ -47,5 +47,6 @@ int main(int argc, char* argv[]) {
         //     break;
     }
 
+    printf("exit status: %d\n", ret);
     return ret;
 }

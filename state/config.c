@@ -97,3 +97,11 @@ int write_config_kdl(FILE* fid, struct config* config) {
         kdl_destroy_emitter(emitter);
         return EXIT_FAILURE;
 }
+
+int free_config(struct config config) {
+    int ret;
+    config.aur_helper = nullptr;
+    ret = free_host(config.active_host);
+
+    return ret; 
+}

@@ -1,0 +1,11 @@
+host_state {
+    example_host {
+        modules {
+            example_module
+            another_example_module
+        }
+        services {
+            example_root_service
+        }
+    }
+}

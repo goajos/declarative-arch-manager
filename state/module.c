@@ -91,28 +91,62 @@ int write_module_kdl(FILE* fid, [[maybe_unused]] struct module* module) {
     kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;
     kdl_emitter* emitter = kdl_create_stream_emitter(&write_func, (void* )fid, &e_opts);
 
-    // kdl_emit_node(emitter, kdl_str_from_cstr("config_state"));
-    // kdl_start_emitting_children(emitter);
-    // if (config->aur_helper != nullptr) {
-    //     kdl_emit_node(emitter, kdl_str_from_cstr("aur_helper"));
-    //     kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->aur_helper) };
-    //     kdl_emit_arg(emitter, &value);
-    // } else goto invalid_state;
-    // if (config->active_host.name != nullptr) {
-    //     kdl_emit_node(emitter, kdl_str_from_cstr("active_host"));
-    //     kdl_value value = { .type=KDL_TYPE_STRING, .string=kdl_str_from_cstr(config->active_host.name) };
-    //     kdl_emit_arg(emitter, &value);
-    // } else goto invalid_state;
-    // kdl_finish_emitting_children(emitter);
-    // kdl_emit_end(emitter);
+    kdl_emit_node(emitter, kdl_str_from_cstr("module_state"));
+    kdl_start_emitting_children(emitter); // open module level
+    if (module->name != nullptr) {
+        kdl_emit_node(emitter, kdl_str_from_cstr(module->name));
+        kdl_start_emitting_children(emitter); // open example_module level
+        if (module->sync) {
+            kdl_emit_node(emitter, kdl_str_from_cstr("dotfiles"));
+            kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=true };
+            kdl_emit_property(emitter, kdl_str_from_cstr("sync"), &value);
+        }
+        kdl_emit_node(emitter, kdl_str_from_cstr("packages"));
+        kdl_start_emitting_children(emitter); // open packages level
+        for (size_t i = 0; i < module->packages.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->packages.items[i]));
+        }
+        kdl_finish_emitting_children(emitter); // close packages level
+        kdl_emit_node(emitter, kdl_str_from_cstr("aur_packages"));
+        kdl_start_emitting_children(emitter); // open aur_packages level
+        for (size_t i = 0; i < module->aur_packages.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->aur_packages.items[i]));
+        }
+        kdl_finish_emitting_children(emitter); // close aur_packages level
+        kdl_emit_node(emitter, kdl_str_from_cstr("services"));
+        kdl_start_emitting_children(emitter); // open services level
+        for (size_t i = 0; i < module->services.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->services.items[i].name));
+        }
+        kdl_finish_emitting_children(emitter); // close services level
+        kdl_emit_node(emitter, kdl_str_from_cstr("hooks"));
+        kdl_start_emitting_children(emitter); // open hooks level
+        for (size_t i = 0; i < module->hooks.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->hooks.items[i].name));
+            kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=module->hooks.items[i].root };
+            kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
+        }
+        kdl_finish_emitting_children(emitter); // close hooks level
+        kdl_finish_emitting_children(emitter); // close example_module level
+    } else goto invalid_state;
+    kdl_finish_emitting_children(emitter); // close module_state level
+    kdl_emit_end(emitter);
 
     kdl_destroy_emitter(emitter);
     return EXIT_SUCCESS;
 
-    // invalid_state:
-    //     puts("Not a valid config state for writing config_state.kdl\n");
-    //     kdl_destroy_emitter(emitter);
-    //     return EXIT_FAILURE;
+    invalid_state:
+        puts("Not a valid module state for writing module_state.kdl\n");
+        kdl_destroy_emitter(emitter);
+        return EXIT_FAILURE;
 }
 
-
+// TODO: how to handle failure in the cleanup chain?
+int free_module(struct module module) {
+    PACKAGES_FREE(module.packages);
+    PACKAGES_FREE(module.aur_packages);
+    PERMISSIONS_FREE(module.services);
+    PERMISSIONS_FREE(module.hooks);
+    
+    return EXIT_SUCCESS;
+}
