@@ -300,8 +300,8 @@ int damgr_read_host(char *user, Damgr_Config *config, bool is_state) {
 
 int damgr_write_host(char *user, Damgr_Host *host) {
   char fidbuf[damgr_path_max];
-  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
-           user, host->name);
+  snprintf(fidbuf, sizeof(fidbuf),
+           "/home/%s/.local/state/damgr/config_state.conf", user);
   FILE *host_fid = fopen(fidbuf, "w");
   if (host_fid == nullptr) {
     damgr_log(ERROR, "failed to open state host for writing: %s", fidbuf);
