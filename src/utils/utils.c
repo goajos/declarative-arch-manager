@@ -5,6 +5,7 @@
 #include "damgr/log.h"
 #include "damgr/state.h"
 #include <dirent.h>
+#include <errno.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -29,35 +30,33 @@ int is_damgr_state_dir_empty(char *dir) {
   return count;
 }
 
-int init_damgr_state_dir() {
+int init_damgr_dir(bool state) {
   struct stat st;
   char fidbuf[PATH_MAX];
-  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr", get_user());
-  // stat returns -1 if fidbuf doesn't exist
+  char *path =
+      (state) ? "/home/%s/.local/state/damgr" : "/home/%s/.config/damgr";
+  snprintf(fidbuf, sizeof(fidbuf), path, get_user());
+  char *fmt = (state) ? "state" : "config";
   if (stat(fidbuf, &st) == -1) {
-    mkdir(fidbuf, 0777);
-    damgr_log(INFO, "successfully created damgr state directory: %s", fidbuf);
+    if (errno == ENOENT) {
+      if (mkdir(fidbuf, 0777) != -1) {
+        damgr_log(INFO, "successfully created damgr %s directory: %s", fmt,
+                  fidbuf);
+        return EXIT_SUCCESS;
+      } else {
+        damgr_log(ERROR, "mkdir %s failed: %s", fidbuf, errno);
+        return EXIT_FAILURE;
+      }
+    } else {
+      damgr_log(ERROR, "stat %s failed: %s", fidbuf, errno);
+      return EXIT_FAILURE;
+    }
   } else {
-    damgr_log(ERROR, "damgr state directory already exists");
+    damgr_log(ERROR, "damgr %s directory already exists", fidbuf);
     return EXIT_FAILURE;
   }
-  return EXIT_SUCCESS;
 }
 
-int init_damgr_config_dir() {
-  struct stat st;
-  char fidbuf[PATH_MAX];
-  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr", get_user());
-  // stat returns -1 if fidbuf doesn't exist
-  if (stat(fidbuf, &st) == -1) {
-    mkdir(fidbuf, 0777);
-    damgr_log(INFO, "successfully created damgr config directory: %s", fidbuf);
-  } else {
-    damgr_log(ERROR, "damgr config directory already exists");
-    return EXIT_FAILURE;
-  }
-  return EXIT_SUCCESS;
-}
 char *get_user() {
   struct passwd *pwd = getpwuid(geteuid());
   return pwd->pw_name;
