@@ -1,5 +1,5 @@
-#ifndef STATE_H
-#define STATE_H
+#ifndef DAMGR_STATE_H
+#define DAMGR_STATE_H
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -61,4 +61,4 @@ int write_host(char *user, struct host host);
 int read_module(char *user, struct module *module, bool is_state);
 int write_module(char *user, struct module module);
 
-#endif /* STATE_H */
+#endif /* DAMGR_STATE_H */
