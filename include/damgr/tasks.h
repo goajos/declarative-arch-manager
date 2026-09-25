@@ -25,6 +25,7 @@ typedef struct task {
   Damgr_Task_Payload payload;
   Damgr_Task_Status status;
   Damgr_Task_Type type;
+  // TODO: do we really need new state here?
   bool is_new_state;
 } Damgr_Task;
 

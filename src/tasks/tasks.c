@@ -1,6 +1,7 @@
 #include "damgr/tasks.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
+#include "damgr/utils.h"
 #include <string.h>
 
 static void damgr_queue_append(Damgr_Task_Queue *queue, Damgr_Task task) {
@@ -104,6 +105,98 @@ static int get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module *module,
   return EXIT_SUCCESS;
 }
 
+static int damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
+                                              Damgr_Darray *old_services,
+                                              Damgr_Darray *services,
+                                              bool root) {
+  struct darray to_disable = {};
+  struct darray to_enable = {};
+  damgr_compute_darray_diff(&to_disable, &to_enable, old_services, services);
+  for (size_t i = 0; i < to_disable.count; ++i) {
+    char *service = to_disable.items[i];
+    if (service == nullptr) {
+      return EXIT_FAILURE;
+    }
+    struct payload payload = {.name = service, .packages = {}};
+    if (root) {
+      damgr_get_task(queue, ROOT_SERVICE, false, payload);
+    } else {
+      damgr_get_task(queue, USER_SERVICE, false, payload);
+    }
+  }
+  for (size_t i = 0; i < to_enable.count; ++i) {
+    char *service = to_enable.items[i];
+    if (service == nullptr) {
+      return EXIT_FAILURE;
+    }
+    struct payload payload = {.name = service, .packages = {}};
+    if (root) {
+      damgr_get_task(queue, ROOT_SERVICE, true, payload);
+    } else {
+      damgr_get_task(queue, USER_SERVICE, true, payload);
+    }
+  }
+  return EXIT_SUCCESS;
+}
+
+static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
+                                           Damgr_Host *old_host,
+                                           Damgr_Host *host) {
+  // TODO: should this be wrapped in a single constructor?
+  // host queue is always index 0
+  Damgr_Task_Queue host_queue = {};
+  damgr_tasks_append(tasks, host_queue);
+  if (damgr_get_tasks_from_services_diff(
+          &tasks->queues[0], &old_host->root_services, &host->root_services,
+          true) != EXIT_SUCCESS) {
+    return EXIT_FAILURE;
+  }
+  for (size_t i = 0; i < host->modules.count; ++i) {
+    // TODO: should this be wrapped in a single constructor?
+    // module queues are index i+1
+    Damgr_Task_Queue module_queue = {};
+    damgr_tasks_append(tasks, module_queue);
+    for (size_t j = 0; j < old_host->modules.count; ++j) {
+      // first check if the name lengths are equal, if so perform needle in
+      // haystack search, else skip
+      if (strlen(old_host->modules.items[j].name) ==
+              strlen(host->modules.items[i].name) &&
+          damgr_string_contains(old_host->modules.items[j].name,
+                                host->modules.items[i].name)) {
+        old_host->modules.items[j].module_state.is_orphan =
+            false; // to remove later
+        if (damgr_get_tasks_from_modules_diff(
+                &tasks->queues[i + 1], old_host->modules.items[j],
+                &host->modules.items[i]) != EXIT_SUCCESS) {
+          return EXIT_FAILURE;
+        } else {
+          host->modules.items[i].module_state.is_done = true;
+        }
+      }
+    }
+    if (!host->modules.items[i].module_state.is_done) {
+      if (get_tasks_from_module(&tasks->queues[i + 1], &host->modules.items[i],
+                                true) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      }
+    }
+  }
+  // TODO: what index should old modules get here???
+  // TODO: should this be wrapped in a single constructor?
+  // module queues are index i+1
+  Damgr_Task_Queue module_queue = {};
+  damgr_tasks_append(tasks, module_queue);
+  for (size_t i = 0; i < old_host->modules.count; ++i) {
+    if (old_host->modules.items[i].module_state.is_orphan) {
+      if (get_tasks_from_module(&old_host->modules.items[i], false) !=
+          EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      }
+    }
+  }
+  return EXIT_SUCCESS;
+}
+
 static int damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host *host) {
   for (size_t i = 0; i < host->root_services.count; i++) {
     char *service = host->root_services.items[i];
@@ -142,13 +235,13 @@ int damgr_get_tasks(Damgr_Tasks *tasks, Damgr_Config *old_config,
         return EXIT_FAILURE;
       }
     } else { // same host
-      // if (damgr_get_tasks_from_hosts_diff(
-      //         &old_config->active_host, &config->active_host) !=
-      //         EXIT_SUCCESS) {
-      //   damgr_log(ERROR, "failed to get tasks comparing the hosts: %s",
-      //             config->active_host.name);
-      //   return EXIT_FAILURE;
-      // }
+      if (damgr_get_tasks_from_hosts_diff(tasks, &old_config->active_host,
+                                          &config->active_host) !=
+          EXIT_SUCCESS) {
+        damgr_log(ERROR, "failed to get tasks comparing the hosts: %s",
+                  config->active_host.name);
+        return EXIT_FAILURE;
+      }
     }
   } else { // no state host
     if (damgr_get_tasks_from_host(tasks, &config->active_host) !=
