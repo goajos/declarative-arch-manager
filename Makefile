@@ -13,7 +13,7 @@ CFILES=main.c \
 			 src/utils/log.c \
 			 src/utils/utils.c \
 			 src/state/state.c \
-			 src/actions/actions.c
+			 src/tasks/tasks.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 

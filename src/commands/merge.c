@@ -1,6 +1,6 @@
-#include "damgr/actions.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
+#include "damgr/tasks.h"
 #include "damgr/utils.h"
 #include <stdlib.h>
 // #include <string.h>
@@ -53,8 +53,8 @@ int damgr_merge() {
     }
   }
 
-  Damgr_Actions actions = {};
-  if (damgr_get_actions(&actions, &old_config, &config) != EXIT_SUCCESS) {
+  Damgr_Tasks tasks = {};
+  if (damgr_get_tasks(&tasks, &old_config, &config) != EXIT_SUCCESS) {
     goto cleanup;
   }
 
