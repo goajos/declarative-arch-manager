@@ -58,25 +58,16 @@ int damgr_merge() {
     goto cleanup;
   }
 
-  size_t task_count = 0;
-  for (size_t i = 0; i < tasks.count; ++i) {
-    task_count += tasks.queues[i].count;
-  }
+  size_t task_count = tasks.count > 0 ? tasks.count : 0;
   if (task_count == 0) {
     damgr_log(INFO, "got no tasks to do...");
     ret = EXIT_SUCCESS;
     goto cleanup;
   }
 
-  Damgr_Task_Queue succeeded_queue = {};
-  if (damgr_do_tasks(&tasks, config.aur_helper, user, &succeeded_queue) !=
-      EXIT_SUCCESS) {
-    damgr_log(ERROR, "failed to do tasks, performing a roll back...");
-    if (damgr_undo_tasks(&succeeded_queue) != EXIT_SUCCESS) {
-      // TODO: report what tasks were not rolled back?
-      damgr_log(ERROR, "failed to roll back...");
-    }
-    goto cleanup;
+  damgr_log(INFO, "%zu task queues to do...", task_count);
+  if (damgr_do_tasks(tasks, config.aur_helper, user) != EXIT_SUCCESS) {
+    // TODO: what to do on failure?
   }
 
   if (damgr_write_config(user, &config) != EXIT_SUCCESS) {

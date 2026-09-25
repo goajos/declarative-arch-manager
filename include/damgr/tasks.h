@@ -24,7 +24,7 @@ typedef struct payload {
 } Damgr_Task_Payload;
 
 typedef struct task {
-  char *name;
+  char *task_name;
   Damgr_Task_Payload payload;
   Damgr_Task_Status status;
   Damgr_Task_Type type;
@@ -32,6 +32,7 @@ typedef struct task {
 } Damgr_Task;
 
 typedef struct task_queue {
+  char *queue_name;
   Damgr_Task *items;
   size_t capacity;
   size_t count;
@@ -45,8 +46,6 @@ typedef struct tasks {
 
 int damgr_get_tasks(Damgr_Tasks *tasks, Damgr_Config old_config,
                     Damgr_Config config);
-int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user,
-                   Damgr_Task_Queue *succeeded_queue);
-int damgr_undo_tasks(Damgr_Task_Queue *succeeded_Queue);
+int damgr_do_tasks(Damgr_Tasks tasks, char *aur_helper, char *user);
 
 #endif /* DAMGR_TASKS_H */
