@@ -3,6 +3,6 @@
 
 enum log_level { LOG_INFO, LOG_ERROR };
 
-void logger(enum log_level level, const char *log, ...);
+void LOG(enum log_level level, const char *log, ...);
 
 #endif /* LOGGING_H */

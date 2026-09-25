@@ -12,7 +12,8 @@ BUILDDIR=build
 CFILES=main.c \
 			 src/logging.c \
 			 src/utils.c \
-			 src/state/config.c
+			 src/state/config.c \
+			 # src/state/host.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 

@@ -6,6 +6,8 @@ constexpr int PATH_MAX = 4096;
 
 char *get_user();
 
+int is_state_dir_empty(char *dir);
+
 size_t read_func(void *user_data, char *buf, size_t bufsize);
 
 char *string_copy(char *str);

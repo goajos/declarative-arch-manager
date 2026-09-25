@@ -5,7 +5,7 @@
 
 static const char *log_levels[] = {"INFO", "ERROR"};
 
-void logger(enum log_level level, const char *log, ...) {
+void LOG(enum log_level level, const char *log, ...) {
   time_t now = time(nullptr);
   struct tm *tm_info = localtime(&now);
   char tstring[10];

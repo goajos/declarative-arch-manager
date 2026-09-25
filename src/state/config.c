@@ -7,14 +7,14 @@
 
 static int validate_config(struct config config, char *fidbuf) {
   if (config.aur_helper == nullptr) {
-    logger(LOG_ERROR, "failed to aur_helper for config: %s", fidbuf);
+    LOG(LOG_ERROR, "failed to parse aur_helper for config: %s", fidbuf);
     return EXIT_FAILURE;
   }
   if (config.active_host.name == nullptr) {
-    logger(LOG_ERROR, "failed to parse host name for config: %s", fidbuf);
+    LOG(LOG_ERROR, "failed to parse host name for config: %s", fidbuf);
     return EXIT_FAILURE;
   }
-  logger(LOG_INFO, "successfully parsed config: %s", fidbuf);
+  LOG(LOG_INFO, "successfully parsed config: %s", fidbuf);
   return EXIT_SUCCESS;
 }
 
@@ -29,9 +29,9 @@ int get_config(struct config *config, bool state) {
   }
   FILE *config_fid = fopen(fidbuf, "r");
   if (config_fid != nullptr) {
-    logger(LOG_INFO, "parsing config: %s", fidbuf);
+    LOG(LOG_INFO, "parsing config: %s", fidbuf);
     if (parse_config(config_fid, config) != EXIT_SUCCESS) {
-      logger(LOG_ERROR, "failed to parse config: %s", fidbuf);
+      LOG(LOG_ERROR, "failed to parse config: %s", fidbuf);
       fclose(config_fid);
       return EXIT_FAILURE;
     }
@@ -39,10 +39,10 @@ int get_config(struct config *config, bool state) {
     return validate_config(*config, fidbuf);
   } else {
     if (state) {
-      logger(LOG_ERROR, "failed to open state config: %s", fidbuf);
+      LOG(LOG_ERROR, "failed to open state config: %s", fidbuf);
       return EXIT_FAILURE;
     } else {
-      logger(LOG_ERROR, "failed to open new config: %s", fidbuf);
+      LOG(LOG_ERROR, "failed to open new config: %s", fidbuf);
       return EXIT_FAILURE;
     }
   }
