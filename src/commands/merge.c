@@ -52,6 +52,11 @@ int damgr_merge() {
     }
   }
 
+  // TODO: finish actions
+  // if (get_actions(&old_config, &config) != EXIT_SUCCESS) {
+  //   goto cleanup;
+  // }
+
   ret = EXIT_SUCCESS;
 
 cleanup:

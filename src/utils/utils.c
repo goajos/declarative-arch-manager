@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200112L
+
 #include "damgr/utils.h"
 #include "damgr/log.h"
 #include <ctype.h>
@@ -128,6 +130,10 @@ int damgr_get_conf_key(char *key) {
   return -1;
 }
 
+int damgr_qcharcmp(const void *p1, const void *p2) {
+  return strcmp(*(const char **)p1, *(const char **)p2);
+}
+
 static int damgr_execute_execv(char *path, char **argv) {
   pid_t pid = fork();
   if (pid == -1) {
@@ -175,6 +181,130 @@ int damgr_execute_update_command() {
   argv[2] = "-Syu";
   argv[3] = nullptr;
   int ret = damgr_execute_execv("/usr/bin/sudo", argv);
+  free(argv);
+  return ret;
+}
+
+int damgr_execute_package_install_command(struct darray packages) {
+  char **argv = malloc((packages.count + 5) * sizeof(char *));
+  argv[0] = "sudo";
+  argv[1] = "pacman";
+  argv[2] = "-S";
+  argv[3] = "--needed";
+  for (size_t i = 0; i < packages.count; ++i) {
+    argv[4 + i] = packages.items[i];
+  }
+  argv[4 + packages.count] = nullptr;
+  int ret = damgr_execute_execv("/usr/bin/sudo", argv);
+  free(argv);
+  return ret;
+}
+
+int damgr_execute_aur_package_install_command(struct darray packages,
+                                              char *aur_helper) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "/usr/bin/%s", aur_helper);
+  char **argv = malloc((packages.count + 4) * sizeof(char *));
+  argv[0] = aur_helper;
+  argv[1] = "-S";
+  argv[2] = "--needed";
+  for (size_t i = 0; i < packages.count; ++i) {
+    argv[3 + i] = packages.items[i];
+  }
+  argv[3 + packages.count] = nullptr;
+  int ret = damgr_execute_execv(fidbuf, argv);
+  free(argv);
+  return ret;
+}
+
+int damgr_execute_package_remove_command(struct darray packages) {
+  char **argv = malloc((packages.count + 5) * sizeof(char *));
+  argv[0] = "sudo";
+  argv[1] = "pacman";
+  argv[2] = "-Rns";
+  for (size_t i = 0; i < packages.count; ++i) {
+    argv[3 + i] = packages.items[i];
+  }
+  argv[3 + packages.count] = nullptr;
+  int ret = damgr_execute_execv("/usr/bin/sudo", argv);
+  free(argv);
+  return ret;
+}
+
+int damgr_execute_hook_command(char *user, bool privileged, char *hook) {
+  int ret;
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/hooks/%s", user,
+           hook);
+  char **argv;
+  if (privileged) {
+    argv = malloc(3 * sizeof(char *));
+    argv[0] = "sudo";
+    argv[1] = fidbuf;
+    argv[2] = nullptr;
+    ret = damgr_execute_execv("/usr/bin/sudo", argv);
+  } else {
+    argv = malloc(2 * sizeof(char *));
+    argv[0] = hook;
+    argv[1] = nullptr;
+    ret = damgr_execute_execv(fidbuf, argv);
+  }
+  free(argv);
+  return ret;
+}
+
+int damgr_execute_service_command(bool privileged, bool to_enable,
+                                  char *service) {
+  int ret;
+  char **argv = malloc(5 * sizeof(char *));
+  if (privileged) {
+    argv[0] = "sudo";
+    argv[1] = "systemctl";
+    argv[2] = (to_enable) ? "enable" : "disable";
+    argv[3] = service;
+    argv[4] = nullptr;
+    ret = damgr_execute_execv("/usr/bin/sudo", argv);
+  } else {
+    argv[0] = "systemctl";
+    argv[1] = "--user";
+    argv[2] = (to_enable) ? "enable" : "disable";
+    argv[3] = service;
+    argv[4] = nullptr;
+    ret = damgr_execute_execv("/usr/bin/systemctl", argv);
+  }
+  free(argv);
+  return ret;
+}
+
+int damgr_execute_dotfile_command(char *user, bool to_link, char *dotfile) {
+  char src_fidbuf[damgr_path_max];
+  snprintf(src_fidbuf, sizeof(src_fidbuf), "/home/%s/.config/damgr/dotfiles/%s",
+           user, dotfile);
+  char dst_fidbuf[damgr_path_max];
+  snprintf(dst_fidbuf, sizeof(dst_fidbuf), "/home/%s/.config/%s", user,
+           dotfile);
+
+  if (to_link) {
+    struct stat st;
+    if (lstat(dst_fidbuf, &st) == 0) { // dst file exists
+      if (S_ISLNK(st.st_mode)) {
+        // dotfile symbolic link already exists
+        return EXIT_SUCCESS;
+      }
+    }
+  } else {
+    unlink(dst_fidbuf);
+    return EXIT_SUCCESS;
+  }
+
+  // dotfile symbolic link doesn't exist
+  char **argv = malloc(5 * sizeof(char *));
+  argv[0] = "ln";
+  argv[1] = "--symbolic";
+  argv[2] = src_fidbuf;
+  argv[3] = dst_fidbuf;
+  argv[4] = nullptr;
+  int ret = damgr_execute_execv("/usr/bin/ln", argv);
   free(argv);
   return ret;
 }
