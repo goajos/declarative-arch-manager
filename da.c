@@ -3,25 +3,25 @@
 #include <stdlib.h>
 
 typedef struct {
-    int *packages;
+    int *items;
     size_t count;
     size_t capacity;
 } Packages;
 
+#define da_append(xs, x)\
+    do {\
+        if (xs.count >= xs.capacity) {\
+            if (xs.capacity == 0) xs.capacity = 256;\
+            else xs.capacity *= 2;\
+            xs.items = realloc(xs.items, xs.capacity*sizeof(*xs.items));\
+        }\
+        xs.items[xs.count++] = x;\
+    } while(0)
+
 int main(void)
 {
-    Packages ps = {0};
-    for (int p = 0; p < 10; ++p) {
-        if (ps.count >= ps.capacity) {
-            if (ps.capacity == 0) ps.capacity = 2;
-            else ps.capacity *= 2; 
-            ps.packages = realloc(ps.packages, ps.capacity*sizeof(*ps.packages));
-        }
-        printf("Packages capacity: %ld\n", ps.capacity);
-        ps.packages[ps.count++] = p;
-    }
-    for (size_t i = 0; i < ps.count; ++i) {
-        printf("%d\n", ps.packages[i]);
-    }
+    Packages xs = {0};
+    for (int x = 0; x < 10; ++x) da_append(xs, x);
+    for (int i = 0; i < 10; ++i) printf("%d\n", xs.items[i]); 
     return 0;
 }
