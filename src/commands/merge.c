@@ -72,6 +72,9 @@ int damgr_merge() {
   if (damgr_write_config(user, &config) != EXIT_SUCCESS) {
     goto cleanup;
   }
+  if (damgr_write_host(user, &config.active_host) != EXIT_SUCCESS) {
+    goto cleanup;
+  }
 
   ret = EXIT_SUCCESS;
 

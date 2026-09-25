@@ -63,6 +63,7 @@ extern const char *damgr_conf_keys[];
 int damgr_read_config(char *user, Damgr_Config *config, bool is_state);
 int damgr_write_config(char *user, Damgr_Config *config);
 int damgr_read_host(char *user, Damgr_Config *config, bool is_state);
+int damgr_write_host(char *user, Damgr_Host *host);
 int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
                       bool is_state);
 

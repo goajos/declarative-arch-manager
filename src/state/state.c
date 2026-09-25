@@ -298,6 +298,35 @@ int damgr_read_host(char *user, Damgr_Config *config, bool is_state) {
   }
 }
 
+int damgr_write_host(char *user, Damgr_Host *host) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
+           user, host->name);
+  FILE *host_fid = fopen(fidbuf, "w");
+  if (host_fid == nullptr) {
+    damgr_log(ERROR, "failed to open state host for writing: %s", fidbuf);
+    return EXIT_FAILURE;
+  }
+
+  if (host->modules.count > 0) {
+    fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
+    for (size_t i = 0; i < host->modules.count; ++i) {
+      fprintf(host_fid, "\t%s\n", host->modules.items[i].name);
+    }
+  }
+
+  if (host->root_services.count > 0) {
+    fprintf(host_fid, "%s=\n", damgr_conf_keys[SERVICES]);
+    for (size_t i = 0; i < host->root_services.count; ++i) {
+      fprintf(host_fid, "\t%s\n", host->root_services.items[i]);
+    }
+  }
+
+  fclose(host_fid);
+  damgr_log(INFO, "succesfully wrote state host: %s", fidbuf);
+  return EXIT_SUCCESS;
+}
+
 static int damgr_validate_module([[maybe_unused]] struct module module,
                                  char *fidbuf) {
   damgr_log(INFO, "successfully parsed module: %s", fidbuf);
