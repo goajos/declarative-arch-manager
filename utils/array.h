@@ -1,20 +1,11 @@
+#ifndef ARRAY_H
+#define ARRAY_H
 #include <stdlib.h>
 
 constexpr size_t init_capacity = 256;
 
-// struct dynamic_array {
-//     char* elements;
-//     size_t capacity;
-//     size_t count;
-// };
-
-struct active_element{
-    char* element;
-    bool active;
-};
-
-struct active_dynamic_array{
-    struct active_element* elements;
+struct dynamic_array{
+    char* elements;
     size_t capacity;
     size_t count;
 };
@@ -28,3 +19,5 @@ struct active_dynamic_array{
         }\
         da.elements[da.count++] = e;\
     } while(0)
+
+#endif /* ARRAY_H */
