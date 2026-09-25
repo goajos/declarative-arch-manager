@@ -44,7 +44,9 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
                         } else if (memcmp(node_d2, "services", 8) == 0){
                             char* service = string_copy((char* )name_data); // implicit root=#false
                             DYNAMIC_ARRAY_APPEND(module->user_services, service);
-                        } else if (memcmp(node_d2, "hooks", 4) == 0){
+                        } else if (memcmp(node_d2, "pre_hooks", 9) == 0){
+                            node_d3 = string_copy((char* )name_data);
+                        } else if (memcmp(node_d2, "post_hooks", 10) == 0){
                             node_d3 = string_copy((char* )name_data);
                         }
                         break;
@@ -59,10 +61,14 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
             case KDL_EVENT_PROPERTY:
                 if (memcmp(node_d2, "dotfiles", 8) == 0) {
                     if (value.boolean) module->link = true; // dotfiles link=#true
-                } else if (memcmp(node_d2, "hooks", 5) == 0) {
+                } else if (memcmp(node_d2, "pre_hooks", 9) == 0) {
                     char* hook = string_copy(node_d3);
-                    if (value.boolean) DYNAMIC_ARRAY_APPEND(module->root_hooks, hook);
-                    else DYNAMIC_ARRAY_APPEND(module->user_hooks, hook);
+                    if (value.boolean) DYNAMIC_ARRAY_APPEND(module->pre_root_hooks, hook);
+                    else DYNAMIC_ARRAY_APPEND(module->pre_user_hooks, hook);
+                } else if (memcmp(node_d2, "post_hooks", 10) == 0) {
+                    char* hook = string_copy(node_d3);
+                    if (value.boolean) DYNAMIC_ARRAY_APPEND(module->post_root_hooks, hook);
+                    else DYNAMIC_ARRAY_APPEND(module->post_user_hooks, hook);
                 }
                 break;
             case KDL_EVENT_PARSE_ERROR:
@@ -121,15 +127,28 @@ int write_module_kdl(FILE* fid, struct module* module) {
             kdl_emit_node(emitter, kdl_str_from_cstr(module->user_services.items[i]));
         }
         kdl_finish_emitting_children(emitter); // close services level
-        kdl_emit_node(emitter, kdl_str_from_cstr("hooks"));
+        kdl_emit_node(emitter, kdl_str_from_cstr("pre_hooks"));
         kdl_start_emitting_children(emitter); // open hooks level
-        for (size_t i = 0; i < module->root_hooks.count; ++i) {
-            kdl_emit_node(emitter, kdl_str_from_cstr(module->root_hooks.items[i]));
+        for (size_t i = 0; i < module->pre_root_hooks.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->pre_root_hooks.items[i]));
             kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=true };
             kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
         }
-        for (size_t i = 0; i < module->user_hooks.count; ++i) {
-            kdl_emit_node(emitter, kdl_str_from_cstr(module->user_hooks.items[i]));
+        for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->pre_user_hooks.items[i]));
+            kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=false };
+            kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
+        }
+        kdl_finish_emitting_children(emitter); // close hooks level
+        kdl_emit_node(emitter, kdl_str_from_cstr("post_hooks"));
+        kdl_start_emitting_children(emitter); // open hooks level
+        for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->post_root_hooks.items[i]));
+            kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=true };
+            kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
+        }
+        for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
+            kdl_emit_node(emitter, kdl_str_from_cstr(module->post_user_hooks.items[i]));
             kdl_value value = { .type=KDL_TYPE_BOOLEAN, .boolean=false };
             kdl_emit_property(emitter, kdl_str_from_cstr("root"), &value);
         }
@@ -153,8 +172,10 @@ int free_module(struct module module) {
     DYNAMIC_ARRAY_FREE(module.packages);
     DYNAMIC_ARRAY_FREE(module.aur_packages);
     DYNAMIC_ARRAY_FREE(module.user_services);
-    DYNAMIC_ARRAY_FREE(module.root_hooks);
-    DYNAMIC_ARRAY_FREE(module.user_hooks);
+    DYNAMIC_ARRAY_FREE(module.pre_root_hooks);
+    DYNAMIC_ARRAY_FREE(module.post_root_hooks);
+    DYNAMIC_ARRAY_FREE(module.pre_user_hooks);
+    DYNAMIC_ARRAY_FREE(module.post_user_hooks);
     
     return EXIT_SUCCESS;
 }

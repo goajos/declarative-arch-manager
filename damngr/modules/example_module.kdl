@@ -10,8 +10,11 @@ module {
         services {
             example_user_service // implicit root=#false
         }
-        hooks {
-            example_user_hook.sh root=#false
+        pre_hooks {
+            example_user_hook.sh root=#false 
+        }
+        post_hooks {
+          
         }
     }
 }

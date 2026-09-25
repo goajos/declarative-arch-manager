@@ -72,7 +72,8 @@ static int get_module_actions(struct module module,
                             struct package_actions* package_actions,
                             struct package_actions* aur_package_actions,
                             struct dotfile_actions* dotfile_actions,
-                            struct hook_actions* hook_actions) {
+                            struct hook_actions* pre_hook_actions,
+                            struct hook_actions* post_hook_actions) {
     int ret;
     switch(action) {
         case TO_INSTALL:
@@ -84,9 +85,13 @@ static int get_module_actions(struct module module,
             if (ret == EXIT_FAILURE) return ret;
             ret = get_dotfile_actions(dotfile_actions, module.name, module.link);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_hook_actions(hook_actions, module.root_hooks, true);
+            ret = get_hook_actions(pre_hook_actions, module.pre_root_hooks, true);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_hook_actions(hook_actions, module.user_hooks, false);
+            ret = get_hook_actions(pre_hook_actions, module.pre_user_hooks, false);
+            if (ret == EXIT_FAILURE) return ret;
+            ret = get_hook_actions(post_hook_actions, module.post_root_hooks, true);
+            if (ret == EXIT_FAILURE) return ret;
+            ret = get_hook_actions(post_hook_actions, module.post_user_hooks, false);
             if (ret == EXIT_FAILURE) return ret;
             break;
         case TO_REMOVE:
@@ -98,7 +103,7 @@ static int get_module_actions(struct module module,
             if (ret == EXIT_FAILURE) return ret;
             ret = get_dotfile_actions(dotfile_actions, module.name, false);
             if (ret == EXIT_FAILURE) return ret;
-            // can't reverse post install hooks...
+            // can't reverse hooks...
             break;
     }
     return ret;
@@ -183,7 +188,7 @@ static int determine_actions_from_dotfiles_diff(struct module old_module,
 }
 
 // TODO: to implement a hook reset, delete the hook from the old hooks list!
-static int determine_actions_from_hooks_diff(struct module old_module,
+static int determine_actions_from_pre_hooks_diff(struct module old_module,
                                             struct module new_module,
                                             struct hook_actions* hook_actions,
                                             bool root) {
@@ -194,8 +199,29 @@ static int determine_actions_from_hooks_diff(struct module old_module,
     COMPUTE_DYNAMIC_ARRAY_DIFF(&hooks_to_install,
                             &hooks_to_remove,
                             &hooks_to_keep,
-                            ((root) ? old_module.root_hooks : old_module.user_hooks),
-                            ((root) ? new_module.root_hooks : new_module.user_hooks));
+                            ((root) ? old_module.pre_root_hooks : old_module.pre_user_hooks),
+                            ((root) ? new_module.pre_root_hooks : new_module.pre_user_hooks));
+    ret = get_hook_actions(hook_actions, hooks_to_install, root);
+    // hooks_to_remove are ignored (can't undo a script)
+    // hooks_to_keep are ignored (hooks have been ran in the past)
+
+    return ret;
+}
+
+// TODO: to implement a hook reset, delete the hook from the old hooks list!
+static int determine_actions_from_post_hooks_diff(struct module old_module,
+                                            struct module new_module,
+                                            struct hook_actions* hook_actions,
+                                            bool root) {
+    int ret;
+    struct dynamic_array hooks_to_install = { };
+    struct dynamic_array hooks_to_remove = { };
+    struct dynamic_array hooks_to_keep = { };
+    COMPUTE_DYNAMIC_ARRAY_DIFF(&hooks_to_install,
+                            &hooks_to_remove,
+                            &hooks_to_keep,
+                            ((root) ? old_module.post_root_hooks : old_module.post_user_hooks),
+                            ((root) ? new_module.post_root_hooks : new_module.post_user_hooks));
     ret = get_hook_actions(hook_actions, hooks_to_install, root);
     // hooks_to_remove are ignored (can't undo a script)
     // hooks_to_keep are ignored (hooks have been ran in the past)
@@ -209,7 +235,8 @@ static int determine_actions_from_module_diff(struct module old_module,
                                             struct package_actions* package_actions,
                                             struct package_actions* aur_package_actions,
                                             struct dotfile_actions* dotfile_actions,
-                                            struct hook_actions* hook_actions) {
+                                            struct hook_actions* pre_hook_actions,
+                                            struct hook_actions* post_hook_actions) {
     int ret;
     ret = determine_actions_from_services_diff(old_module.user_services,
                                             new_module.user_services,
@@ -227,14 +254,24 @@ static int determine_actions_from_module_diff(struct module old_module,
                                             new_module,
                                             dotfile_actions);
     if (ret == EXIT_FAILURE) return ret;
-    ret = determine_actions_from_hooks_diff(old_module,
+    ret = determine_actions_from_pre_hooks_diff(old_module,
                                             new_module,
-                                            hook_actions,
+                                            pre_hook_actions,
                                             true);
     if (ret == EXIT_FAILURE) return ret;
-    ret = determine_actions_from_hooks_diff(old_module,
+    ret = determine_actions_from_post_hooks_diff(old_module,
                                             new_module,
-                                            hook_actions,
+                                            post_hook_actions,
+                                            true);
+    if (ret == EXIT_FAILURE) return ret;
+    ret = determine_actions_from_pre_hooks_diff(old_module,
+                                            new_module,
+                                            pre_hook_actions,
+                                            false);
+    if (ret == EXIT_FAILURE) return ret;
+    ret = determine_actions_from_post_hooks_diff(old_module,
+                                            new_module,
+                                            post_hook_actions,
                                             false);
 
     return ret;
@@ -246,7 +283,8 @@ static int determine_actions_from_modules_diff(struct modules old_modules,
                                             struct package_actions* package_actions,
                                             struct package_actions* aur_package_actions,
                                             struct dotfile_actions* dotfile_actions,
-                                            struct hook_actions* hook_actions) {
+                                            struct hook_actions* pre_hook_actions,
+                                            struct hook_actions* post_hook_actions) {
     // TODO: do we want to have the modules sorted? deterministic?
     int ret;
     struct modules modules_to_install = { };
@@ -264,7 +302,8 @@ static int determine_actions_from_modules_diff(struct modules old_modules,
                                 package_actions,
                                 aur_package_actions,
                                 dotfile_actions,
-                                hook_actions);
+                                pre_hook_actions,
+                                post_hook_actions);
         if (ret == EXIT_FAILURE) return ret;
     }
     for (size_t i = 0; i < modules_to_remove.count; ++i) {
@@ -274,7 +313,8 @@ static int determine_actions_from_modules_diff(struct modules old_modules,
                                 package_actions,
                                 aur_package_actions,
                                 dotfile_actions,
-                                hook_actions);
+                                pre_hook_actions,
+                                post_hook_actions);
         if (ret == EXIT_FAILURE) return ret;
     }
     // modules to keep gets filled with 2 modules instead (1 old and 1 new)
@@ -285,7 +325,8 @@ static int determine_actions_from_modules_diff(struct modules old_modules,
                                                 package_actions,
                                                 aur_package_actions,
                                                 dotfile_actions,
-                                                hook_actions);
+                                                pre_hook_actions,
+                                                post_hook_actions);
         if (ret == EXIT_FAILURE) return ret;
     }
 
@@ -298,7 +339,8 @@ int determine_actions(struct config* old_config,
                 struct package_actions* package_actions,
                 struct package_actions* aur_package_actions,
                 struct dotfile_actions * dotfile_actions,
-                struct hook_actions* hook_actions) {
+                struct hook_actions* pre_hook_actions,
+                struct hook_actions* post_hook_actions) {
     int ret;
     struct host old_host;
     struct host new_host;
@@ -317,9 +359,13 @@ int determine_actions(struct config* old_config,
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_dotfile_actions(dotfile_actions, module.name, module.link);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_hook_actions(hook_actions, module.root_hooks, true);
+                ret = get_hook_actions(pre_hook_actions, module.pre_root_hooks, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_hook_actions(hook_actions, module.user_hooks, false);
+                ret = get_hook_actions(pre_hook_actions, module.pre_user_hooks, false);
+                if (ret == EXIT_FAILURE) return ret;
+                ret = get_hook_actions(post_hook_actions, module.post_root_hooks, true);
+                if (ret == EXIT_FAILURE) return ret;
+                ret = get_hook_actions(post_hook_actions, module.post_user_hooks, false);
                 if (ret == EXIT_FAILURE) return ret;
             }
     } else {
@@ -338,7 +384,8 @@ int determine_actions(struct config* old_config,
                                                     package_actions,
                                                     aur_package_actions,
                                                     dotfile_actions,
-                                                    hook_actions);
+                                                    pre_hook_actions,
+                                                    post_hook_actions);
             if (ret == EXIT_FAILURE) return ret;
         } else if (memcmp(old_host.name, new_host.name, strlen(old_host.name)) != 0) {
             // old and new config host are not equal 
@@ -422,7 +469,8 @@ int free_actions(struct service_actions service_actions,
                 struct package_actions package_actions,
                 struct package_actions aur_package_actions,
                 struct dotfile_actions dotfile_actions,
-                struct hook_actions hook_actions) {
+                struct hook_actions pre_hook_actions,
+                struct hook_actions post_hook_actions) {
     DYNAMIC_ARRAY_FREE(service_actions.root_to_disable);
     DYNAMIC_ARRAY_FREE(service_actions.root_to_enable);
     DYNAMIC_ARRAY_FREE(service_actions.user_to_disable);
@@ -433,8 +481,10 @@ int free_actions(struct service_actions service_actions,
     DYNAMIC_ARRAY_FREE(aur_package_actions.to_install);
     DYNAMIC_ARRAY_FREE(dotfile_actions.to_unlink);
     DYNAMIC_ARRAY_FREE(dotfile_actions.to_link);
-    DYNAMIC_ARRAY_FREE(hook_actions.root);
-    DYNAMIC_ARRAY_FREE(hook_actions.user);
+    DYNAMIC_ARRAY_FREE(pre_hook_actions.root);
+    DYNAMIC_ARRAY_FREE(post_hook_actions.root);
+    DYNAMIC_ARRAY_FREE(pre_hook_actions.user);
+    DYNAMIC_ARRAY_FREE(post_hook_actions.user);
 
     return EXIT_SUCCESS;
 }

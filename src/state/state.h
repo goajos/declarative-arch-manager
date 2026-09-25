@@ -48,8 +48,10 @@ struct module {
     struct dynamic_array user_services;
     struct dynamic_array packages;
     struct dynamic_array aur_packages;
-    struct dynamic_array root_hooks;
-    struct dynamic_array user_hooks;
+    struct dynamic_array pre_root_hooks;
+    struct dynamic_array post_root_hooks;
+    struct dynamic_array pre_user_hooks;
+    struct dynamic_array post_user_hooks;
 };
 
 struct modules {
@@ -171,7 +173,8 @@ int determine_actions(struct config* old_config,
                         struct package_actions* package_actions,
                         struct package_actions* aur_package_actions,
                         struct dotfile_actions* dotfile_actions,
-                        struct hook_actions* hook_actions);
+                        struct hook_actions* pre_hook_actions,
+                        struct hook_actions* post_hook_actions);
 
 int handle_package_actions(struct package_actions package_actions);
 int handle_aur_package_actions(struct package_actions aur_package_actions, char* aur_helper);
@@ -186,6 +189,7 @@ int free_actions(struct service_actions service_actions,
                 struct package_actions package_actions,
                 struct package_actions aur_package_actions,
                 struct dotfile_actions dotfile_actions,
-                struct hook_actions hook_actions);
+                struct hook_actions pre_hook_actions,
+                struct hook_actions post_hook_actions);
 
 #endif /* STATE_H */
