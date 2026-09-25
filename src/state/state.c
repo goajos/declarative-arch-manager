@@ -185,9 +185,7 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
 static int damgr_parse_conf(FILE *fid, Damgr_Config *config, int *idx) {
   int conf_key;
   char line[512];
-  size_t lines = 0;
   while (fgets(line, sizeof(line), fid)) {
-    ++lines;
     if (line[0] == '#') {
       continue;
     }

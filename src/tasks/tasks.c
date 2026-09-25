@@ -175,6 +175,56 @@ static int damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
   return EXIT_SUCCESS;
 }
 
+static int damgr_get_tasks_from_packages_diff(Damgr_Task_Queue *queue,
+                                              char *module_name,
+                                              Damgr_Darray *old_packages,
+                                              Damgr_Darray *packages) {
+  struct darray to_install = {};
+  struct darray to_remove = {};
+  damgr_compute_darray_diff(&to_install, &to_remove, old_packages, packages);
+  for (size_t i = 0; i < to_install.count; ++i) {
+    char *package = to_install.items[i];
+    if (package == nullptr) {
+      return EXIT_FAILURE;
+    }
+    struct payload payload = {.name = module_name, .packages = to_install};
+    damgr_get_task(queue, PACKAGE, true, payload);
+  }
+  for (size_t i = 0; i < to_remove.count; ++i) {
+    char *package = to_remove.items[i];
+    if (package == nullptr) {
+      return EXIT_FAILURE;
+    }
+    struct payload payload = {.name = module_name, .packages = to_remove};
+    damgr_get_task(queue, PACKAGE, false, payload);
+  }
+  return EXIT_SUCCESS;
+}
+
+static int damgr_get_tasks_from_module_diff(Damgr_Task_Queue *queue,
+                                            Damgr_Module *old_module,
+                                            Damgr_Module *module) {
+  if (damgr_get_tasks_from_services_diff(queue, &old_module->user_services,
+                                         &module->user_services,
+                                         false) != EXIT_SUCCESS) {
+    return EXIT_FAILURE;
+  }
+  if (damgr_get_tasks_from_packages_diff(queue, module->name,
+                                         &old_module->packages,
+                                         &module->packages) != EXIT_SUCCESS) {
+    return EXIT_FAILURE;
+  }
+  if (damgr_get_tasks_from_packages_diff(
+          queue, module->name, &old_module->aur_packages,
+          &module->aur_packages) != EXIT_SUCCESS) {
+    return EXIT_FAILURE;
+  }
+
+  // TODO: host diff???
+
+  return EXIT_SUCCESS;
+}
+
 static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
                                            Damgr_Host *old_host,
                                            Damgr_Host *host) {
@@ -201,8 +251,8 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
                                 host->modules.items[i].name)) {
         old_host->modules.items[j].module_state.is_orphan =
             false; // to remove later
-        if (damgr_get_tasks_from_modules_diff(
-                &tasks->queues[i + 1], old_host->modules.items[j],
+        if (damgr_get_tasks_from_module_diff(
+                &tasks->queues[i + 1], &old_host->modules.items[j],
                 &host->modules.items[i]) != EXIT_SUCCESS) {
           return EXIT_FAILURE;
         } else {
@@ -224,8 +274,8 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
   damgr_tasks_append(tasks, module_queue);
   for (size_t i = 0; i < old_host->modules.count; ++i) {
     if (old_host->modules.items[i].module_state.is_orphan) {
-      if (get_tasks_from_module(&old_host->modules.items[i], false) !=
-          EXIT_SUCCESS) {
+      if (get_tasks_from_module(&module_queue, &old_host->modules.items[i],
+                                false) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
       }
     }
