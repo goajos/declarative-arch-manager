@@ -4,6 +4,18 @@
 #include "damgr/utils.h"
 #include <string.h>
 
+const char *damgr_task_type_keys[] = {
+    [ROOT_SERVICE] = "root service",
+    [PRE_ROOT_HOOK] = "pre root hook",
+    [PRE_USER_HOOK] = "pre user hook",
+    [PACKAGE] = "package",
+    [AUR_PACKAGE] = "aur package",
+    [USER_SERVICE] = "user service",
+    [DOTFILE] = "dotfile",
+    [POST_ROOT_HOOK] = "post root hook",
+    [POST_USER_HOOK] = "post user hook",
+};
+
 static void damgr_compute_darray_diff(Damgr_Darray *negative,
                                       Damgr_Darray *positive,
                                       Damgr_Darray *old_array,
@@ -67,8 +79,10 @@ static void damgr_tasks_append(Damgr_Tasks *tasks, Damgr_Task_Queue queue) {
 }
 
 static void damgr_get_task(Damgr_Task_Queue *queue, Damgr_Task_Type type,
-                           bool is_new_state, Damgr_Task_Payload payload) {
-  struct task task = {.payload = payload,
+                           bool is_new_state, Damgr_Task_Payload payload,
+                           char *name) {
+  struct task task = {.name = name,
+                      .payload = payload,
                       .status = PENDING,
                       .type = type,
                       .is_new_state = is_new_state};
@@ -84,39 +98,37 @@ static int get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module *module,
       if (hook == nullptr) {
         return EXIT_FAILURE;
       }
-      struct payload payload = {.name = hook, .packages = {}};
-      damgr_get_task(queue, PRE_ROOT_HOOK, is_new_state, payload);
+      struct payload payload = {.payload_name = hook};
+      damgr_get_task(queue, PRE_ROOT_HOOK, is_new_state, payload, module->name);
     }
     for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
       char *hook = module->pre_user_hooks.items[i];
       if (hook == nullptr) {
         return EXIT_FAILURE;
       }
-      struct payload payload = {.name = hook, .packages = {}};
-      damgr_get_task(queue, PRE_USER_HOOK, is_new_state, payload);
+      struct payload payload = {.payload_name = hook};
+      damgr_get_task(queue, PRE_USER_HOOK, is_new_state, payload, module->name);
     }
   }
   if (module->packages.count > 0) {
-    struct payload payload = {.name = module->name,
-                              .packages = module->packages};
-    damgr_get_task(queue, PACKAGE, is_new_state, payload);
+    struct payload payload = {.packages = module->packages};
+    damgr_get_task(queue, PACKAGE, is_new_state, payload, module->name);
   }
   if (module->aur_packages.count > 0) {
-    struct payload payload = {.name = module->name,
-                              .packages = module->aur_packages};
-    damgr_get_task(queue, AUR_PACKAGE, is_new_state, payload);
+    struct payload payload = {.packages = module->aur_packages};
+    damgr_get_task(queue, AUR_PACKAGE, is_new_state, payload, module->name);
   }
   for (size_t i = 0; i < module->user_services.count; ++i) {
     char *service = module->user_services.items[i];
     if (service == nullptr) {
       return EXIT_FAILURE;
     }
-    struct payload payload = {.name = service, .packages = {}};
-    damgr_get_task(queue, USER_SERVICE, is_new_state, payload);
+    struct payload payload = {.payload_name = service};
+    damgr_get_task(queue, USER_SERVICE, is_new_state, payload, module->name);
   }
   if (module->to_link) {
-    struct payload payload = {.name = module->name, .packages = {}};
-    damgr_get_task(queue, DOTFILE, is_new_state, payload);
+    struct payload payload = {.payload_name = module->name};
+    damgr_get_task(queue, DOTFILE, is_new_state, payload, module->name);
   }
   if (is_new_state) {
     for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
@@ -124,16 +136,18 @@ static int get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module *module,
       if (hook == nullptr) {
         return EXIT_FAILURE;
       }
-      struct payload payload = {.name = hook, .packages = {}};
-      damgr_get_task(queue, POST_ROOT_HOOK, is_new_state, payload);
+      struct payload payload = {.payload_name = hook};
+      damgr_get_task(queue, POST_ROOT_HOOK, is_new_state, payload,
+                     module->name);
     }
     for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
       char *hook = module->post_user_hooks.items[i];
       if (hook == nullptr) {
         return EXIT_FAILURE;
       }
-      struct payload payload = {.name = hook, .packages = {}};
-      damgr_get_task(queue, POST_ROOT_HOOK, is_new_state, payload);
+      struct payload payload = {.payload_name = hook};
+      damgr_get_task(queue, POST_ROOT_HOOK, is_new_state, payload,
+                     module->name);
     }
   }
   return EXIT_SUCCESS;
@@ -142,7 +156,8 @@ static int get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module *module,
 static int damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
                                               Damgr_Darray *old_services,
                                               Damgr_Darray *services,
-                                              Damgr_Task_Type type) {
+                                              Damgr_Task_Type type,
+                                              char *name) {
   struct darray to_disable = {};
   struct darray to_enable = {};
   damgr_compute_darray_diff(&to_disable, &to_enable, old_services, services);
@@ -151,16 +166,16 @@ static int damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
     if (service == nullptr) {
       return EXIT_FAILURE;
     }
-    struct payload payload = {.name = service, .packages = {}};
-    damgr_get_task(queue, type, false, payload);
+    struct payload payload = {.payload_name = service};
+    damgr_get_task(queue, type, false, payload, name);
   }
   for (size_t i = 0; i < to_enable.count; ++i) {
     char *service = to_enable.items[i];
     if (service == nullptr) {
       return EXIT_FAILURE;
     }
-    struct payload payload = {.name = service, .packages = {}};
-    damgr_get_task(queue, type, true, payload);
+    struct payload payload = {.payload_name = service};
+    damgr_get_task(queue, type, true, payload, name);
   }
   return EXIT_SUCCESS;
 }
@@ -168,7 +183,7 @@ static int damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
 static int damgr_get_tasks_from_hooks_diff(Damgr_Task_Queue *queue,
                                            Damgr_Darray *old_hooks,
                                            Damgr_Darray *hooks,
-                                           Damgr_Task_Type type) {
+                                           Damgr_Task_Type type, char *name) {
   // can't undo hooks
   struct darray to_run = {};
   damgr_compute_darray_diff(nullptr, &to_run, old_hooks, hooks);
@@ -177,26 +192,26 @@ static int damgr_get_tasks_from_hooks_diff(Damgr_Task_Queue *queue,
     if (hook == nullptr) {
       return EXIT_FAILURE;
     }
-    struct payload payload = {.name = hook, .packages = {}};
-    damgr_get_task(queue, type, true, payload);
+    struct payload payload = {.payload_name = hook};
+    damgr_get_task(queue, type, true, payload, name);
   }
   return EXIT_SUCCESS;
 }
 
 static int damgr_get_tasks_from_packages_diff(Damgr_Task_Queue *queue,
-                                              char *module_name,
                                               Damgr_Darray *old_packages,
-                                              Damgr_Darray *packages) {
+                                              Damgr_Darray *packages,
+                                              char *name) {
   struct darray to_install = {};
   struct darray to_remove = {};
   damgr_compute_darray_diff(&to_install, &to_remove, old_packages, packages);
   if (to_install.count > 0) {
-    struct payload payload = {.name = module_name, .packages = to_install};
-    damgr_get_task(queue, PACKAGE, true, payload);
+    struct payload payload = {.packages = to_install};
+    damgr_get_task(queue, PACKAGE, true, payload, name);
   }
   if (to_remove.count > 0) {
-    struct payload payload = {.name = module_name, .packages = to_remove};
-    damgr_get_task(queue, PACKAGE, false, payload);
+    struct payload payload = {.packages = to_remove};
+    damgr_get_task(queue, PACKAGE, false, payload, name);
   }
 
   return EXIT_SUCCESS;
@@ -206,38 +221,38 @@ static int damgr_get_tasks_from_module_diff(Damgr_Task_Queue *queue,
                                             Damgr_Module *old_module,
                                             Damgr_Module *module) {
   if (damgr_get_tasks_from_services_diff(queue, &old_module->user_services,
-                                         &module->user_services,
-                                         USER_SERVICE) != EXIT_SUCCESS) {
+                                         &module->user_services, USER_SERVICE,
+                                         module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
-  if (damgr_get_tasks_from_packages_diff(queue, module->name,
-                                         &old_module->packages,
-                                         &module->packages) != EXIT_SUCCESS) {
+  if (damgr_get_tasks_from_packages_diff(queue, &old_module->packages,
+                                         &module->packages,
+                                         module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
-  if (damgr_get_tasks_from_packages_diff(
-          queue, module->name, &old_module->aur_packages,
-          &module->aur_packages) != EXIT_SUCCESS) {
+  if (damgr_get_tasks_from_packages_diff(queue, &old_module->aur_packages,
+                                         &module->aur_packages,
+                                         module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
   if (damgr_get_tasks_from_hooks_diff(queue, &old_module->pre_root_hooks,
-                                      &module->pre_root_hooks,
-                                      PRE_ROOT_HOOK) != EXIT_SUCCESS) {
+                                      &module->pre_root_hooks, PRE_ROOT_HOOK,
+                                      module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
   if (damgr_get_tasks_from_hooks_diff(queue, &old_module->pre_user_hooks,
-                                      &module->pre_user_hooks,
-                                      PRE_USER_HOOK) != EXIT_SUCCESS) {
+                                      &module->pre_user_hooks, PRE_USER_HOOK,
+                                      module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
   if (damgr_get_tasks_from_hooks_diff(queue, &old_module->post_root_hooks,
-                                      &module->post_root_hooks,
-                                      POST_ROOT_HOOK) != EXIT_SUCCESS) {
+                                      &module->post_root_hooks, POST_ROOT_HOOK,
+                                      module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
   if (damgr_get_tasks_from_hooks_diff(queue, &old_module->post_user_hooks,
-                                      &module->post_user_hooks,
-                                      POST_USER_HOOK) != EXIT_SUCCESS) {
+                                      &module->post_user_hooks, POST_USER_HOOK,
+                                      module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
 
@@ -250,8 +265,8 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
   Damgr_Task_Queue host_queue = {};
   damgr_tasks_append(tasks, host_queue);
   if (damgr_get_tasks_from_services_diff(&host_queue, &old_host->root_services,
-                                         &host->root_services,
-                                         ROOT_SERVICE) != EXIT_SUCCESS) {
+                                         &host->root_services, ROOT_SERVICE,
+                                         host->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   } else {
     if (host_queue.count > 0) {
@@ -323,8 +338,8 @@ static int damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host *host) {
     if (service == nullptr) {
       return EXIT_FAILURE;
     }
-    struct payload payload = {.name = service, .packages = {}};
-    damgr_get_task(&host_queue, ROOT_SERVICE, true, payload);
+    struct payload payload = {.payload_name = service};
+    damgr_get_task(&host_queue, ROOT_SERVICE, true, payload, host->name);
   }
   if (host_queue.count > 0) {
     damgr_log(INFO, "successfully got %zu tasks for host: %s", host_queue.count,
@@ -383,14 +398,15 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
   switch (task->type) {
   case ROOT_SERVICE:
     if (damgr_execute_service_command(true, task->is_new_state,
-                                      task->payload.name) != EXIT_SUCCESS) {
+                                      task->payload.payload_name) !=
+        EXIT_SUCCESS) {
       task->status = FAILED;
     } else {
       task->status = SUCCEEDED;
     }
     break;
   case PRE_ROOT_HOOK:
-    if (damgr_execute_hook_command(user, true, task->payload.name) !=
+    if (damgr_execute_hook_command(user, true, task->payload.payload_name) !=
         EXIT_SUCCESS) {
       task->status = FAILED;
     } else {
@@ -398,7 +414,7 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
     }
     break;
   case PRE_USER_HOOK:
-    if (damgr_execute_hook_command(user, false, task->payload.name) !=
+    if (damgr_execute_hook_command(user, false, task->payload.payload_name) !=
         EXIT_SUCCESS) {
       task->status = FAILED;
     } else {
@@ -441,7 +457,8 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
     break;
   case USER_SERVICE:
     if (damgr_execute_service_command(false, task->is_new_state,
-                                      task->payload.name) != EXIT_SUCCESS) {
+                                      task->payload.payload_name) !=
+        EXIT_SUCCESS) {
       task->status = FAILED;
     } else {
       task->status = SUCCEEDED;
@@ -449,14 +466,15 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
     break;
   case DOTFILE:
     if (damgr_execute_dotfile_command(user, task->is_new_state,
-                                      task->payload.name) != EXIT_SUCCESS) {
+                                      task->payload.payload_name) !=
+        EXIT_SUCCESS) {
       task->status = FAILED;
     } else {
       task->status = SUCCEEDED;
     }
     break;
   case POST_ROOT_HOOK:
-    if (damgr_execute_hook_command(user, true, task->payload.name) !=
+    if (damgr_execute_hook_command(user, true, task->payload.payload_name) !=
         EXIT_SUCCESS) {
       task->status = FAILED;
     } else {
@@ -464,7 +482,7 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
     }
     break;
   case POST_USER_HOOK:
-    if (damgr_execute_hook_command(user, false, task->payload.name) !=
+    if (damgr_execute_hook_command(user, false, task->payload.payload_name) !=
         EXIT_SUCCESS) {
       task->status = FAILED;
     } else {
@@ -483,12 +501,24 @@ int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user,
       Damgr_Task task = tasks->queues[i].items[j];
       damgr_do_task(&task, aur_helper, user);
       if (task.status == SUCCEEDED) {
-        // TODO: add a map for printing task type?
-        damgr_log(INFO, "task done for: %s", task.payload.name);
+        if (task.type != PACKAGE && task.type != AUR_PACKAGE) {
+          damgr_log(INFO, "%s task from %s done: %s",
+                    damgr_task_type_keys[task.type], task.name,
+                    task.payload.payload_name);
+        } else {
+          damgr_log(INFO, "%s task from %s done",
+                    damgr_task_type_keys[task.type], task.name);
+        }
         damgr_queue_append(succeeded_queue, task);
       } else if (task.status == FAILED) {
-        // TODO: add a map for printing task type?
-        damgr_log(ERROR, "failed to do task for: %s", task.payload.name);
+        if (task.type != PACKAGE && task.type != AUR_PACKAGE) {
+          damgr_log(ERROR, "%s task failed from %s: %s",
+                    damgr_task_type_keys[task.type], task.name,
+                    task.payload.payload_name);
+        } else {
+          damgr_log(ERROR, "%s task failed from %s",
+                    damgr_task_type_keys[task.type], task.name);
+        }
         return EXIT_FAILURE;
       }
     }

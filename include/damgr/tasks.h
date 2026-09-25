@@ -17,11 +17,14 @@ typedef enum task_type {
 } Damgr_Task_Type;
 
 typedef struct payload {
-  char *name;
-  Damgr_Darray packages;
+  union {
+    char *payload_name;
+    Damgr_Darray packages;
+  };
 } Damgr_Task_Payload;
 
 typedef struct task {
+  char *name;
   Damgr_Task_Payload payload;
   Damgr_Task_Status status;
   Damgr_Task_Type type;
