@@ -30,6 +30,9 @@ if [ ! -f $VIMRC ]; then
   exit 1
 fi
 
+# second run to test comparison
+yes | $DAMGR merge
+
 echo "--------------------"
 echo "Testing merge passed"
 echo "--------------------"

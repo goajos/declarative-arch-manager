@@ -431,9 +431,11 @@ static int queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
       }
     }
 
+    damgr_log(INFO, "%s queue rollback finished!", queue.queue_name);
     return EXIT_FAILURE;
   }
 
+  damgr_log(INFO, "%s queue transaction finished!", queue.queue_name);
   return EXIT_SUCCESS;
 }
 
