@@ -37,38 +37,131 @@ void damgr_modules_append(Damgr_Modules *modules, Damgr_Module module) {
   modules->items[modules->count++] = module;
 }
 
-int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line, ...) {
-  int ret = EXIT_SUCCESS;
-  va_list args;
-  va_start(args, line);
-  int *arg = va_arg(args, int *);
-  [[maybe_unused]] Damgr_Module *module = nullptr;
-  if (arg != nullptr) {
-    module = &config->active_host.modules.items[*arg];
+static int damgr_parse_val(int *conf_key, Damgr_Config *config, char *line,
+                           int *idx) {
+  char key[256];
+  char val[256];
+  if (sscanf(line, "%255[^:]:%255[^\n]", key, val) == 2) {
+    Damgr_Module *module = &config->active_host.modules.items[*idx];
+    damgr_string_trim(key);
+    damgr_string_trim(val);
+    switch (*conf_key) {
+    case PRE_HOOKS:
+      if (memcmp(val, "true", 4) == 0) {
+        damgr_darray_append(&module->pre_root_hooks, damgr_string_copy(key));
+      } else {
+        damgr_darray_append(&module->pre_user_hooks, damgr_string_copy(key));
+      }
+      break;
+    case POST_HOOKS:
+      if (memcmp(val, "true", 4) == 0) {
+        damgr_darray_append(&module->post_root_hooks, damgr_string_copy(key));
+      } else {
+        damgr_darray_append(&module->post_user_hooks, damgr_string_copy(key));
+      }
+      break;
+    case DOTFILES:
+      if (memcmp(val, "true", 4) == 0) {
+        module->to_link = true;
+      }
+      break;
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
+static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
+                            int *idx) {
+  damgr_string_trim(line);
+  if (line[0] == '#' || line[0] == '\n') {
+    return EXIT_SUCCESS;
   }
   char key[256];
   char val[256];
-  ret = sscanf(line, "%255[^=]=%255[^\n]", key, val);
-  if (ret != 1 && ret != 2) {
-    damgr_log(ERROR, "sscanf failed for line: %s", line);
-    ret = EXIT_FAILURE;
-    goto cleanup;
+  if (damgr_string_contains(line, "=")) {
+    if (sscanf(line, "%255[^=]=%255[^\n]", key, val) == 2 && *val != '\n') {
+      damgr_string_trim(key);
+      *conf_key = damgr_get_conf_key(key);
+      damgr_string_trim(val);
+      if (damgr_string_contains(val, ":")) {
+        // a str = str:true, e.g. hooks one-liner
+        damgr_parse_val(conf_key, config, val, idx);
+      } else {
+        // a str = str line, e.g. aur_helper=paru
+        switch (*conf_key) {
+        case AUR_HELPER:
+          config->aur_helper = damgr_string_copy(val);
+          break;
+        case ACTIVE_HOST:
+          config->active_host.name = damgr_string_copy(val);
+          break;
+        case MODULES:
+          Damgr_Module module = {.name = damgr_string_copy(val)};
+          damgr_modules_append(&config->active_host.modules, module);
+          break;
+        case SERVICES:
+          if (idx == nullptr) {
+            damgr_darray_append(&config->active_host.root_services,
+                                damgr_string_copy(val));
+          } else {
+            damgr_darray_append(
+                &config->active_host.modules.items[*idx].user_services,
+                damgr_string_copy(val));
+          }
+          break;
+        case PACKAGES:
+          damgr_darray_append(&config->active_host.modules.items[*idx].packages,
+                              damgr_string_copy(val));
+          break;
+        case AUR_PACKAGES:
+          damgr_darray_append(
+              &config->active_host.modules.items[*idx].aur_packages,
+              damgr_string_copy(val));
+          break;
+        }
+      }
+    } else {
+      *conf_key = damgr_get_conf_key(key); // also set conf key on str=\n lines
+    }
+  } else {
+    if (damgr_string_contains(line, ":")) {
+      // a __str:true line, e.g. nested hooks
+      damgr_parse_val(conf_key, config, line, idx);
+    } else {
+      // a __str line, e.g. nested packages
+      switch (*conf_key) {
+      case MODULES:
+        Damgr_Module module = {.name = damgr_string_copy(line)};
+        damgr_modules_append(&config->active_host.modules, module);
+        break;
+      case SERVICES:
+        if (idx == nullptr) {
+          damgr_darray_append(&config->active_host.root_services,
+                              damgr_string_copy(line));
+        } else {
+          damgr_darray_append(
+              &config->active_host.modules.items[*idx].user_services,
+              damgr_string_copy(line));
+        }
+        break;
+      case PACKAGES:
+        damgr_darray_append(&config->active_host.modules.items[*idx].packages,
+                            damgr_string_copy(line));
+        break;
+      case AUR_PACKAGES:
+        damgr_darray_append(
+            &config->active_host.modules.items[*idx].aur_packages,
+            damgr_string_copy(line));
+        break;
+      }
+    }
   }
-  *conf_key = damgr_get_conf_key(key);
 
-  ret = EXIT_SUCCESS;
-
-cleanup:
-  va_end(args);
-  return ret;
+  return EXIT_SUCCESS;
 }
 
-int damgr_parse_conf(FILE *fid, Damgr_Config *config, ...) {
-  va_list args;
-  va_start(args, config);
-  int *arg = va_arg(args, int *);
-
-  int ret = EXIT_SUCCESS;
+static int damgr_parse_conf(FILE *fid, Damgr_Config *config, int *idx) {
   int conf_key;
   char line[512];
   size_t lines = 0;
@@ -77,15 +170,12 @@ int damgr_parse_conf(FILE *fid, Damgr_Config *config, ...) {
     if (line[0] == '#') {
       continue;
     }
-    if (damgr_parse_line(&conf_key, config, line, arg) != EXIT_SUCCESS) {
-      ret = EXIT_FAILURE;
-      goto cleanup;
+    if (damgr_parse_line(&conf_key, config, line, idx) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
     }
   }
 
-cleanup:
-  va_end(args);
-  return ret;
+  return EXIT_SUCCESS;
 }
 
 static int damgr_validate_config(Damgr_Config config, char *fidbuf) {
