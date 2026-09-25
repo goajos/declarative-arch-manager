@@ -1,7 +1,8 @@
 #ifndef STATE_H
 #define STATE_H
 #include <stdio.h>
-#include "state_utils.h"
+
+constexpr int path_max = 4096;
 
 #define DYNAMIC_ARRAY_APPEND(da, item)\
     do {\
@@ -171,6 +172,12 @@ int determine_actions(struct config* old_config,
                         struct package_actions* aur_package_actions,
                         struct dotfile_actions* dotfile_actions,
                         struct hook_actions* hook_actions);
+
+int handle_package_actions(struct package_actions package_actions);
+int handle_aur_package_actions(struct package_actions aur_package_actions, char* aur_helper);
+int handle_service_actions(struct service_actions service_actions);
+int handle_dotfile_actions(struct dotfile_actions dotfile_actions);
+int handle_hook_actions(struct hook_actions hook_actions);
 
 int free_config(struct config config);
 int free_host(struct host host);

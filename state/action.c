@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
+#include "../commands/command_utils.h"
+#include "state_utils.h"
 #include "state.h"
 
 static int get_service_actions(struct service_actions* actions,
@@ -117,10 +119,10 @@ static int determine_actions_from_services_diff(struct dynamic_array old_service
     struct dynamic_array services_to_disable = { };
     struct dynamic_array services_to_keep = { };
     COMPUTE_DYNAMIC_ARRAY_DIFF(&services_to_enable,
-                                    &services_to_disable,
-                                    &services_to_keep,
-                                    old_services,
-                                    new_services);
+                            &services_to_disable,
+                            &services_to_keep,
+                            old_services,
+                            new_services);
     for (size_t i = 0; i < services_to_enable.count; ++i) {
         // enable all "to enable" root services
         ret = get_service_actions(actions, services_to_enable, true, true);
@@ -196,10 +198,10 @@ static int determine_actions_from_hooks_diff(struct dynamic_array old_hooks,
     struct dynamic_array hooks_to_remove = { };
     struct dynamic_array hooks_to_keep = { };
     COMPUTE_DYNAMIC_ARRAY_DIFF(&hooks_to_install,
-                                    &hooks_to_remove,
-                                    &hooks_to_keep,
-                                    old_hooks,
-                                    new_hooks);
+                            &hooks_to_remove,
+                            &hooks_to_keep,
+                            old_hooks,
+                            new_hooks);
     ret = get_hook_actions(hook_actions, hooks_to_install, root);
     // hooks_to_remove are ignored (can't undo a script)
     // hooks_to_keep are ignored (hooks have been ran in the past)
@@ -351,6 +353,53 @@ int determine_actions(struct config* old_config,
         }
     } 
 
+    return ret;
+}
+
+// TODO: how to make atomic
+int handle_package_actions(struct package_actions package_actions) {
+    int ret;
+    if (package_actions.to_remove.count > 0) {
+        ret = execute_package_remove_command(package_actions.to_remove);
+    }
+    if (package_actions.to_install.count > 0) {
+        ret = execute_package_install_command(package_actions.to_install);
+    }
+    return ret;
+}
+
+// TODO: how to make atomic
+int handle_aur_package_actions(struct package_actions aur_package_actions,
+                            char* aur_helper) {
+    int ret;
+    if (aur_package_actions.to_remove.count > 0) {
+        ret = execute_package_remove_command(aur_package_actions.to_remove);
+    }
+    if (aur_package_actions.to_install.count > 0) {
+        char fidbuf[path_max];
+        snprintf(fidbuf, sizeof(fidbuf), "/usr/bin/%s", aur_helper);
+        ret = execute_aur_package_install_command(fidbuf,
+                                            aur_helper,
+                                            aur_package_actions.to_install);
+    }
+    return ret;
+}
+
+// TODO: how to make atomic?
+int handle_service_actions(struct service_actions service_actions) {
+    int ret;
+    if (service_actions.root_to_disable.count > 0) {
+        ret = execute_service_command(true, false, service_actions.root_to_disable);
+    }
+    if (service_actions.root_to_enable.count > 0) {
+        ret = execute_service_command(true, true, service_actions.root_to_enable);
+    }
+    if (service_actions.user_to_disable.count > 0) {
+        ret = execute_service_command(false, false, service_actions.user_to_disable);
+    }
+    if (service_actions.user_to_enable.count > 0) {
+        ret = execute_service_command(false, true, service_actions.user_to_enable);
+    }
     return ret;
 }
 
