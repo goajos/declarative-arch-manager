@@ -25,6 +25,7 @@ typedef struct module {
     bool is_orphan;
     bool is_compared;
   };
+  bool to_write;
 } Damgr_Module;
 
 typedef struct modules {
@@ -38,6 +39,7 @@ typedef struct host {
   Damgr_Modules modules;
   Damgr_Darray root_services;
   char *name;
+  bool to_write;
 } Damgr_Host;
 
 typedef struct config {

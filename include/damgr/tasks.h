@@ -16,6 +16,8 @@ typedef enum task_type {
   POST_USER_HOOK,
 } Damgr_Task_Type;
 
+typedef enum queue_type { HOST, MODULE } Damgr_Queue_Type;
+
 typedef struct payload {
   union {
     char *payload_name;
@@ -32,6 +34,8 @@ typedef struct task {
 
 typedef struct task_queue {
   char *queue_name;
+  Damgr_Queue_Type type;
+  void *owner_ptr;
   Damgr_Task *items;
   size_t capacity;
   size_t count;
@@ -44,8 +48,8 @@ typedef struct tasks {
 } Damgr_Tasks;
 
 void damgr_free_tasks(Damgr_Tasks *tasks);
-int damgr_get_tasks(Damgr_Tasks *tasks, Damgr_Config old_config,
-                    Damgr_Config config);
+int damgr_get_tasks(Damgr_Tasks *tasks, Damgr_Config *old_config,
+                    Damgr_Config *config);
 int damgr_do_tasks(Damgr_Tasks tasks, char *aur_helper, char *user);
 
 #endif /* DAMGR_TASKS_H */
