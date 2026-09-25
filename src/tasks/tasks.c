@@ -476,9 +476,6 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
 
 int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user,
                    Damgr_Task_Queue *succeeded_queue) {
-  // index 0 tasks is host queue
-  // index 1 tasks is new config queue
-  // index 2 tasks is old config queue
   for (size_t i = 0; i < tasks->count; ++i) {
     size_t queue_task_count =
         tasks->queues[i].count > 0 ? tasks->queues[i].count : 0;
@@ -486,8 +483,12 @@ int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user,
       Damgr_Task task = tasks->queues[i].items[j];
       damgr_do_task(&task, aur_helper, user);
       if (task.status == SUCCEEDED) {
+        // TODO: add a map for printing task type?
+        damgr_log(INFO, "task done for: %s", task.payload.name);
         damgr_queue_append(succeeded_queue, task);
       } else if (task.status == FAILED) {
+        // TODO: add a map for printing task type?
+        damgr_log(ERROR, "failed to do task for: %s", task.payload.name);
         return EXIT_FAILURE;
       }
     }

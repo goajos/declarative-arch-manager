@@ -35,6 +35,7 @@ clean:
 
 test:
 	@echo "Building the test environment..."
+	# docker build --no-cache --platform linux/amd64 -t damgr-test-env -f Dockerfile .
 	docker build --platform linux/amd64 -t damgr-test-env -f Dockerfile .
 	@echo "Running tests inside the test environment..."
 	docker run --platform linux/amd64 --rm \
