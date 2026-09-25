@@ -1,6 +1,6 @@
 #include "damgr/log.h"
 #include "src/commands/init.c"
-// #include "src/commands/merge.c"
+#include "src/commands/merge.c"
 #include "src/commands/update.c"
 #include <stdlib.h>
 #include <string.h>
@@ -40,10 +40,10 @@ int main(int argc, char *argv[]) {
     break;
   case 1:
     damgr_log(INFO, "starting damgr merge...");
-    // if (damgr_merge() != EXIT_SUCCESS) {
-    //   damgr_log(ERROR, "damgr %s failed...", argv[1]);
-    //   return EXIT_FAILURE;
-    // }
+    if (damgr_merge() != EXIT_SUCCESS) {
+      damgr_log(ERROR, "damgr %s failed...", argv[1]);
+      return EXIT_FAILURE;
+    }
     break;
   case 2:
     damgr_log(INFO, "starting damgr update...");

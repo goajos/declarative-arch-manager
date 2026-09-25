@@ -8,6 +8,7 @@ typedef struct darray {
   size_t capacity;
   size_t count;
 } Damgr_Darray;
+void damgr_darray_append(Damgr_Darray *darray, char *item);
 
 typedef struct module {
   Damgr_Darray pre_root_hooks;
@@ -26,6 +27,7 @@ typedef struct modules {
   size_t capacity;
   size_t count;
 } Damgr_Modules;
+void damgr_modules_append(Damgr_Modules *modules, Damgr_Module module);
 
 typedef struct host {
   Damgr_Modules modules;
@@ -53,5 +55,6 @@ typedef enum conf_key {
 extern const char *damgr_conf_keys[];
 
 int damgr_read_config(char *user, Damgr_Config *config, bool is_state);
+int damgr_read_host(char *user, Damgr_Config *config, bool is_state);
 
 #endif /* DAMGR_STATE_H */
