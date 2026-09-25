@@ -6,6 +6,7 @@
 #include <string.h>
 
 static int validate_config(struct config config, char *fidbuf) {
+  // TODO: aur helper can be empty?
   if (config.aur_helper == nullptr) {
     LOG(LOG_ERROR, "failed to parse aur_helper for config: %s", fidbuf);
     return EXIT_FAILURE;
@@ -65,14 +66,14 @@ int parse_config(FILE *fid, struct config *config) {
     case KDL_EVENT_START_NODE:
       switch (depth) {
       case 0: // config(_state) level
-        // reading new config
+        // reading config
         if (strlen(name_data) == 6 && memcmp(name_data, "config", 6) != 0) {
           return EXIT_FAILURE; // config kdl should start with config {...}
         }
         // reading state config
         if (strlen(name_data) == 12 &&
             memcmp(name_data, "config_state", 12) != 0) {
-          return EXIT_FAILURE; // state_config kdl should start with
+          return EXIT_FAILURE; // state config kdl should start with
                                // config_state {...}
         }
         break;
