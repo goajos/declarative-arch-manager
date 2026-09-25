@@ -1,13 +1,9 @@
-#define _POSIX_C_SOURCE 200112L
-
 #include "damgr/utils.h"
-#include "damgr/actions.h"
 #include "damgr/log.h"
-#include "damgr/state.h"
+#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <pwd.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +11,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-int is_damgr_state_dir_empty(char *dir) {
+const int damgr_path_max = 4096;
+
+int damgr_is_state_dir_empty(char *dir) {
   DIR *open_dir = opendir(dir);
   if (open_dir == nullptr) {
     damgr_log(ERROR, "could not open directory %s: %s", dir, strerror(errno));
@@ -38,9 +36,9 @@ int is_damgr_state_dir_empty(char *dir) {
   return count;
 }
 
-int init_damgr_dir(char *user, bool is_state) {
+int damgr_init_dir(char *user, bool is_state) {
   struct stat st;
-  char fidbuf[PATH_MAX];
+  char fidbuf[damgr_path_max];
   char *path =
       (is_state) ? "/home/%s/.local/state/damgr" : "/home/%s/.config/damgr";
   snprintf(fidbuf, sizeof(fidbuf), path, user);
@@ -66,7 +64,7 @@ int init_damgr_dir(char *user, bool is_state) {
   return EXIT_SUCCESS;
 }
 
-char *get_user() {
+char *damgr_get_user() {
   struct passwd *pwd = getpwuid(geteuid());
   if (pwd == nullptr) {
     damgr_log(ERROR, "getpwuid failed: %s", strerror(errno));
@@ -75,17 +73,7 @@ char *get_user() {
   return pwd->pw_name;
 }
 
-size_t read_func(void *user_data, char *buf, size_t bufsize) {
-  FILE *fid = (FILE *)user_data;
-  return fread(buf, 1, bufsize, fid);
-}
-
-size_t write_func(void *user_data, char const *data, size_t nbytes) {
-  FILE *fid = (FILE *)user_data;
-  return fwrite(data, 1, nbytes, fid);
-}
-
-char *string_copy(char *str) {
+char *damgr_string_copy(char *str) {
   char *ret = nullptr;
   size_t len = strlen(str);
   if (len) {
@@ -96,7 +84,7 @@ char *string_copy(char *str) {
   return ret;
 }
 
-bool string_contains(char *haystack, char *needle) {
+bool damgr_string_contains(char *haystack, char *needle) {
   bool contains = false;
   for (size_t i = 0, j = 0; i < strlen(haystack) && !contains; ++i) {
     while (haystack[i] == needle[j]) {
@@ -112,11 +100,35 @@ bool string_contains(char *haystack, char *needle) {
   return contains;
 }
 
-int qcharcmp(const void *p1, const void *p2) {
-  return strcmp(*(const char **)p1, *(const char **)p2);
+void damgr_string_trim(char *str) {
+  if (*str == '\0' || *str == '\n') {
+    return;
+  }
+  char *start = str;
+  while (isspace((char)*start)) {
+    ++start;
+  }
+  char *end = str + strlen(str) - 1;
+  while (end > start && isspace((char)*end)) {
+    --end;
+  }
+  *(end + 1) = '\0'; // ensure proper null termination
+
+  if (start != str) {
+    memmove(str, start, end - start + 2); // +2 includes the null terminator
+  }
 }
 
-static int execute_execv(char *path, char **argv) {
+int damgr_get_conf_key(char *key) {
+  for (int i = 0; i < MAX_CONF_KEY; ++i) {
+    if (strcmp(damgr_conf_keys[i], key) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+static int damgr_execute_execv(char *path, char **argv) {
   pid_t pid = fork();
   if (pid == -1) {
     damgr_log(ERROR, "fork failed: %s", strerror(errno));
@@ -144,231 +156,25 @@ static int execute_execv(char *path, char **argv) {
   return EXIT_SUCCESS;
 }
 
-int execute_package_install_command(struct darray packages) {
-  char **argv = malloc((packages.count + 5) * sizeof(char *));
-  argv[0] = "sudo";
-  argv[1] = "pacman";
-  argv[2] = "-S";
-  argv[3] = "--needed";
-  for (size_t i = 0; i < packages.count; ++i) {
-    argv[4 + i] = packages.items[i];
-  }
-  argv[4 + packages.count] = nullptr;
-  int ret = execute_execv("/usr/bin/sudo", argv);
-  free(argv);
-  return ret;
-}
-
-int execute_aur_package_install_command(struct darray packages,
-                                        char *aur_helper) {
-  char fidbuf[PATH_MAX];
-  snprintf(fidbuf, sizeof(fidbuf), "/usr/bin/%s", aur_helper);
-  char **argv = malloc((packages.count + 4) * sizeof(char *));
-  argv[0] = aur_helper;
-  argv[1] = "-S";
-  argv[2] = "--needed";
-  for (size_t i = 0; i < packages.count; ++i) {
-    argv[3 + i] = packages.items[i];
-  }
-  argv[3 + packages.count] = nullptr;
-  int ret = execute_execv(fidbuf, argv);
-  free(argv);
-  return ret;
-}
-
-int execute_package_remove_command(struct darray packages) {
-  char **argv = malloc((packages.count + 5) * sizeof(char *));
-  argv[0] = "sudo";
-  argv[1] = "pacman";
-  argv[2] = "-Rns";
-  for (size_t i = 0; i < packages.count; ++i) {
-    argv[3 + i] = packages.items[i];
-  }
-  argv[3 + packages.count] = nullptr;
-  int ret = execute_execv("/usr/bin/sudo", argv);
-  free(argv);
-  return ret;
-}
-
-int execute_hook_command(char *user, bool privileged, char *hook) {
-  int ret;
-  char fidbuf[PATH_MAX];
-  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/hooks/%s", user,
-           hook);
-  char **argv;
-  if (privileged) {
-    argv = malloc(3 * sizeof(char *));
-    argv[0] = "sudo";
-    argv[1] = fidbuf;
-    argv[2] = nullptr;
-    ret = execv("/usr/bin/sudo", argv);
-  } else {
-    argv = malloc(2 * sizeof(char *));
-    argv[0] = hook;
-    argv[1] = nullptr;
-    ret = execute_execv(fidbuf, argv);
-  }
-  free(argv);
-  return ret;
-}
-
-int execute_service_command(bool privileged, bool to_enable, char *service) {
-  int ret;
-  char **argv = malloc(5 * sizeof(char *));
-  if (privileged) {
-    argv[0] = "sudo";
-    argv[1] = "systemctl";
-    argv[2] = (to_enable) ? "enable" : "disable";
-    argv[3] = service;
-    argv[4] = nullptr;
-    ret = execute_execv("/usr/bin/sudo", argv);
-  } else {
-    argv[0] = "systemctl";
-    argv[1] = "--user";
-    argv[2] = (to_enable) ? "enable" : "disable";
-    argv[3] = service;
-    argv[4] = nullptr;
-    ret = execute_execv("/usr/bin/systemctl", argv);
-  }
-  free(argv);
-  return ret;
-}
-
-int execute_dotfile_command(char *user, bool to_link, char *dotfile) {
-  char src_fidbuf[PATH_MAX];
-  snprintf(src_fidbuf, sizeof(src_fidbuf), "/home/%s/.config/damgr/dotfiles/%s",
-           user, dotfile);
-  char dst_fidbuf[PATH_MAX];
-  snprintf(dst_fidbuf, sizeof(dst_fidbuf), "/home/%s/.config/%s", user,
-           dotfile);
-
-  if (to_link) {
-    struct stat st;
-    if (lstat(dst_fidbuf, &st) == 0) { // dst file exists
-      if (S_ISLNK(st.st_mode)) {
-        // dotfile symbolic link already exists
-        return EXIT_SUCCESS;
-      }
-    }
-  } else {
-    unlink(dst_fidbuf);
-    return EXIT_SUCCESS;
-  }
-
-  // dotfile symbolic link doesn't exist
-  char **argv = malloc(5 * sizeof(char *));
-  argv[0] = "ln";
-  argv[1] = "--symbolic";
-  argv[2] = src_fidbuf;
-  argv[3] = dst_fidbuf;
-  argv[4] = nullptr;
-  int ret = execute_execv("/usr/bin/ln", argv);
-  free(argv);
-  return ret;
-}
-
-int execute_aur_update_command(char *aur_helper) {
-  char fidbuf[PATH_MAX];
+int damgr_execute_aur_update_command(char *aur_helper) {
+  char fidbuf[damgr_path_max];
   snprintf(fidbuf, sizeof(fidbuf), "/usr/bin/%s", aur_helper);
   char **argv = malloc(3 * sizeof(char *));
   argv[0] = fidbuf;
   argv[1] = "-Syu";
   argv[2] = nullptr;
-  int ret = execute_execv(fidbuf, argv);
+  int ret = damgr_execute_execv(fidbuf, argv);
   free(argv);
   return ret;
 }
 
-int execute_update_command() {
+int damgr_execute_update_command() {
   char **argv = malloc(4 * sizeof(char *));
   argv[0] = "sudo";
   argv[1] = "pacman";
   argv[2] = "-Syu";
   argv[3] = nullptr;
-  int ret = execute_execv("/usr/bin/sudo", argv);
+  int ret = damgr_execute_execv("/usr/bin/sudo", argv);
   free(argv);
   return ret;
-}
-
-void log_module_actions(struct module module, bool is_state) {
-  char *fmt = (is_state) ? "state" : "config";
-  damgr_log(ERROR, "failed to do module actions for %s module: %s", fmt,
-            module.name);
-}
-
-static void free_darray(struct darray array) {
-  for (size_t i = 0; i < array.count; ++i) {
-    char *item = array.items[i];
-    free(item);
-    item = nullptr;
-  }
-  free_sized(array.items, array.capacity * sizeof(*array.items));
-  array.items = nullptr;
-}
-
-static void free_module(struct module module) {
-  free(module.name);
-  module.name = nullptr;
-  if (module.pre_root_hooks.capacity > 0) {
-    free_darray(module.pre_root_hooks);
-  }
-  if (module.pre_user_hooks.capacity > 0) {
-    free_darray(module.pre_user_hooks);
-  }
-  if (module.packages.capacity > 0) {
-    free_darray(module.packages);
-  }
-  if (module.aur_packages.capacity > 0) {
-    free_darray(module.aur_packages);
-  }
-  if (module.user_services.capacity > 0) {
-    free_darray(module.user_services);
-  }
-  if (module.post_root_hooks.capacity > 0) {
-    free_darray(module.post_root_hooks);
-  }
-  if (module.post_user_hooks.capacity > 0) {
-    free_darray(module.post_user_hooks);
-  }
-  if (module.module_actions.capacity > 0) {
-    for (size_t i = 0; i < module.module_actions.count; ++i) {
-      module.module_actions.items[i].payload.name = nullptr;
-      for (size_t j = 0;
-           j < module.module_actions.items[i].payload.packages.count; ++j) {
-        module.module_actions.items[i].payload.packages.items[j] = nullptr;
-      }
-    }
-  }
-}
-
-static void free_host(struct host host) {
-  free(host.name);
-  host.name = nullptr;
-  if (host.root_services.capacity > 0) {
-    free_darray(host.root_services);
-  }
-  for (size_t i = 0; i < host.modules.count; ++i) {
-    if (host.modules.items[i].name != nullptr) {
-      free_module(host.modules.items[i]);
-    }
-  }
-  if (host.host_actions.capacity > 0) {
-    for (size_t i = 0; i < host.host_actions.count; ++i) {
-      host.host_actions.items[i].payload.name = nullptr;
-      for (size_t j = 0; j < host.host_actions.items[i].payload.packages.count;
-           ++j) {
-        host.host_actions.items[i].payload.packages.items[j] = nullptr;
-      }
-    }
-  }
-}
-
-void free_config(struct config config) {
-  if (config.aur_helper != nullptr) {
-    free(config.aur_helper);
-    config.aur_helper = nullptr;
-  }
-  if (config.active_host.name != nullptr) {
-    free_host(config.active_host);
-  }
 }

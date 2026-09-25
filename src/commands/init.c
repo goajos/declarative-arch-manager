@@ -5,14 +5,14 @@
 int damgr_init() {
   damgr_log(INFO, "running damgr init...");
 
-  char *user = get_user();
+  char *user = damgr_get_user();
   if (user == nullptr) {
     return EXIT_FAILURE;
   }
-  if (init_damgr_dir(user, true) != EXIT_SUCCESS) {
+  if (damgr_init_dir(user, true) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
-  if (init_damgr_dir(user, false) != EXIT_SUCCESS) {
+  if (damgr_init_dir(user, false) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
 

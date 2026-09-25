@@ -2,8 +2,8 @@ CC=gcc
 BIN=bin/damgr
 # code can be found in . and lib
 CODEDIRS=. lib
-# include can be found in . and include/kdl
-INCDIRS=include include/kdl
+# include can be found in include
+INCDIRS=include
 # generate files that encode make rules for the user header deps (-MD includes system headers)
 DEPFLAGS=-MMD
 CFLAGS=-Wall -Wextra -Werror -pedantic -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)) $(DEPFLAGS)
@@ -12,22 +12,15 @@ BUILDDIR=build
 CFILES=main.c \
 			 src/utils/log.c \
 			 src/utils/utils.c \
-			 src/state/state.c \
-			 src/state/config.c \
-			 src/state/host.c \
-			 src/state/module.c \
-			 src/actions/actions.c
+			 src/state/state.c 
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 
 all: $(BIN)
 
-$(BIN): $(OBJECTS) lib/libkdl.a
+$(BIN): $(OBJECTS)
 	@mkdir -p -m 0755 bin # @<cmd> runs silently
 	$(CC) -lm -o $@ $^
-
-lib/libkdl.a:
-	$(MAKE) -C lib
 
 # $@ pastes %.o (target)
 # $^ pastes %.c (source)
