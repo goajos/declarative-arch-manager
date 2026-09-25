@@ -37,6 +37,9 @@ test:
 	@echo "Building the test environment..."
 	docker build --platform linux/amd64 -t damgr-test-env -f Dockerfile .
 	@echo "Running tests inside the test environment..."
-	docker run --platform linux/amd64 --rm -v $(PWD)/tests:/home/testuser/damgr/tests damgr-test-env bash tests/init.sh
+	docker run --platform linux/amd64 --rm \
+		-v $(PWD)/tests:/home/testuser/damgr/tests \
+		damgr-test-env \
+		bash -c "bash tests/init.sh && cp -r tests/.config/* /home/testuser/.config/ && bash tests/merge.sh"
 
 -include $(DEPFILES)

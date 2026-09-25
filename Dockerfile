@@ -15,5 +15,4 @@ RUN git clone https://aur.archlinux.org/yay-bin.git && \
   makepkg -si --noconfirm
 
 WORKDIR /home/testuser/damgr
-RUN git clone https://github.com/goajos/declarative-arch-manager.git . && \
-  make
+RUN git clone https://github.com/goajos/declarative-arch-manager.git . && make

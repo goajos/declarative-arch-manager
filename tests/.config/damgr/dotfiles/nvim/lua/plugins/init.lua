@@ -1,0 +1,7 @@
+-- require("plugins.copilot-chat")
+require("plugins.dap")
+require("plugins.conform")
+require("plugins.osv")
+require("plugins.treesitter")
+require("plugins.nvim-web-devicons")
+require("plugins.whichkey")
