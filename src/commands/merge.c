@@ -131,6 +131,9 @@ int damgr_merge() {
   } else {
     LOG(LOG_INFO, "no actions to do...");
   }
-  // TODO: do memory cleanup?
+
+  free_config(old_config);
+  free_config(new_config);
+  free_actions(actions);
   return EXIT_SUCCESS;
 }

@@ -1,4 +1,5 @@
 #include "damgr/utils.h"
+#include "damgr/actions.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
 #include <dirent.h>
@@ -266,4 +267,45 @@ int execute_update_command() {
     waitpid(pid, nullptr, 0);
   }
   return EXIT_SUCCESS;
+}
+
+static void free_darray(struct darray array) {
+  for (size_t i = 0; i < array.count; ++i) {
+    char *item = array.items[i];
+    free_sized(item, strlen(item));
+    item = nullptr;
+  }
+  array.items = nullptr;
+}
+
+static void free_module(struct module module) {
+  module.name = nullptr;
+  free_darray(module.pre_root_hooks);
+  free_darray(module.pre_user_hooks);
+  free_darray(module.packages);
+  free_darray(module.aur_packages);
+  free_darray(module.user_services);
+  free_darray(module.post_root_hooks);
+  free_darray(module.post_user_hooks);
+}
+
+static void free_host(struct host host) {
+  host.name = nullptr;
+  free_darray(host.root_services);
+  for (size_t i = 0; i < host.modules.count; ++i) {
+    free_module(host.modules.items[i]);
+  }
+}
+
+void free_config(struct config config) {
+  config.aur_helper = nullptr;
+  free_host(config.active_host);
+}
+
+void free_actions(struct actions actions) {
+  for (size_t i = 0; i < actions.count; ++i) {
+    struct action action = actions.items[i];
+    action.payload.name = nullptr;
+    free_darray(action.payload.packages);
+  }
 }
