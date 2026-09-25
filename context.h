@@ -1,6 +1,8 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
-#include "utils/string.c"
+#include "utils/string.h"
+
+constexpr size_t path_max = 4096;
 
 typedef struct {
     String item;
@@ -63,10 +65,20 @@ typedef struct {
     Hosts hosts;
     Modules modules;
     Packages packages;
-    String aur_helper;
+    Packages installed_packages;
     Packages aur_packages;
+    Packages installed_aur_packages;
     Services services;
     Hooks hooks;
+    String aur_helper;
 } Context;
+
+extern void init_context();
+
+extern Context get_context(Context);
+
+extern Context get_installed_packages(Context);
+
+extern void free_context(Context);
 
 #endif /* CONTEXT_H */
