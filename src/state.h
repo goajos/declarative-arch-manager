@@ -10,6 +10,7 @@ struct darray {
 
 struct module {
   char *name;
+  bool link;
 };
 
 struct modules {
@@ -21,7 +22,8 @@ struct modules {
 struct host {
   char *name;
   struct module modules;
-  struct darray root_services;
+  size_t capacity;
+  size_t count;
 };
 
 struct config {

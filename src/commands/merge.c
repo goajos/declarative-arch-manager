@@ -1,8 +1,9 @@
+#include "../logging.h"
 #include "../state.h"
 #include <stdlib.h>
 
 int damgr_merge() {
-  puts("running damgr merge...");
+  logger(LOG_INFO, "running damgr merge...");
 
   struct config old_config = {};
   if (get_config(&old_config, true) != EXIT_SUCCESS) {
