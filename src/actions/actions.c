@@ -371,7 +371,7 @@ int get_actions(struct config *old_config, struct config *config) {
   return EXIT_SUCCESS;
 }
 
-static int do_action(struct action *action, char *aur_helper) {
+static int do_action(char *user, struct action *action, char *aur_helper) {
   switch (action->type) {
   case ROOT_SERVICE:
     if (action->is_positive) {
@@ -423,7 +423,8 @@ static int do_action(struct action *action, char *aur_helper) {
   case POST_ROOT_HOOK:
     if (action->is_positive) {
       damgr_log(INFO, "running hook: %s", action->payload.name);
-      if (execute_hook_command(true, action->payload.name) != EXIT_SUCCESS) {
+      if (execute_hook_command(user, true, action->payload.name) !=
+          EXIT_SUCCESS) {
         damgr_log(ERROR, "failed to run hook: %s", action->payload.name);
         return EXIT_FAILURE;
       }
@@ -436,7 +437,8 @@ static int do_action(struct action *action, char *aur_helper) {
   case POST_USER_HOOK:
     if (action->is_positive) {
       damgr_log(INFO, "running hook: %s", action->payload.name);
-      if (execute_hook_command(false, action->payload.name) != EXIT_SUCCESS) {
+      if (execute_hook_command(user, false, action->payload.name) !=
+          EXIT_SUCCESS) {
         damgr_log(ERROR, "failed to run hook: %s", action->payload.name);
         return EXIT_FAILURE;
       }
@@ -489,7 +491,8 @@ static int do_action(struct action *action, char *aur_helper) {
   case DOTFILE:
     if (action->is_positive) {
       damgr_log(INFO, "linking dotfiles for module: %s", action->payload.name);
-      if (execute_dotfile_command(true, action->payload.name) != EXIT_SUCCESS) {
+      if (execute_dotfile_command(user, true, action->payload.name) !=
+          EXIT_SUCCESS) {
         damgr_log(ERROR, "failed to link dotfiles for module: %s",
                   action->payload.name);
         return EXIT_FAILURE;
@@ -499,7 +502,7 @@ static int do_action(struct action *action, char *aur_helper) {
     } else {
       damgr_log(INFO, "unlinking dotfiles for module: %s",
                 action->payload.name);
-      if (execute_dotfile_command(false, action->payload.name) !=
+      if (execute_dotfile_command(user, false, action->payload.name) !=
           EXIT_SUCCESS) {
         damgr_log(ERROR, "failed to link dotfiles for module: %s",
                   action->payload.name);
@@ -513,11 +516,12 @@ static int do_action(struct action *action, char *aur_helper) {
   return EXIT_SUCCESS;
 }
 
-static void do_module_actions(struct module *module, char *aur_helper) {
+static void do_module_actions(char *user, struct module *module,
+                              char *aur_helper) {
   size_t actions_succeeded_count = 0;
   for (size_t j = 0; j < module->module_actions.count; ++j) {
     struct action *action = &module->module_actions.items[j];
-    if (do_action(action, aur_helper) != EXIT_SUCCESS) {
+    if (do_action(user, action, aur_helper) != EXIT_SUCCESS) {
       action->status = FAILED;
       break; // do we have to break when an action fails?
     } else {
@@ -533,12 +537,12 @@ static void do_module_actions(struct module *module, char *aur_helper) {
   }
 }
 
-int do_actions(struct config *old_config, struct config *config) {
+int do_actions(char *user, struct config *old_config, struct config *config) {
   // config->active_host.host_actions will also hold the services to disable of
   // the old_host
   for (size_t i = 0; i < config->active_host.host_actions.count; ++i) {
     struct action *action = &config->active_host.host_actions.items[i];
-    if (do_action(action, config->aur_helper) != EXIT_SUCCESS) {
+    if (do_action(user, action, config->aur_helper) != EXIT_SUCCESS) {
       damgr_log(ERROR, "failed to do host actions for the host: %s",
                 config->active_host.name);
       action->status = FAILED;
@@ -549,11 +553,11 @@ int do_actions(struct config *old_config, struct config *config) {
   }
 
   for (size_t i = 0; i < config->active_host.modules.count; ++i) {
-    do_module_actions(&config->active_host.modules.items[i],
+    do_module_actions(user, &config->active_host.modules.items[i],
                       config->aur_helper);
   }
   for (size_t i = 0; i < old_config->active_host.modules.count; ++i) {
-    do_module_actions(&old_config->active_host.modules.items[i],
+    do_module_actions(user, &old_config->active_host.modules.items[i],
                       config->aur_helper);
   }
   return EXIT_SUCCESS;

@@ -68,7 +68,7 @@ int damgr_merge() {
       config.active_host.all_modules_actions_count == 0) {
     damgr_log(INFO, "got no actions, nothing to do...");
   } else {
-    if (do_actions(&old_config, &config) != EXIT_SUCCESS) {
+    if (do_actions(user, &old_config, &config) != EXIT_SUCCESS) {
       goto cleanup;
     }
 
@@ -79,13 +79,13 @@ int damgr_merge() {
       if (module.boolean.is_done) {
         write_module(user, module);
       } else {
-        report_module_actions(module, false);
+        log_module_actions(module, false);
       }
     }
     for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
       struct module module = old_config.active_host.modules.items[i];
       if (!module.boolean.is_done) {
-        report_module_actions(module, true);
+        log_module_actions(module, true);
       }
     }
   }

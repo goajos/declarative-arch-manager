@@ -18,12 +18,20 @@
 int is_damgr_state_dir_empty(char *dir) {
   DIR *open_dir = opendir(dir);
   if (open_dir == nullptr) {
+    damgr_log(ERROR, "could not open directory %s: %s", dir, strerror(errno));
     return EXIT_FAILURE;
   }
 
   int count = 0;
   struct dirent *ent;
+  errno = 0;
   while ((ent = readdir(open_dir)) != nullptr) {
+    if (errno != 0) {
+      damgr_log(ERROR, "could not read directory %s: %s", open_dir,
+                strerror(errno));
+      closedir(open_dir);
+      return EXIT_FAILURE;
+    }
     ++count;
   }
   closedir(open_dir);
@@ -182,28 +190,26 @@ int execute_package_remove_command(struct darray packages) {
   return ret;
 }
 
-int execute_hook_command(bool privileged, char *hook) {
-  pid_t pid = fork();
-  if (pid == -1)
-    return EXIT_FAILURE;
-  if (pid == 0) {
-    char fidbuf[PATH_MAX];
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/hooks/%s",
-             get_user(), hook);
-    if (privileged) {
-      execl("/usr/bin/sudo", "sudo", fidbuf, nullptr);
-    } else {
-      execl(fidbuf, hook, nullptr);
-    }
-    exit(EXIT_FAILURE);
+int execute_hook_command(char *user, bool privileged, char *hook) {
+  int ret;
+  char fidbuf[PATH_MAX];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/hooks/%s", user,
+           hook);
+  char **argv;
+  if (privileged) {
+    argv = malloc(3 * sizeof(char *));
+    argv[0] = "sudo";
+    argv[1] = fidbuf;
+    argv[2] = nullptr;
+    ret = execv("/usr/bin/sudo", argv);
   } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
-    }
+    argv = malloc(2 * sizeof(char *));
+    argv[0] = hook;
+    argv[1] = nullptr;
+    ret = execute_execv(fidbuf, argv);
   }
-  return EXIT_SUCCESS;
+  free(argv);
+  return ret;
 }
 
 int execute_service_command(bool privileged, bool to_enable, char *service) {
@@ -228,12 +234,12 @@ int execute_service_command(bool privileged, bool to_enable, char *service) {
   return ret;
 }
 
-int execute_dotfile_command(bool to_link, char *dotfile) {
+int execute_dotfile_command(char *user, bool to_link, char *dotfile) {
   char src_fidbuf[PATH_MAX];
   snprintf(src_fidbuf, sizeof(src_fidbuf), "/home/%s/.config/damgr/dotfiles/%s",
-           get_user(), dotfile);
+           user, dotfile);
   char dst_fidbuf[PATH_MAX];
-  snprintf(dst_fidbuf, sizeof(dst_fidbuf), "/home/%s/.config/%s", get_user(),
+  snprintf(dst_fidbuf, sizeof(dst_fidbuf), "/home/%s/.config/%s", user,
            dotfile);
 
   if (to_link) {
@@ -250,20 +256,15 @@ int execute_dotfile_command(bool to_link, char *dotfile) {
   }
 
   // dotfile symbolic link doesn't exist
-  pid_t pid = fork();
-  if (pid == -1)
-    return EXIT_FAILURE;
-  if (pid == 0) {
-    execl("/usr/bin/ln", "ln", "--symbolic", src_fidbuf, dst_fidbuf, nullptr);
-    exit(EXIT_FAILURE);
-  } else {
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-      return EXIT_FAILURE;
-    }
-  }
-  return EXIT_SUCCESS;
+  char **argv = malloc(5 * sizeof(char *));
+  argv[0] = "ln";
+  argv[1] = "--symbolic";
+  argv[2] = src_fidbuf;
+  argv[3] = dst_fidbuf;
+  argv[4] = nullptr;
+  int ret = execute_execv("/usr/bin/ln", argv);
+  free(argv);
+  return ret;
 }
 
 int execute_aur_update_command(char *aur_helper) {
@@ -289,7 +290,7 @@ int execute_update_command() {
   return ret;
 }
 
-void report_module_actions(struct module module, bool is_state) {
+void log_module_actions(struct module module, bool is_state) {
   char *fmt = (is_state) ? "state" : "config";
   damgr_log(ERROR, "failed to do module actions for %s module: %s", fmt,
             module.name);
