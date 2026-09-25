@@ -54,9 +54,10 @@ static void actions_append(struct actions *actions, struct action action) {
 }
 
 static void get_action(struct actions *actions, enum action_type type,
-                       bool is_positive, union payload payload) {
+                       bool is_positive, struct payload payload) {
   struct action action = {.payload = payload,
-                          .status = PENDING,
+                          // TODO: undo action?
+                          // .status = PENDING,
                           .type = type,
                           .is_positive = is_positive};
   actions_append(actions, action);
@@ -73,7 +74,7 @@ static int get_actions_from_services_diff(struct actions *actions,
     if (service == nullptr) {
       EXIT_FAILURE;
     }
-    union payload payload = {service};
+    struct payload payload = {.name = service, .packages = {}};
     if (root) {
       get_action(actions, ROOT_SERVICE, false, payload);
     } else {
@@ -85,7 +86,7 @@ static int get_actions_from_services_diff(struct actions *actions,
     if (service == nullptr) {
       EXIT_FAILURE;
     }
-    union payload payload = {service};
+    struct payload payload = {.name = service, .packages = {}};
     if (root) {
       get_action(actions, ROOT_SERVICE, true, payload);
     } else {
@@ -107,7 +108,7 @@ static int get_actions_from_hooks_diff(struct actions *actions,
     if (hook == nullptr) {
       EXIT_FAILURE;
     }
-    union payload payload = {hook};
+    struct payload payload = {hook, .packages = {}};
     if (root) {
       if (pre) {
         get_action(actions, PRE_ROOT_HOOK, true, payload);
@@ -128,22 +129,23 @@ static int get_actions_from_hooks_diff(struct actions *actions,
 
 static int get_actions_from_packages_diff(struct actions *actions,
                                           struct darray *old_packages,
-                                          struct darray *packages, bool aur) {
+                                          struct darray *packages, bool aur,
+                                          char *name) {
   struct darray to_remove = {};
   struct darray to_install = {};
   compute_darray_diff(&to_remove, &to_install, old_packages, packages);
   if (aur && to_remove.count > 0) {
-    union payload payload = {.packages = to_remove};
+    struct payload payload = {.name = name, .packages = to_remove};
     get_action(actions, AUR_PACKAGE, false, payload);
   } else if (!aur && to_remove.count > 0) {
-    union payload payload = {.packages = to_remove};
+    struct payload payload = {.name = name, .packages = to_remove};
     get_action(actions, PACKAGE, false, payload);
   }
   if (aur && to_install.count > 0) {
-    union payload payload = {.packages = to_install};
+    struct payload payload = {.name = name, .packages = to_install};
     get_action(actions, AUR_PACKAGE, true, payload);
   } else if (!aur && to_install.count > 0) {
-    union payload payload = {.packages = to_install};
+    struct payload payload = {.name = name, .packages = to_install};
     get_action(actions, PACKAGE, true, payload);
   }
   return EXIT_SUCCESS;
@@ -153,12 +155,12 @@ static void get_actions_from_dotfiles_diff(struct module *old_module,
                                            struct module *module) {
   if (old_module->to_link) {
     if (!module->to_link) {
-      union payload payload = {module->name};
+      struct payload payload = {module->name, .packages = {}};
       get_action(&module->module_actions, DOTFILE, false, payload);
     }
   } else {
     if (module->to_link) {
-      union payload payload = {module->name};
+      struct payload payload = {module->name, .packages = {}};
       get_action(&module->module_actions, DOTFILE, true, payload);
     }
   }
@@ -178,12 +180,12 @@ static int get_actions_from_modules_diff(struct module *old_module,
   }
   if (get_actions_from_packages_diff(&module->module_actions,
                                      &old_module->packages, &module->packages,
-                                     false) != EXIT_SUCCESS) {
+                                     false, module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
   if (get_actions_from_packages_diff(
           &module->module_actions, &old_module->aur_packages,
-          &module->aur_packages, true) != EXIT_SUCCESS) {
+          &module->aur_packages, true, module->name) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
   if (get_actions_from_services_diff(
@@ -216,7 +218,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
       if (hook == nullptr) {
         EXIT_FAILURE;
       }
-      union payload payload = {hook};
+      struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, PRE_ROOT_HOOK, is_positive, payload);
     }
     for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
@@ -224,16 +226,18 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
       if (hook == nullptr) {
         EXIT_FAILURE;
       }
-      union payload payload = {hook};
+      struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, PRE_USER_HOOK, is_positive, payload);
     }
   }
   if (module->packages.count > 0) {
-    union payload payload = {.packages = module->packages};
+    struct payload payload = {.name = module->name,
+                              .packages = module->packages};
     get_action(&module->module_actions, PACKAGE, is_positive, payload);
   }
   if (module->aur_packages.count > 0) {
-    union payload payload = {.packages = module->aur_packages};
+    struct payload payload = {.name = module->name,
+                              .packages = module->aur_packages};
     get_action(&module->module_actions, AUR_PACKAGE, is_positive, payload);
   }
   for (size_t i = 0; i < module->user_services.count; ++i) {
@@ -241,11 +245,11 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
     if (service == nullptr) {
       EXIT_FAILURE;
     }
-    union payload payload = {service};
+    struct payload payload = {.name = service, .packages = {}};
     get_action(&module->module_actions, USER_SERVICE, is_positive, payload);
   }
   if (module->to_link) {
-    union payload payload = {module->name};
+    struct payload payload = {.name = module->name, .packages = {}};
     get_action(&module->module_actions, DOTFILE, is_positive, payload);
   }
   if (is_positive) {
@@ -254,7 +258,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
       if (hook == nullptr) {
         EXIT_FAILURE;
       }
-      union payload payload = {hook};
+      struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, POST_ROOT_HOOK, is_positive, payload);
     }
     for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
@@ -262,7 +266,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
       if (hook == nullptr) {
         EXIT_FAILURE;
       }
-      union payload payload = {hook};
+      struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, POST_ROOT_HOOK, is_positive, payload);
     }
   }
@@ -271,6 +275,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
 
 static int get_actions_from_hosts_diff(struct host *old_host,
                                        struct host *host) {
+  // host->host_actions will also hold the services to disable of the old_host
   if (get_actions_from_services_diff(
           &host->host_actions, &old_host->root_services, &host->root_services,
           true) != EXIT_SUCCESS) {
@@ -284,11 +289,36 @@ static int get_actions_from_hosts_diff(struct host *old_host,
               strlen(host->modules.items[i].name) &&
           string_contains(old_host->modules.items[j].name,
                           host->modules.items[i].name)) {
+        old_host->modules.items[j].boolean.is_orphan = false; // to remove later
         if (get_actions_from_modules_diff(&old_host->modules.items[j],
                                           &host->modules.items[i]) !=
             EXIT_SUCCESS) {
           return EXIT_FAILURE;
+        } else {
+          host->modules.items[i].boolean.is_done = true;
+          host->modules_actions_count +=
+              host->modules.items[i].module_actions.count;
         }
+      }
+    }
+    if (!host->modules.items[i].boolean.is_done) {
+      if (get_actions_from_module(&host->modules.items[i], true) !=
+          EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      } else {
+        host->modules_actions_count +=
+            host->modules.items[i].module_actions.count;
+      }
+    }
+  }
+  for (size_t i = 0; i < old_host->modules.count; ++i) {
+    if (old_host->modules.items[i].boolean.is_orphan) {
+      if (get_actions_from_module(&old_host->modules.items[i], false) !=
+          EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      } else {
+        old_host->modules_actions_count +=
+            old_host->modules.items[i].module_actions.count;
       }
     }
   }
@@ -301,20 +331,20 @@ static int get_actions_from_host(struct host *host) {
     if (service == nullptr) {
       EXIT_FAILURE;
     }
-    union payload payload = {service};
+    struct payload payload = {.name = service, .packages = {}};
     get_action(&host->host_actions, ROOT_SERVICE, true, payload);
   }
   for (size_t i = 0; i < host->modules.count; i++) {
     if (get_actions_from_module(&host->modules.items[i], true) !=
         EXIT_SUCCESS) {
+      host->modules_actions_count +=
+          host->modules.items[i].module_actions.count;
       return EXIT_FAILURE;
     }
   }
   return EXIT_SUCCESS;
 }
 
-// or do_actions()?
-// TODO: error handling at deepest level with most details?
 int get_actions(struct config *old_config, struct config *config) {
   if (old_config->active_host.name != nullptr) {
     int ret = strcmp(old_config->active_host.name, config->active_host.name);
@@ -342,167 +372,202 @@ int get_actions(struct config *old_config, struct config *config) {
   return EXIT_SUCCESS;
 }
 
-// int do_action(struct action action, char *aur_helper) {
-//   switch (action.type) {
-//   case ROOT_SERVICE:
-//     if (action.is_positive) {
-//       LOG(LOG_INFO, "enabling root service: %s", action.payload.name);
-//       if (execute_service_command(true, true, action.payload.name) !=
-//           EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to enable root service: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully enabled root service: %s",
-//           action.payload.name);
-//     } else {
-//       LOG(LOG_INFO, "disabling root service: %s", action.payload.name);
-//       if (execute_service_command(true, false, action.payload.name) !=
-//           EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to disable root service: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully disabled root service: %s",
-//           action.payload.name);
-//     }
-//     break;
-//   case USER_SERVICE:
-//     if (action.is_positive) {
-//       LOG(LOG_INFO, "enabling user service: %s", action.payload.name);
-//       if (execute_service_command(false, true, action.payload.name) !=
-//           EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to enable user service: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully enabled user service: %s",
-//           action.payload.name);
-//     } else {
-//       LOG(LOG_INFO, "disabling user service: %s", action.payload.name);
-//       if (execute_service_command(false, false, action.payload.name) !=
-//           EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to disable user service: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully disabled user service: %s",
-//           action.payload.name);
-//     }
-//     break;
-//   case PRE_ROOT_HOOK:
-//   case POST_ROOT_HOOK:
-//     if (action.is_positive) {
-//       LOG(LOG_INFO, "running hook: %s", action.payload.name);
-//       if (execute_hook_command(true, action.payload.name) != EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to run hook: %s", action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully ran hook: %s", action.payload.name);
-//     } else {
-//       // can't undo a hook...
-//     }
-//     break;
-//   case PRE_USER_HOOK:
-//   case POST_USER_HOOK:
-//     if (action.is_positive) {
-//       LOG(LOG_INFO, "running hook: %s", action.payload.name);
-//       if (execute_hook_command(false, action.payload.name) != EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to run hook: %s", action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully ran hook: %s", action.payload.name);
-//     } else {
-//       // can't undo a hook...
-//     }
-//     break;
-//   case PACKAGE:
-//     if (action.is_positive) {
-//       LOG(LOG_INFO, "installing packages for module: %s",
-//       action.payload.name); if
-//       (execute_package_install_command(action.payload.packages) !=
-//           EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to install packages for module: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully installed packages for module: %s",
-//           action.payload.name);
-//     } else {
-//     package_remove:
-//       LOG(LOG_INFO, "removing packages for module: %s", action.payload.name);
-//       if (execute_package_remove_command(action.payload.packages) !=
-//           EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to remove packages for module: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully removed packages for module: %s",
-//           action.payload.name);
-//     }
-//     break;
-//   case AUR_PACKAGE:
-//     if (action.is_positive) {
-//       LOG(LOG_INFO, "installing aur packages for module: %s",
-//           action.payload.name);
-//       if (execute_aur_package_install_command(action.payload.packages,
-//                                               aur_helper) != EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to install aur packages for module: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully installed aur packages for module: %s",
-//           action.payload.name);
-//     } else {
-//       goto package_remove;
-//     }
-//     break;
-//   case DOTFILE:
-//     if (action.is_positive) {
-//       LOG(LOG_INFO, "linking dotfiles for module: %s", action.payload.name);
-//       if (execute_dotfile_command(true, action.payload.name) != EXIT_SUCCESS)
-//       {
-//         LOG(LOG_ERROR, "failed to link dotfiles for module: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully linked dotfiles for module: %s",
-//           action.payload.name);
-//     } else {
-//       LOG(LOG_INFO, "unlinking dotfiles for module: %s",
-//       action.payload.name); if (execute_dotfile_command(false,
-//       action.payload.name) != EXIT_SUCCESS) {
-//         LOG(LOG_ERROR, "failed to link dotfiles for module: %s",
-//             action.payload.name);
-//         return EXIT_FAILURE;
-//       }
-//       LOG(LOG_INFO, "succesfully linked dotfiles for module: %s",
-//           action.payload.name);
-//     }
-//     break;
-//   }
-//   return EXIT_SUCCESS;
-// }
-
-// TODO: finish the undo action loop?
-int undo_action(struct action action, [[maybe_unused]] char *aur_helper) {
-  switch (action.type) {
+static int do_action(struct action *action, char *aur_helper) {
+  switch (action->type) {
   case ROOT_SERVICE:
+    if (action->is_positive) {
+      LOG(LOG_INFO, "enabling root service: %s", action->payload.name);
+      if (execute_service_command(true, true, action->payload.name) !=
+          EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to enable root service: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully enabled root service: %s",
+          action->payload.name);
+    } else {
+      LOG(LOG_INFO, "disabling root service: %s", action->payload.name);
+      if (execute_service_command(true, false, action->payload.name) !=
+          EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to disable root service: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully disabled root service: %s",
+          action->payload.name);
+    }
     break;
   case USER_SERVICE:
+    if (action->is_positive) {
+      LOG(LOG_INFO, "enabling user service: %s", action->payload.name);
+      if (execute_service_command(false, true, action->payload.name) !=
+          EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to enable user service: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully enabled user service: %s",
+          action->payload.name);
+    } else {
+      LOG(LOG_INFO, "disabling user service: %s", action->payload.name);
+      if (execute_service_command(false, false, action->payload.name) !=
+          EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to disable user service: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully disabled user service: %s",
+          action->payload.name);
+    }
     break;
   case PRE_ROOT_HOOK:
   case POST_ROOT_HOOK:
+    if (action->is_positive) {
+      LOG(LOG_INFO, "running hook: %s", action->payload.name);
+      if (execute_hook_command(true, action->payload.name) != EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to run hook: %s", action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully ran hook: %s", action->payload.name);
+    } else {
+      // can't undo a hook...
+    }
+    break;
   case PRE_USER_HOOK:
   case POST_USER_HOOK:
-    // can't undo hooks...
+    if (action->is_positive) {
+      LOG(LOG_INFO, "running hook: %s", action->payload.name);
+      if (execute_hook_command(false, action->payload.name) != EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to run hook: %s", action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully ran hook: %s", action->payload.name);
+    } else {
+      // can't undo a hook...
+    }
     break;
   case PACKAGE:
+    if (action->is_positive) {
+      LOG(LOG_INFO, "installing packages for module: %s", action->payload.name);
+      if (execute_package_install_command(action->payload.packages) !=
+          EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to install packages for module: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully installed packages for module: %s",
+          action->payload.name);
+    } else {
+    package_remove:
+      LOG(LOG_INFO, "removing packages for module: %s", action->payload.name);
+      if (execute_package_remove_command(action->payload.packages) !=
+          EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to remove packages for module: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully removed packages for module: %s",
+          action->payload.name);
+    }
     break;
   case AUR_PACKAGE:
+    if (action->is_positive) {
+      LOG(LOG_INFO, "installing aur packages for module: %s",
+          action->payload.name);
+      if (execute_aur_package_install_command(action->payload.packages,
+                                              aur_helper) != EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to install aur packages for module: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully installed aur packages for module: %s",
+          action->payload.name);
+    } else {
+      goto package_remove;
+    }
     break;
   case DOTFILE:
+    if (action->is_positive) {
+      LOG(LOG_INFO, "linking dotfiles for module: %s", action->payload.name);
+      if (execute_dotfile_command(true, action->payload.name) != EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to link dotfiles for module: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully linked dotfiles for module: %s",
+          action->payload.name);
+    } else {
+      LOG(LOG_INFO, "unlinking dotfiles for module: %s", action->payload.name);
+      if (execute_dotfile_command(false, action->payload.name) !=
+          EXIT_SUCCESS) {
+        LOG(LOG_ERROR, "failed to link dotfiles for module: %s",
+            action->payload.name);
+        return EXIT_FAILURE;
+      }
+      LOG(LOG_INFO, "succesfully linked dotfiles for module: %s",
+          action->payload.name);
+    }
     break;
   }
   return EXIT_SUCCESS;
 }
+
+int do_actions(struct config *old_config, struct config *config) {
+  // config->active_host.host_actions will also hold the services to disable of
+  // the old_host
+  for (size_t i = 0; i < config->active_host.host_actions.count; ++i) {
+    if (do_action(&config->active_host.host_actions.items[i],
+                  config->aur_helper) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
+  }
+  for (size_t i = 0; i < config->active_host.modules.count; ++i) {
+    config->active_host.modules.items[i].boolean.is_done =
+        false; // to write later
+    for (size_t j = 0;
+         j < config->active_host.modules.items[i].module_actions.count; ++j) {
+      if (do_action(
+              &config->active_host.modules.items[i].module_actions.items[j],
+              config->aur_helper) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      }
+    }
+    config->active_host.modules.items[i].boolean.is_done =
+        true; // to write later
+  }
+  for (size_t i = 0; i < old_config->active_host.modules.count; ++i) {
+    for (size_t j = 0;
+         j < old_config->active_host.modules.items[i].module_actions.count;
+         ++j) {
+      if (do_action(
+              &old_config->active_host.modules.items[i].module_actions.items[j],
+              config->aur_helper) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      }
+    }
+  }
+  return EXIT_SUCCESS;
+}
+
+// // TODO: undo action?
+// int undo_action(struct action action, [[maybe_unused]] char *aur_helper) {
+//   switch (action.type) {
+//   case ROOT_SERVICE:
+//     break;
+//   case USER_SERVICE:
+//     break;
+//   case PRE_ROOT_HOOK:
+//   case POST_ROOT_HOOK:
+//   case PRE_USER_HOOK:
+//   case POST_USER_HOOK:
+//     // can't undo hooks...
+//     break;
+//   case PACKAGE:
+//     break;
+//   case AUR_PACKAGE:
+//     break;
+//   case DOTFILE:
+//     break;
+//   }
+//   return EXIT_SUCCESS;
+// }

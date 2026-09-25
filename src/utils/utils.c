@@ -280,6 +280,7 @@ static void free_darray(struct darray array) {
 }
 
 static void free_module(struct module module) {
+  free_sized(module.name, strlen(module.name));
   module.name = nullptr;
   free_darray(module.pre_root_hooks);
   free_darray(module.pre_user_hooks);
@@ -288,25 +289,33 @@ static void free_module(struct module module) {
   free_darray(module.user_services);
   free_darray(module.post_root_hooks);
   free_darray(module.post_user_hooks);
+  for (size_t i = 0; i < module.module_actions.count; ++i) {
+    module.module_actions.items[i].payload.name = nullptr;
+    for (size_t j = 0;
+         j < module.module_actions.items[i].payload.packages.count; ++j) {
+      module.module_actions.items[i].payload.packages.items[j] = nullptr;
+    }
+  }
 }
 
 static void free_host(struct host host) {
+  free_sized(host.name, strlen(host.name));
   host.name = nullptr;
   free_darray(host.root_services);
   for (size_t i = 0; i < host.modules.count; ++i) {
     free_module(host.modules.items[i]);
   }
+  for (size_t i = 0; i < host.host_actions.count; ++i) {
+    host.host_actions.items[i].payload.name = nullptr;
+    for (size_t j = 0; j < host.host_actions.items[i].payload.packages.count;
+         ++j) {
+      host.host_actions.items[i].payload.packages.items[j] = nullptr;
+    }
+  }
 }
 
 void free_config(struct config config) {
+  free_sized(config.aur_helper, strlen(config.aur_helper));
   config.aur_helper = nullptr;
   free_host(config.active_host);
-}
-
-void free_actions(struct actions actions) {
-  for (size_t i = 0; i < actions.count; ++i) {
-    struct action action = actions.items[i];
-    action.payload.name = nullptr;
-    free_darray(action.payload.packages);
-  }
 }
