@@ -1,15 +1,22 @@
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <kdl/kdl.h>
 #include <glob.h>
 
+// will be added in glibc 2.43
+void free_sized(void *ptr, size_t /*size*/)
+{
+    free(ptr);
+}
+
 #define da_append(xs, x)\
     do {\
         if (xs.count >= xs.capacity) {\
             if (xs.capacity == 0) xs.capacity = 256;\
             else xs.capacity *= 2;\
-            xs.items = realloc(xs.items, xs.capacity*sizeof(*xs.items));\
+            xs.items = reallocarray(xs.items, xs.capacity, sizeof(*xs.items));\
         }\
         xs.items[xs.count++] = x;\
     } while(0)
@@ -35,6 +42,17 @@ typedef struct {
     size_t count;
     size_t capacity;
 } Modules;
+
+typedef struct {
+    char *item;
+    bool active;
+} Package;
+
+typedef struct {
+    Package *items;
+    size_t count;
+    size_t capacity;
+} Packages;
 
 typedef struct {
     char *item;
@@ -153,8 +171,8 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
                 if (name_data) printf("Start node: %s\n", name_data);
                 if (node_depth == 1) {
                     // TODO: set up a go to error block
-                    if (strcmp(name_data, "host") != 0) printf("goto Error: Not a valid config...\n"); 
-                    else user_type_flag = false; 
+                    if (strcmp(name_data, "host") != 0) printf("goto Error: Not a valid host...\n"); 
+                    else user_type_flag = false; // false for system
                 } else if (node_depth == 2) {
                     // manual clean up before copying new data
                     node_data_d2 = copy_data(name_data);
@@ -194,11 +212,86 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
         if (eof) break; // outer while break
    }
 
-   if (node_data_d2 != nullptr) free(node_data_d2); // manual clean up for copied data
+   if (node_data_d2 != nullptr) {
+        free(node_data_d2); // manual clean up for copied data
+        node_data_d2 = nullptr;
+    }
    kdl_destroy_parser(parser); // parser cleans the rest
 }
 
-// gcc main.c -o main -lkdl -lm -std=c23 -Wall -Wextra -Werror -pedantic
+void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *hooks)
+{
+   kdl_parser *parser = kdl_create_stream_parser(&read_func, (void *)fid, KDL_DEFAULTS); 
+   
+   bool eof = false;
+   int node_depth = 0;
+   char *node_data_d2 = nullptr;
+   const char *node_data_d3 = nullptr;
+   bool user_type_flag;
+   
+   while(1) {
+        kdl_event_data *parsed_event = kdl_parser_next_event(parser);
+        kdl_event event = parsed_event->event;
+        const char *name_data = parsed_event->name.data;
+        kdl_type value_type = parsed_event->value.type;
+        bool boolean = parsed_event->value.boolean;
+    
+        while(1) {
+            if (event == KDL_EVENT_START_NODE) {
+                node_depth += 1;
+                printf("Node depth inc: %d\n", node_depth);
+                if (name_data) printf("Start node: %s\n", name_data);
+                if (node_depth == 1) {
+                    // TODO: set up a go to error block
+                    if (strcmp(name_data, "module") != 0) printf("goto Error: Not a valid module...\n"); 
+                    else user_type_flag = true; // true for user 
+                } else if (node_depth == 2) {
+                    // manual clean up before copying new data
+                    node_data_d2 = copy_data(name_data);
+                } else if (node_depth == 3) {
+                    node_data_d3 = name_data;
+                }
+                break;
+            } else if (event == KDL_EVENT_END_NODE) {
+                node_depth -= 1;
+                printf("Node depth dec: %d\n", node_depth);
+                printf("End node\n");
+                break;
+            } else if (event == KDL_EVENT_ARGUMENT) {
+                if (value_type == KDL_TYPE_BOOLEAN) {
+                    char *dest = copy_data(node_data_d3);
+                    if (dest) {
+                        if (strcmp(node_data_d2, "modules") == 0) {
+                            Package package = { dest, boolean };
+                            da_append((*packages), package);
+                        } else if (strcmp(node_data_d2, "services") == 0) {
+                            Service service = { dest, boolean, user_type_flag };
+                            da_append((*services), service);
+                        } else if (strcmp(node_data_d2, "hooks") == 0) {
+                            Hook hook = { dest, boolean, user_type_flag };
+                            da_append((*hooks), hook);
+                        }
+                    }
+                    printf("Event argument node: %b\n", boolean);
+                }
+                break;
+            } else if (event == KDL_EVENT_EOF) {
+                eof = true;
+                break;
+            }
+        }
+
+        if (eof) break; // outer while break
+   }
+
+   if (node_data_d2 != nullptr) {
+        free(node_data_d2); // manual clean up for copied data
+        node_data_d2 = nullptr;
+    }
+   kdl_destroy_parser(parser); // parser cleans the rest
+}
+
+// clang main.c -o main -g -lc -lkdl -lm -std=c23 -Wall -Wextra -Werror -pedantic
 int main()
 {
     printf("Hello world!\n");
@@ -219,12 +312,12 @@ int main()
     }
     printf("active host: %s\n", active_host);
 
-    glob_t globbuf;
-    globbuf.gl_offs = 0; // not prepending any flags to glob
-    glob("hosts/*.kdl", GLOB_DOOFFS, NULL, &globbuf);
+    glob_t host_globbuf;
+    host_globbuf.gl_offs = 0; // not prepending any flags to glob
+    glob("hosts/*.kdl", GLOB_DOOFFS, NULL, &host_globbuf);
     char *host_path = nullptr;
-    for (size_t i = 0; i < globbuf.gl_pathc; ++i) {
-        char *glob_path = globbuf.gl_pathv[i];
+    for (size_t i = 0; i < host_globbuf.gl_pathc; ++i) {
+        char *glob_path = host_globbuf.gl_pathv[i];
         if (strstr(glob_path, active_host) != nullptr) {
             host_path = copy_data(glob_path);
             break; // only 1 active host assumption
@@ -250,18 +343,60 @@ int main()
     }
     
     // no longer need hosts and host glob
-    for (int i = 0; i < (int)hosts.count; ++i) free(hosts.items[i].item);
-    free(hosts.items);
-    globfree(&globbuf);
+    for (int i = 0; i < (int)hosts.count; ++i) {
+        char *item = hosts.items[i].item;
+        free_sized(item, sizeof(*item));
+    }
+    free_sized(hosts.items, hosts.capacity*sizeof(*hosts.items));
+    hosts.items = nullptr;
+    free_sized(host_path, sizeof(*host_path));
+    globfree(&host_globbuf);
 
-    // finish the logic for looping over the modules/services/hooks
+    Packages packages = {0};
+    char fidbuf[0x256];
+    for (int i = 0; i < (int)modules.count; i++) {
+        Module module = modules.items[i];
+        if (module.active) {
+            snprintf(fidbuf, sizeof(fidbuf), "modules/%s.kdl", module.item);
+            printf("%s\n", fidbuf);
+            FILE *module_fid = fopen(fidbuf, "r");
+            parse_module_kdl(module_fid, &packages, &services, &hooks);
+            fclose(module_fid);
+        }
 
-    for (int i = 0; i < (int)modules.count; ++i) free(modules.items[i].item);
-    free(modules.items);
-    for (int i = 0; i < (int)services.count; ++i) free(services.items[i].item);
-    free(services.items);
-    for (int i = 0; i < (int)hooks.count; ++i) free(hooks.items[i].item);
-    free(hooks.items);
+        printf("Packages count: %d\n", (int)packages.count);
+        for (int i = 0; i < (int)packages.count; ++i) {
+            printf("Package %s - is active: %b\n", packages.items[i].item, packages.items[i].active);
+        }
+    }
+
+    free_sized(modules.items, modules.capacity*sizeof(*modules.items));
+    for (int i = 0; i < (int)modules.count; ++i) {
+        char *item = modules.items[i].item;
+        free_sized(item, sizeof(*item));
+    }
+    modules.items = nullptr;
+
+    free_sized(packages.items, packages.capacity*sizeof(*packages.items));
+    for (int i = 0; i < (int)packages.count; ++i) {
+        char *item = packages.items[i].item;
+        free_sized(item, sizeof(*item));
+    }
+    packages.items = nullptr;
+    
+    free_sized(services.items, services.capacity*sizeof(*services.items));
+    for (int i = 0; i < (int)services.count; ++i) {
+        char *item = services.items[i].item;
+        free_sized(item, sizeof(*item));
+    }
+    services.items = nullptr;
+
+    free_sized(hooks.items, hooks.capacity*sizeof(*hooks.items));
+    for (int i = 0; i < (int)hooks.count; ++i) {
+        char *item = hooks.items[i].item;
+        free_sized(item, sizeof(*item));
+    }
+    hooks.items = nullptr;
 
     return 0;
 }
