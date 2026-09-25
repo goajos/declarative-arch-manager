@@ -115,7 +115,7 @@ int read_config(struct config *config, bool is_state) {
   }
 }
 
-int write_config(struct config config) {
+int write_config(struct config *config) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf),
            "/home/%s/.local/state/damgr/config_state.kdl", get_user());
@@ -129,16 +129,17 @@ int write_config(struct config config) {
   kdl_start_emitting_children(emitter);
   kdl_emit_node(emitter, kdl_str_from_cstr("aur_helper"));
   kdl_value aur_helper = {.type = KDL_TYPE_STRING,
-                          .string = kdl_str_from_cstr(config.aur_helper)};
+                          .string = kdl_str_from_cstr(config->aur_helper)};
   kdl_emit_arg(emitter, &aur_helper);
   kdl_emit_node(emitter, kdl_str_from_cstr("active_host"));
   kdl_value active_host = {.type = KDL_TYPE_STRING,
                            .string =
-                               kdl_str_from_cstr(config.active_host.name)};
+                               kdl_str_from_cstr(config->active_host.name)};
   kdl_emit_arg(emitter, &active_host);
   kdl_finish_emitting_children(emitter);
   kdl_emit_end(emitter);
 
   kdl_destroy_emitter(emitter);
+  fclose(config_fid);
   return EXIT_SUCCESS;
 }

@@ -275,7 +275,7 @@ static void free_darray(struct darray array) {
     free_sized(item, strlen(item));
     item = nullptr;
   }
-  free(array.items);
+  free_sized(array.items, array.capacity * sizeof(*array.items));
   array.items = nullptr;
 }
 
@@ -307,6 +307,10 @@ void free_actions(struct actions actions) {
   for (size_t i = 0; i < actions.count; ++i) {
     struct action action = actions.items[i];
     action.payload.name = nullptr;
-    free_darray(action.payload.packages);
+    if (action.payload.packages.count > 0) {
+      for (size_t j = 0; j < action.payload.packages.count; ++j) {
+        action.payload.packages.items[j] = nullptr;
+      }
+    }
   }
 }
