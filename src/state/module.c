@@ -12,7 +12,7 @@ static int validate_module([[maybe_unused]] struct module module,
   return EXIT_SUCCESS;
 }
 
-int get_module(struct module *module, bool is_state) {
+int read_module(struct module *module, bool is_state) {
   char fidbuf[PATH_MAX];
   if (is_state) {
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",

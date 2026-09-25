@@ -39,13 +39,16 @@ struct config {
   struct host active_host;
 };
 
-int get_config(struct config *config, bool is_state);
+int read_config(struct config *config, bool is_state);
 int parse_config(FILE *fid, struct config *config);
+// int write_config();
 
-int get_host(struct host *host, bool is_state);
+int read_host(struct host *host, bool is_state);
 int parse_host(FILE *fid, struct host *host);
+// int write_host();
 
-int get_module(struct module *module, bool is_state);
+int read_module(struct module *module, bool is_state);
 int parse_module(FILE *fid, struct module *module);
+// int write_module();
 
 #endif /* STATE_H */
