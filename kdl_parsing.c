@@ -1,8 +1,7 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <kdl/kdl.h>
-#include "utils.c"
+#include "utils/array.c"
+#include "utils/mem.c"
 
 void parse_config_kdl(FILE *fid, Hosts *hosts)
 {
@@ -10,7 +9,9 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
    
    bool eof = false;
    int node_depth = 0;
-   const char *node_data = nullptr;
+   String name = { .data = nullptr };
+   String node = { .data = nullptr };
+   String config = String("config");
    
    while(1) {
         kdl_event_data *parsed_event = kdl_parser_next_event(parser);
@@ -21,12 +22,13 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
     
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
+                name = String((char *)name_data);
                 node_depth += 1;
                 if (node_depth == 1) {
                     // TODO: set up a goto error block
-                    if (strcmp(name_data, "config") != 0) printf("goto Error: Not a valid config...\n"); 
+                    if (!string_equal(name, config)) printf("goto Error: Not a valid config...\n");
                 } else if (node_depth == 2) {
-                    node_data = name_data;
+                    node = string_copy(name);
                 }
                 break;
             } else if (event == KDL_EVENT_END_NODE) {
@@ -34,11 +36,8 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
                 if (value_type == KDL_TYPE_BOOLEAN) {
-                    char *dest = copy_data(node_data);
-                    if (dest) {
-                        Host host = { dest, boolean };
-                        da_append((*hosts), host);
-                    }
+                    Host host = { node, boolean };
+                    array_append((*hosts), host);
                 }
                 break;
             } else if (event == KDL_EVENT_EOF) {
@@ -59,8 +58,13 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
    
    bool eof = false;
    int node_depth = 0;
-   char *node_data_d2 = nullptr;
-   const char *node_data_d3 = nullptr;
+   String name = { .data = nullptr };
+   String node_d2 = { .data = nullptr };
+   String node_d3 = { .data = nullptr };
+   String host = String("host");
+   String modules_str = String("modules");
+   String services_str = String("services");
+   String hooks_str = String("hooks");
    bool user_type_flag;
    
    while(1) {
@@ -72,16 +76,16 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
     
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
+                name = String((char *)name_data);
                 node_depth += 1;
                 if (node_depth == 1) {
                     // TODO: set up a go to error block
-                    if (strcmp(name_data, "host") != 0) printf("goto Error: Not a valid host...\n"); 
+                    if (!string_equal(name, host)) printf("goto Error: Not a valid host...\n");
                     else user_type_flag = false; // false for system
                 } else if (node_depth == 2) {
-                    // manual clean up before copying new data
-                    node_data_d2 = copy_data(name_data);
+                    node_d2 = string_copy(name);
                 } else if (node_depth == 3) {
-                    node_data_d3 = name_data;
+                    node_d3 = string_copy(name);
                 }
                 break;
             } else if (event == KDL_EVENT_END_NODE) {
@@ -89,18 +93,15 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
                 if (value_type == KDL_TYPE_BOOLEAN) {
-                    char *dest = copy_data(node_data_d3);
-                    if (dest) {
-                        if (strcmp(node_data_d2, "modules") == 0) {
-                            Module module = { dest, boolean };
-                            da_append((*modules), module);
-                        } else if (strcmp(node_data_d2, "services") == 0) {
-                            Service service = { dest, boolean, user_type_flag };
-                            da_append((*services), service);
-                        } else if (strcmp(node_data_d2, "hooks") == 0) {
-                            Hook hook = { dest, boolean, user_type_flag };
-                            da_append((*hooks), hook);
-                        }
+                    if (string_equal(node_d2, modules_str)) {
+                        Module module = { node_d3, boolean };
+                        array_append((*modules), module);
+                    } else if (string_equal(node_d2, services_str)) {
+                        Service service = { node_d3, boolean, user_type_flag };
+                        array_append((*services), service);
+                    } else if (string_equal(node_d2, hooks_str)) {
+                        Hook hook = { node_d3, boolean, user_type_flag };
+                        array_append((*hooks), hook);
                     }
                 }
                 break;
@@ -113,9 +114,9 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
         if (eof) break; // outer while break
    }
 
-   if (node_data_d2 != nullptr) {
-        free(node_data_d2); // manual clean up for copied data
-        node_data_d2 = nullptr;
+   if (node_d2.data != nullptr) {
+        free_sized(node_d2.data, node_d2.len); // manual clean up for copied data
+        node_d2.data = nullptr;
     }
    kdl_destroy_parser(parser); // parser cleans the rest
 }
@@ -126,8 +127,13 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
    
    bool eof = false;
    int node_depth = 0;
-   char *node_data_d2 = nullptr;
-   const char *node_data_d3 = nullptr;
+   String name = { .data = nullptr };
+   String node_d2 = { .data = nullptr };
+   String node_d3 = { .data = nullptr };
+   String module = String("module");
+   String packages_str = String("packages");
+   String services_str = String("services");
+   String hooks_str = String("hooks");
    bool user_type_flag;
    
    while(1) {
@@ -139,16 +145,17 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
     
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
+                name = String((char *)name_data);
                 node_depth += 1;
                 if (node_depth == 1) {
                     // TODO: set up a go to error block
-                    if (strcmp(name_data, "module") != 0) printf("goto Error: Not a valid module...\n"); 
+                    if (!string_equal(name, module)) printf("goto Error: Not a valid module...\n"); 
                     else user_type_flag = true; // true for user 
                 } else if (node_depth == 2) {
                     // manual clean up before copying new data
-                    node_data_d2 = copy_data(name_data);
+                    node_d2 = string_copy(name);
                 } else if (node_depth == 3) {
-                    node_data_d3 = name_data;
+                    node_d3 = string_copy(name);
                 }
                 break;
             } else if (event == KDL_EVENT_END_NODE) {
@@ -156,18 +163,15 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
                 if (value_type == KDL_TYPE_BOOLEAN) {
-                    char *dest = copy_data(node_data_d3);
-                    if (dest) {
-                        if (strcmp(node_data_d2, "packages") == 0) {
-                            Package package = { dest, boolean };
-                            da_append((*packages), package);
-                        } else if (strcmp(node_data_d2, "services") == 0) {
-                            Service service = { dest, boolean, user_type_flag };
-                            da_append((*services), service);
-                        } else if (strcmp(node_data_d2, "hooks") == 0) {
-                            Hook hook = { dest, boolean, user_type_flag };
-                            da_append((*hooks), hook);
-                        }
+                    if (string_equal(node_d2, packages_str)) {
+                        Package package = { node_d3, boolean };
+                        array_append((*packages), package);
+                    } else if (string_equal(node_d2, services_str)) {
+                        Service service = { node_d3, boolean, user_type_flag };
+                        array_append((*services), service);
+                    } else if (string_equal(node_d2, hooks_str)) {
+                        Hook hook = { node_d3, boolean, user_type_flag };
+                        array_append((*hooks), hook);
                     }
                 }
                 break;
@@ -180,9 +184,9 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
         if (eof) break; // outer while break
    }
 
-   if (node_data_d2 != nullptr) {
-        free(node_data_d2); // manual clean up for copied data
-        node_data_d2 = nullptr;
+   if (node_d2.data != nullptr) {
+        free_sized(node_d2.data, node_d2.len); // manual clean up for copied data
+        node_d2.data = nullptr;
     }
    kdl_destroy_parser(parser); // parser cleans the rest
 }
