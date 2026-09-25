@@ -18,7 +18,7 @@ DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 all: $(BIN)
 
 $(BIN): $(OBJECTS) lib/libkdl.a
-	@mkdir -p -m 0755 bin
+	@mkdir -p -m 0755 bin # @<cmd> runs silently
 	$(CC) -lm -o $@ $^
 
 lib/libkdl.a:
@@ -31,5 +31,7 @@ $(BUILDDIR)/%.o:%.c
 	@mkdir -p -m 0755 $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-# clean:
-# 	rm -rf $(BIN) $(OBJECTS)
+clean:
+	rm -rf $(BIN) $(BUILDDIR)
+
+-include $(DEPFILES)
