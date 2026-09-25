@@ -150,10 +150,10 @@ int write_module_kdl(FILE* fid, struct module* module) {
 
 // TODO: how to handle failure in the cleanup chain?
 int free_module(struct module module) {
-    PACKAGES_FREE(module.packages);
-    PACKAGES_FREE(module.aur_packages);
-    PERMISSIONS_FREE(module.services);
-    PERMISSIONS_FREE(module.hooks);
+    DYNAMIC_ARRAY_FREE(module.packages);
+    DYNAMIC_ARRAY_FREE(module.aur_packages);
+    DYNAMIC_ARRAY_NAME_FREE(module.services);
+    DYNAMIC_ARRAY_NAME_FREE(module.hooks);
     
     return EXIT_SUCCESS;
 }

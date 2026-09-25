@@ -120,7 +120,7 @@ int free_host(struct host host) {
     for (size_t i = 0; i < host.modules.count; ++i) {
         ret = free_module(host.modules.items[i]);
     }
-    PERMISSIONS_FREE(host.services);
+    DYNAMIC_ARRAY_NAME_FREE(host.services);
 
     return ret;
 }

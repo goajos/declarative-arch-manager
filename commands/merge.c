@@ -3,7 +3,6 @@
 #include "../state/state.h"
 #include "command_utils.h"
 
-
 // TODO: atomic operation? either everything works or full rollback? (atomic merge or write only?)
 // TODO: merge should create a state-bak folder that gets deleted if succesful or restored otherwise
 int damngr_merge() {
@@ -112,17 +111,22 @@ int damngr_merge() {
     }
 
 
-    // TODO: calculate the diff to perform the merge step
-    // use the diff to perform actions
-    //      - remove packages
-    //      - install packages
-    //      - (de)sync dotfiles
-    //      - disable services
-    //      - enable services
-    //      - run post hooks
-    if (old_config_fid != nullptr) {
-        ret = calculate_config_diff(&old_config, &new_config);
-    }
+    struct service_actions root_service_actions = { };
+    struct dynamic_array root_hook_actions = { };
+    struct package_actions package_actions = { };
+    struct package_actions aur_package_actions = { };
+    struct dynamic_array dotfile_actions = { };
+    struct service_actions user_service_actions = { };
+    struct dynamic_array user_hook_actions = { };
+    ret = determine_actions(&old_config,
+                    &new_config,
+                    &root_service_actions,
+                    &root_hook_actions,
+                    &package_actions,
+                    &aur_package_actions,
+                    &dotfile_actions,
+                    &user_service_actions,
+                    &user_hook_actions);
 
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/config_state.kdl", get_user());
     FILE* new_config_state_fid = fopen(fidbuf, "w");
