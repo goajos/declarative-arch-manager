@@ -357,37 +357,43 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
   }
 }
 
-// TODO: set status back to PENDING after undoing?
-static void damgr_undo_task(Damgr_Task *task, [[maybe_unused]] char *aur_helper,
-                            [[maybe_unused]] char *user) {
+static void damgr_undo_task(Damgr_Task *task, char *user) {
+  int ret;
   switch (task->type) {
   case PACKAGE:
   case AUR_PACKAGE:
-    // TODO: remove the installed packages?
+    ret = damgr_execute_package_remove_command(task->payload.packages);
     break;
 
   case ROOT_SERVICE:
   case USER_SERVICE:
-    [[maybe_unused]] bool privileged =
-        (task->type == ROOT_SERVICE) ? true : false;
-    // TODO: disable the enabled services?
+    bool privileged = (task->type == ROOT_SERVICE) ? true : false;
+    ret = damgr_execute_service_command(privileged, false,
+                                        task->payload.payload_name);
     break;
 
   case DOTFILE:
-    // TODO: unlink dotfiles?
+    ret =
+        damgr_execute_dotfile_command(user, false, task->payload.payload_name);
     break;
 
   case PRE_ROOT_HOOK:
   case PRE_USER_HOOK:
   case POST_ROOT_HOOK:
   case POST_USER_HOOK:
-    // CANT UNDO HOOKS?
+    // CANT UNDO HOOKS HERE?
+    ret = EXIT_SUCCESS;
+    task->status = PENDING;
     break;
+  }
+
+  if (ret == EXIT_SUCCESS) {
+    task->status = PENDING;
   }
 }
 
-static void queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
-                              char *user) {
+static int queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
+                             char *user) {
   damgr_log(INFO, "%s queue transaction started...", queue.queue_name);
   bool failed = false;
   size_t i = 0;
@@ -400,10 +406,10 @@ static void queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
 
       if (task->status == SUCCEEDED) {
         damgr_log(INFO, "%s queue task: %s succeeded!", queue.queue_name,
-                  task->payload.payload_name);
+                  damgr_task_type_keys[task->type]);
       } else {
         damgr_log(ERROR, "%s queue task: %s failed!", queue.queue_name,
-                  task->payload.payload_name);
+                  damgr_task_type_keys[task->type]);
         failed = true;
         break; // breaks the current for loop for rollback
       }
@@ -415,14 +421,27 @@ static void queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
     while (i > 0) {
       --i; // skip the last task because it failed no need for rollback
       Damgr_Task *task = &queue.items[i];
-      damgr_undo_task(task, aur_helper, user);
+      damgr_undo_task(task, user);
+      if (task->status == PENDING) {
+        damgr_log(INFO, "%s queue task: %s rolled back!", queue.queue_name,
+                  damgr_task_type_keys[task->type]);
+      } else {
+        damgr_log(ERROR, "%s queue task: %s failed to roll back!",
+                  queue.queue_name, damgr_task_type_keys[task->type]);
+      }
     }
+
+    return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
 }
 
 int damgr_do_tasks(Damgr_Tasks tasks, char *aur_helper, char *user) {
   for (size_t i = 0; i < tasks.count; ++i) {
-    queue_transaction(tasks.queues[i], aur_helper, user);
+    if (queue_transaction(tasks.queues[i], aur_helper, user) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
