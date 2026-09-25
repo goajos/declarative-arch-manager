@@ -8,8 +8,10 @@ module {
         }
         services {
         }
-        hooks {
-            example_root_hook.sh root=#true
+        pre_hooks {
+            example_root_hook.sh root=#true 
+        }
+        post_hooks {
         }
     }
 }
