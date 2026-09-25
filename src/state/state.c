@@ -311,14 +311,14 @@ int damgr_write_host(char *user, Damgr_Host *host) {
   if (host->modules.count > 0) {
     fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
     for (size_t i = 0; i < host->modules.count; ++i) {
-      fprintf(host_fid, "\t%s\n", host->modules.items[i].name);
+      fprintf(host_fid, "  %s\n", host->modules.items[i].name);
     }
   }
 
   if (host->root_services.count > 0) {
     fprintf(host_fid, "%s=\n", damgr_conf_keys[SERVICES]);
     for (size_t i = 0; i < host->root_services.count; ++i) {
-      fprintf(host_fid, "\t%s\n", host->root_services.items[i]);
+      fprintf(host_fid, "  %s\n", host->root_services.items[i]);
     }
   }
 
@@ -378,47 +378,47 @@ int damgr_write_module(char *user, Damgr_Module *module) {
   if (module->pre_root_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
     for (size_t i = 0; i < module->pre_root_hooks.count; ++i) {
-      fprintf(module_fid, "\t%s:true\n", module->pre_root_hooks.items[i]);
+      fprintf(module_fid, "  %s:true\n", module->pre_root_hooks.items[i]);
     }
   }
   if (module->pre_user_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
     for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
-      fprintf(module_fid, "\t%s:false\n", module->pre_user_hooks.items[i]);
+      fprintf(module_fid, "  %s:false\n", module->pre_user_hooks.items[i]);
     }
   }
 
   if (module->packages.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[PACKAGES]);
     for (size_t i = 0; i < module->packages.count; ++i) {
-      fprintf(module_fid, "\t%s\n", module->packages.items[i]);
+      fprintf(module_fid, "  %s\n", module->packages.items[i]);
     }
   }
 
   if (module->aur_packages.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[AUR_PACKAGES]);
     for (size_t i = 0; i < module->aur_packages.count; ++i) {
-      fprintf(module_fid, "\t%s\n", module->aur_packages.items[i]);
+      fprintf(module_fid, "  %s\n", module->aur_packages.items[i]);
     }
   }
 
   if (module->user_services.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[SERVICES]);
     for (size_t i = 0; i < module->user_services.count; ++i) {
-      fprintf(module_fid, "\t%s\n", module->user_services.items[i]);
+      fprintf(module_fid, "  %s\n", module->user_services.items[i]);
     }
   }
 
   if (module->post_root_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
     for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
-      fprintf(module_fid, "\t%s:true\n", module->post_root_hooks.items[i]);
+      fprintf(module_fid, "  %s:true\n", module->post_root_hooks.items[i]);
     }
   }
   if (module->post_user_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
     for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
-      fprintf(module_fid, "\t%s:false\n", module->post_user_hooks.items[i]);
+      fprintf(module_fid, "  %s:false\n", module->post_user_hooks.items[i]);
     }
   }
 
