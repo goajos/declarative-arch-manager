@@ -27,6 +27,7 @@ static int parse_config(FILE *fid, struct config *config) {
   char *node_d1 = nullptr;
   bool eof = false;
 
+  int ret;
   while (true) {
     kdl_event_data *next_event = kdl_parser_next_event(parser);
     kdl_event event = next_event->event;
@@ -38,13 +39,15 @@ static int parse_config(FILE *fid, struct config *config) {
       case 0: // config(_state) level
         // reading config
         if (strlen(name_data) == 6 && memcmp(name_data, "config", 6) != 0) {
-          return EXIT_FAILURE; // config kdl should start with config {...}
+          ret = EXIT_FAILURE; // config kdl should start with config {...}
+          goto cleanup;
         }
         // reading state config
         if (strlen(name_data) == 12 &&
             memcmp(name_data, "config_state", 12) != 0) {
-          return EXIT_FAILURE; // state config kdl should start with
-                               // config_state {...}
+          ret = EXIT_FAILURE; // state config kdl should start with
+                              // config_state {...}
+          goto cleanup;
         }
         break;
       case 1: // aur_helper/active_host level
@@ -77,12 +80,16 @@ static int parse_config(FILE *fid, struct config *config) {
     if (eof)
       break; // while break
   }
+
+  ret = EXIT_SUCCESS;
+
+cleanup:
   if (node_d1 != nullptr) {
-    free_sized(node_d1, strlen(node_d1));
+    free(node_d1);
   }
   kdl_destroy_parser(parser);
 
-  return EXIT_SUCCESS;
+  return ret;
 }
 
 int read_config(struct config *config, bool is_state) {
@@ -115,7 +122,7 @@ int read_config(struct config *config, bool is_state) {
   }
 }
 
-int write_config(struct config *config) {
+int write_config(struct config config) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf),
            "/home/%s/.local/state/damgr/config_state.kdl", get_user());
@@ -129,12 +136,12 @@ int write_config(struct config *config) {
   kdl_start_emitting_children(emitter);
   kdl_emit_node(emitter, kdl_str_from_cstr("aur_helper"));
   kdl_value aur_helper = {.type = KDL_TYPE_STRING,
-                          .string = kdl_str_from_cstr(config->aur_helper)};
+                          .string = kdl_str_from_cstr(config.aur_helper)};
   kdl_emit_arg(emitter, &aur_helper);
   kdl_emit_node(emitter, kdl_str_from_cstr("active_host"));
   kdl_value active_host = {.type = KDL_TYPE_STRING,
                            .string =
-                               kdl_str_from_cstr(config->active_host.name)};
+                               kdl_str_from_cstr(config.active_host.name)};
   kdl_emit_arg(emitter, &active_host);
   kdl_finish_emitting_children(emitter);
   kdl_emit_end(emitter);

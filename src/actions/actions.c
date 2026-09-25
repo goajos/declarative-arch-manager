@@ -56,8 +56,7 @@ static void actions_append(struct actions *actions, struct action action) {
 static void get_action(struct actions *actions, enum action_type type,
                        bool is_positive, struct payload payload) {
   struct action action = {.payload = payload,
-                          // TODO: undo action?
-                          // .status = PENDING,
+                          .status = PENDING,
                           .type = type,
                           .is_positive = is_positive};
   actions_append(actions, action);
@@ -72,7 +71,7 @@ static int get_actions_from_services_diff(struct actions *actions,
   for (size_t i = 0; i < to_disable.count; ++i) {
     char *service = to_disable.items[i];
     if (service == nullptr) {
-      EXIT_FAILURE;
+      return EXIT_FAILURE;
     }
     struct payload payload = {.name = service, .packages = {}};
     if (root) {
@@ -84,7 +83,7 @@ static int get_actions_from_services_diff(struct actions *actions,
   for (size_t i = 0; i < to_enable.count; ++i) {
     char *service = to_enable.items[i];
     if (service == nullptr) {
-      EXIT_FAILURE;
+      return EXIT_FAILURE;
     }
     struct payload payload = {.name = service, .packages = {}};
     if (root) {
@@ -106,7 +105,7 @@ static int get_actions_from_hooks_diff(struct actions *actions,
   for (size_t i = 0; i < to_do.count; ++i) {
     char *hook = to_do.items[i];
     if (hook == nullptr) {
-      EXIT_FAILURE;
+      return EXIT_FAILURE;
     }
     struct payload payload = {hook, .packages = {}};
     if (root) {
@@ -216,7 +215,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
     for (size_t i = 0; i < module->pre_root_hooks.count; ++i) {
       char *hook = module->pre_root_hooks.items[i];
       if (hook == nullptr) {
-        EXIT_FAILURE;
+        return EXIT_FAILURE;
       }
       struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, PRE_ROOT_HOOK, is_positive, payload);
@@ -224,7 +223,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
     for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
       char *hook = module->pre_user_hooks.items[i];
       if (hook == nullptr) {
-        EXIT_FAILURE;
+        return EXIT_FAILURE;
       }
       struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, PRE_USER_HOOK, is_positive, payload);
@@ -243,7 +242,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
   for (size_t i = 0; i < module->user_services.count; ++i) {
     char *service = module->user_services.items[i];
     if (service == nullptr) {
-      EXIT_FAILURE;
+      return EXIT_FAILURE;
     }
     struct payload payload = {.name = service, .packages = {}};
     get_action(&module->module_actions, USER_SERVICE, is_positive, payload);
@@ -256,7 +255,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
     for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
       char *hook = module->post_root_hooks.items[i];
       if (hook == nullptr) {
-        EXIT_FAILURE;
+        return EXIT_FAILURE;
       }
       struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, POST_ROOT_HOOK, is_positive, payload);
@@ -264,7 +263,7 @@ static int get_actions_from_module(struct module *module, bool is_positive) {
     for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
       char *hook = module->post_user_hooks.items[i];
       if (hook == nullptr) {
-        EXIT_FAILURE;
+        return EXIT_FAILURE;
       }
       struct payload payload = {.name = hook, .packages = {}};
       get_action(&module->module_actions, POST_ROOT_HOOK, is_positive, payload);
@@ -296,7 +295,7 @@ static int get_actions_from_hosts_diff(struct host *old_host,
           return EXIT_FAILURE;
         } else {
           host->modules.items[i].boolean.is_done = true;
-          host->modules_actions_count +=
+          host->all_modules_actions_count +=
               host->modules.items[i].module_actions.count;
         }
       }
@@ -306,7 +305,7 @@ static int get_actions_from_hosts_diff(struct host *old_host,
           EXIT_SUCCESS) {
         return EXIT_FAILURE;
       } else {
-        host->modules_actions_count +=
+        host->all_modules_actions_count +=
             host->modules.items[i].module_actions.count;
       }
     }
@@ -317,7 +316,7 @@ static int get_actions_from_hosts_diff(struct host *old_host,
           EXIT_SUCCESS) {
         return EXIT_FAILURE;
       } else {
-        old_host->modules_actions_count +=
+        old_host->all_modules_actions_count +=
             old_host->modules.items[i].module_actions.count;
       }
     }
@@ -329,7 +328,7 @@ static int get_actions_from_host(struct host *host) {
   for (size_t i = 0; i < host->root_services.count; i++) {
     char *service = host->root_services.items[i];
     if (service == nullptr) {
-      EXIT_FAILURE;
+      return EXIT_FAILURE;
     }
     struct payload payload = {.name = service, .packages = {}};
     get_action(&host->host_actions, ROOT_SERVICE, true, payload);
@@ -337,7 +336,7 @@ static int get_actions_from_host(struct host *host) {
   for (size_t i = 0; i < host->modules.count; i++) {
     if (get_actions_from_module(&host->modules.items[i], true) !=
         EXIT_SUCCESS) {
-      host->modules_actions_count +=
+      host->all_modules_actions_count +=
           host->modules.items[i].module_actions.count;
       return EXIT_FAILURE;
     }
@@ -345,26 +344,28 @@ static int get_actions_from_host(struct host *host) {
   return EXIT_SUCCESS;
 }
 
+// TODO: proper nested error handling for the get actions logic
+// memory/string functions ca fail
 int get_actions(struct config *old_config, struct config *config) {
   if (old_config->active_host.name != nullptr) {
     int ret = strcmp(old_config->active_host.name, config->active_host.name);
     if (ret < 0 || ret > 0) { // different host
       if (get_actions_from_host(&config->active_host) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to get actions for the new host",
+        LOG(LOG_ERROR, "failed to get actions for the new host: %s",
             config->active_host.name);
         return EXIT_FAILURE;
       }
     } else { // same host
       if (get_actions_from_hosts_diff(&old_config->active_host,
                                       &config->active_host) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to get actions comparing the hosts",
+        LOG(LOG_ERROR, "failed to get actions comparing the hosts: %s",
             config->active_host.name);
         return EXIT_FAILURE;
       }
     }
   } else { // no state host
     if (get_actions_from_host(&config->active_host) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to get actions for the new host",
+      LOG(LOG_ERROR, "failed to get actions for the new host: %s",
           config->active_host.name);
       return EXIT_FAILURE;
     }
@@ -512,62 +513,48 @@ static int do_action(struct action *action, char *aur_helper) {
   return EXIT_SUCCESS;
 }
 
+static void do_module_actions(struct module *module, char *aur_helper) {
+  size_t actions_succeeded_count = 0;
+  for (size_t j = 0; j < module->module_actions.count; ++j) {
+    struct action *action = &module->module_actions.items[j];
+    if (do_action(action, aur_helper) != EXIT_SUCCESS) {
+      action->status = FAILED;
+      break; // do we have to break when an action fails?
+    } else {
+      action->status = SUCCEEDED;
+      actions_succeeded_count += 1;
+    }
+  }
+  if (actions_succeeded_count != module->module_actions.count) {
+    module->boolean.is_done = false; // failed modules will not be written
+  } else {
+    // all module_actions succeeded
+    module->boolean.is_done = true; // module can be written to state
+  }
+}
+
 int do_actions(struct config *old_config, struct config *config) {
   // config->active_host.host_actions will also hold the services to disable of
   // the old_host
   for (size_t i = 0; i < config->active_host.host_actions.count; ++i) {
-    if (do_action(&config->active_host.host_actions.items[i],
-                  config->aur_helper) != EXIT_SUCCESS) {
+    struct action *action = &config->active_host.host_actions.items[i];
+    if (do_action(action, config->aur_helper) != EXIT_SUCCESS) {
+      LOG(LOG_ERROR, "failed to do host actions for the host: %s",
+          config->active_host.name);
+      action->status = FAILED;
       return EXIT_FAILURE;
+    } else {
+      action->status = SUCCEEDED;
     }
   }
+
   for (size_t i = 0; i < config->active_host.modules.count; ++i) {
-    config->active_host.modules.items[i].boolean.is_done =
-        false; // to write later
-    for (size_t j = 0;
-         j < config->active_host.modules.items[i].module_actions.count; ++j) {
-      if (do_action(
-              &config->active_host.modules.items[i].module_actions.items[j],
-              config->aur_helper) != EXIT_SUCCESS) {
-        return EXIT_FAILURE;
-      }
-    }
-    config->active_host.modules.items[i].boolean.is_done =
-        true; // to write later
+    do_module_actions(&config->active_host.modules.items[i],
+                      config->aur_helper);
   }
   for (size_t i = 0; i < old_config->active_host.modules.count; ++i) {
-    for (size_t j = 0;
-         j < old_config->active_host.modules.items[i].module_actions.count;
-         ++j) {
-      if (do_action(
-              &old_config->active_host.modules.items[i].module_actions.items[j],
-              config->aur_helper) != EXIT_SUCCESS) {
-        return EXIT_FAILURE;
-      }
-    }
+    do_module_actions(&old_config->active_host.modules.items[i],
+                      config->aur_helper);
   }
   return EXIT_SUCCESS;
 }
-
-// // TODO: undo action?
-// int undo_action(struct action action, [[maybe_unused]] char *aur_helper) {
-//   switch (action.type) {
-//   case ROOT_SERVICE:
-//     break;
-//   case USER_SERVICE:
-//     break;
-//   case PRE_ROOT_HOOK:
-//   case POST_ROOT_HOOK:
-//   case PRE_USER_HOOK:
-//   case POST_USER_HOOK:
-//     // can't undo hooks...
-//     break;
-//   case PACKAGE:
-//     break;
-//   case AUR_PACKAGE:
-//     break;
-//   case DOTFILE:
-//     break;
-//   }
-//   return EXIT_SUCCESS;
-// }

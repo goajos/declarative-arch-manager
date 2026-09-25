@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO: add proper documentation
 int main(int argc, char *argv[]) {
   LOG(LOG_INFO, "damgr started!");
   if (argc == 1 || argc > 2) {
@@ -13,6 +14,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // TODO: reset hooks command? -> remove from state to reset
   int command_idx;
   if (memcmp(argv[1], "init", 4) == 0) {
     command_idx = 0;
@@ -45,7 +47,7 @@ int main(int argc, char *argv[]) {
     break;
   case 2:
     LOG(LOG_INFO, "starting damgr update...");
-    if (damgr_merge() != EXIT_SUCCESS) {
+    if (damgr_update() != EXIT_SUCCESS) {
       LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
       return EXIT_FAILURE;
     }

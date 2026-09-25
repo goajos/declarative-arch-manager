@@ -2,8 +2,9 @@
 #define ACTIONS_H
 #include "state.h"
 
-// TODO: undo action?
-// enum action_status { PENDING, SUCCEEDED, FAILED };
+enum action_status { PENDING, SUCCEEDED, FAILED };
+[[maybe_unused]] static const char *action_status_names[] = {
+    [PENDING] = "PENDING", [SUCCEEDED] = "SUCCEEDED", [FAILED] = "FAILED"};
 
 enum action_type {
   ROOT_SERVICE,
@@ -16,6 +17,15 @@ enum action_type {
   POST_ROOT_HOOK,
   POST_USER_HOOK,
 };
+[[maybe_unused]] static const char *action_type_names[] = {[ROOT_SERVICE] = "ROOT_SERVICE",
+                                          [PRE_ROOT_HOOK] = "PRE_ROOT_HOOK",
+                                          [PRE_USER_HOOK] = "PRE_USER_HOOK",
+                                          [PACKAGE] = "PACKAGE",
+                                          [AUR_PACKAGE] = "AUR_PACKAGE",
+                                          [USER_SERVICE] = "USER_SERVICE",
+                                          [DOTFILE] = "DOTFILE",
+                                          [POST_ROOT_HOOK] = "POST_ROOT_HOOK",
+                                          [POST_USER_HOOK] = "POST_USER_HOOK"};
 
 struct payload {
   char *name;
@@ -24,13 +34,12 @@ struct payload {
 
 struct action {
   struct payload payload;
-  // enum action_status status;
+  enum action_status status;
   enum action_type type;
   bool is_positive;
 };
 
 int get_actions(struct config *old_config, struct config *config);
 int do_actions(struct config *old_config, struct config *config);
-// int undo_action(struct action action, char *aur_helper);
 
 #endif /* ACTIONS_H */

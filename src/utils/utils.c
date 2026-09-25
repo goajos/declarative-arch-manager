@@ -18,13 +18,13 @@ int is_damgr_state_dir_empty(char *dir) {
     return EXIT_FAILURE;
   }
 
-  int cnt = 0;
+  int count = 0;
   struct dirent *ent;
   while ((ent = readdir(open_dir)) != nullptr) {
-    ++cnt;
+    ++count;
   }
   closedir(open_dir);
-  return cnt;
+  return count;
 }
 
 int init_damgr_state_dir() {
@@ -117,8 +117,14 @@ int execute_package_install_command(struct darray packages) {
     }
     argv[4 + packages.count] = nullptr;
     execv("/usr/bin/sudo", argv);
+    free(argv);
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -140,8 +146,14 @@ int execute_aur_package_install_command(struct darray packages,
     }
     argv[3 + packages.count] = nullptr;
     execv(fidbuf, argv);
+    free(argv);
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -160,8 +172,14 @@ int execute_package_remove_command(struct darray packages) {
     }
     argv[3 + packages.count] = nullptr;
     execv("/usr/bin/sudo", argv);
+    free(argv);
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -179,8 +197,13 @@ int execute_hook_command(bool privileged, char *hook) {
     } else {
       execl(fidbuf, hook, nullptr);
     }
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -206,8 +229,14 @@ int execute_service_command(bool privileged, bool to_enable, char *service) {
       argv[4] = nullptr;
       execv("/usr/bin/systemctl", argv);
     }
+    free(argv);
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -228,8 +257,13 @@ int execute_dotfile_command(bool to_link, char *dotfile) {
     } else {
       execl("/usr/bin/rm", "rm", dst_fidbuf, nullptr);
     }
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -246,8 +280,14 @@ int execute_aur_update_command(char *aur_helper) {
     argv[1] = "-Syu";
     argv[2] = nullptr;
     execv(fidbuf, argv);
+    free(argv);
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
@@ -263,16 +303,39 @@ int execute_update_command() {
     argv[2] = "-Syu";
     argv[3] = nullptr;
     execv("/usr/bin/sudo", argv);
+    free(argv);
+    exit(EXIT_FAILURE);
   } else {
-    waitpid(pid, nullptr, 0);
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
+}
+
+void report_module_actions(struct module module, bool is_state) {
+  if (is_state) {
+    LOG(LOG_ERROR, "failed to do module actions for state module: %s",
+        module.name);
+  } else {
+    LOG(LOG_ERROR, "failed to do module actions for new module: %s",
+        module.name);
+  }
+  for (size_t i = 0; i < module.module_actions.count; ++i) {
+    struct action action = module.module_actions.items[i];
+    if (action.status == PENDING) {
+      LOG(LOG_ERROR, "  [%s] %s: %s", action_status_names[action.status],
+          action_type_names[action.type], action.payload.name);
+    }
+  }
 }
 
 static void free_darray(struct darray array) {
   for (size_t i = 0; i < array.count; ++i) {
     char *item = array.items[i];
-    free_sized(item, strlen(item));
+    free(item);
     item = nullptr;
   }
   free_sized(array.items, array.capacity * sizeof(*array.items));
@@ -280,42 +343,68 @@ static void free_darray(struct darray array) {
 }
 
 static void free_module(struct module module) {
-  free_sized(module.name, strlen(module.name));
+  free(module.name);
   module.name = nullptr;
-  free_darray(module.pre_root_hooks);
-  free_darray(module.pre_user_hooks);
-  free_darray(module.packages);
-  free_darray(module.aur_packages);
-  free_darray(module.user_services);
-  free_darray(module.post_root_hooks);
-  free_darray(module.post_user_hooks);
-  for (size_t i = 0; i < module.module_actions.count; ++i) {
-    module.module_actions.items[i].payload.name = nullptr;
-    for (size_t j = 0;
-         j < module.module_actions.items[i].payload.packages.count; ++j) {
-      module.module_actions.items[i].payload.packages.items[j] = nullptr;
+  if (module.pre_root_hooks.capacity > 0) {
+    free_darray(module.pre_root_hooks);
+  }
+  if (module.pre_user_hooks.capacity > 0) {
+    free_darray(module.pre_user_hooks);
+  }
+  if (module.packages.capacity > 0) {
+    free_darray(module.packages);
+  }
+  if (module.aur_packages.capacity > 0) {
+    free_darray(module.aur_packages);
+  }
+  if (module.user_services.capacity > 0) {
+    free_darray(module.user_services);
+  }
+  if (module.post_root_hooks.capacity > 0) {
+    free_darray(module.post_root_hooks);
+  }
+  if (module.post_user_hooks.capacity > 0) {
+    free_darray(module.post_user_hooks);
+  }
+  if (module.module_actions.capacity > 0) {
+    for (size_t i = 0; i < module.module_actions.count; ++i) {
+      module.module_actions.items[i].payload.name = nullptr;
+      for (size_t j = 0;
+           j < module.module_actions.items[i].payload.packages.count; ++j) {
+        module.module_actions.items[i].payload.packages.items[j] = nullptr;
+      }
     }
   }
 }
 
 static void free_host(struct host host) {
-  free_sized(host.name, strlen(host.name));
+  free(host.name);
   host.name = nullptr;
-  free_darray(host.root_services);
-  for (size_t i = 0; i < host.modules.count; ++i) {
-    free_module(host.modules.items[i]);
+  if (host.root_services.capacity > 0) {
+    free_darray(host.root_services);
   }
-  for (size_t i = 0; i < host.host_actions.count; ++i) {
-    host.host_actions.items[i].payload.name = nullptr;
-    for (size_t j = 0; j < host.host_actions.items[i].payload.packages.count;
-         ++j) {
-      host.host_actions.items[i].payload.packages.items[j] = nullptr;
+  for (size_t i = 0; i < host.modules.count; ++i) {
+    if (host.modules.items[i].name != nullptr) {
+      free_module(host.modules.items[i]);
+    }
+  }
+  if (host.host_actions.capacity > 0) {
+    for (size_t i = 0; i < host.host_actions.count; ++i) {
+      host.host_actions.items[i].payload.name = nullptr;
+      for (size_t j = 0; j < host.host_actions.items[i].payload.packages.count;
+           ++j) {
+        host.host_actions.items[i].payload.packages.items[j] = nullptr;
+      }
     }
   }
 }
 
 void free_config(struct config config) {
-  free_sized(config.aur_helper, strlen(config.aur_helper));
-  config.aur_helper = nullptr;
-  free_host(config.active_host);
+  if (config.aur_helper != nullptr) {
+    free(config.aur_helper);
+    config.aur_helper = nullptr;
+  }
+  if (config.active_host.name != nullptr) {
+    free_host(config.active_host);
+  }
 }

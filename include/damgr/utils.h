@@ -4,7 +4,7 @@
 #include "damgr/state.h"
 #include <stdlib.h>
 
-constexpr int PATH_MAX = 4096;
+static const int PATH_MAX = 4096;
 
 int is_damgr_state_dir_empty(char *dir);
 int init_damgr_state_dir();
@@ -24,12 +24,16 @@ int execute_package_install_command(struct darray packages);
 int execute_aur_package_install_command(struct darray packages,
                                         char *aur_helper);
 int execute_package_remove_command(struct darray packages);
+// TODO: add a check to see if the shell commands are executable or not
+// TODO: can the shell commands output be supressed?
 int execute_hook_command(bool privileged, char *hook);
 int execute_service_command(bool privileged, bool to_enable, char *service);
 int execute_dotfile_command(bool to_link, char *service);
 
 int execute_aur_update_command(char *aur_helper);
 int execute_update_command();
+
+void report_module_actions(struct module module, bool is_state);
 
 void free_config(struct config config);
 void free_actions(struct actions actions);
