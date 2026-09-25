@@ -11,9 +11,6 @@ struct darray {
 void darray_append(struct darray *array, char *item);
 
 struct module {
-  char *name;
-  bool to_link;
-  bool is_orphan;
   struct darray pre_root_hooks;
   struct darray pre_user_hooks;
   struct darray packages;
@@ -21,6 +18,12 @@ struct module {
   struct darray user_services;
   struct darray post_root_hooks;
   struct darray post_user_hooks;
+  char *name;
+  bool to_link;
+  union {
+    bool is_orphan;
+    bool is_handled;
+  } boolean;
 };
 struct modules {
   struct module *items;
@@ -30,14 +33,14 @@ struct modules {
 void modules_append(struct modules *modules, struct module module);
 
 struct host {
-  char *name;
   struct modules modules;
   struct darray root_services;
+  char *name;
 };
 
 struct config {
-  char *aur_helper;
   struct host active_host;
+  char *aur_helper;
 };
 
 int read_config(struct config *config, bool is_state);
