@@ -1,10 +1,15 @@
 host {
     name arch
-    test 1.0
+    
+    modules {
+        base
+    }
 
-    packages {
-        package1
-        package2
-        package3
+    services {
+        NetworkManager    
+    }
+
+    hooks {
+
     }
 }
