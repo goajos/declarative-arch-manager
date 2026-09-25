@@ -11,7 +11,7 @@ module {
             example_user_service // implicit root=#false
         }
         hooks {
-            example_user_hook root=#false
+            example_user_hook.sh root=#false
         }
     }
 }

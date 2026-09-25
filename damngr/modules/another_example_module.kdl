@@ -9,7 +9,7 @@ module {
         services {
         }
         hooks {
-            example_root_hook root=#false
+            example_root_hook.sh root=#true
         }
     }
 }

@@ -7,7 +7,7 @@ int damngr_init() {
     char* src = "damngr";
     char fidbuf[path_max]; 
     // create the .local/share/damngr folder
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr", get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damngr", get_user());
     // stat returns -1 if fidbuf doesn't exist
     if (stat(fidbuf, &st) == -1) mkdir(fidbuf, 0777);
 
