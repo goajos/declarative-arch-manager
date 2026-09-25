@@ -38,15 +38,22 @@ Use `damngr merge` to merge the declared state, currently the command will:
 .config/damngr/
     | config.kdl
     | dotfiles/
-        | <module>/
+        | <module1>/
             | ...
     | hooks/
         | user_hook.sh
     | hosts/
         | <host>.kdl
     | modules\
-        | <module>.kdl
+        | <module1>.kdl
+        | <module2>.kdl
 ```
+```
+.state/damngr/
+    | config_state.kdl
+    | <host>_state.kdl
+    | <module1>_state.kdl
+    | <module2>_state.kdl
 
 ## damngr config.kdl
 Stored in `~/.config/damngr/config.kdl`. Declares the aur\_helper to use (currently tested with yay and paru) and the active host. E.g.
@@ -77,7 +84,7 @@ Stored in `~/.config/damngr/modules/<module>.kdl`. Declares the modules dotfile 
 ```
 module {
     example_module {
-        dotfiles link=#true
+        dotfiles link=#true // or #false
         packages {
             example_package
         }
@@ -94,3 +101,7 @@ module {
     }    
 }
 ```
+## More make commands:
+- `sudo make uninstall` to remove the damngr executable and clear the share/damngr folder
+- `sudo make clean` to remove the local build folders 
+

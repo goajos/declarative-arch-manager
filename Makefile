@@ -45,4 +45,3 @@ install: $(BIN)
 uninstall:
 	rm -f $(BIN_DIR)/damngr
 	rm -rf /usr/share/damngr # clear share data
-	rm -rf /usr/state/damngr # clear state data
