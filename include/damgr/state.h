@@ -20,7 +20,10 @@ typedef struct module {
   Damgr_Darray post_user_hooks;
   char *name;
   bool to_link;
-  bool is_orphan;
+  union {
+    bool is_orphan;
+    bool is_compared;
+  };
 } Damgr_Module;
 
 typedef struct modules {

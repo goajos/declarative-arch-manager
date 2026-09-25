@@ -290,23 +290,24 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
                 &host->modules.items[i]) != EXIT_SUCCESS) {
           return EXIT_FAILURE;
         } else {
-          if (module_queue.count > 0) {
-            damgr_log(INFO, "successfully got %zu tasks for module: %s",
-                      module_queue.count, &old_host->modules.items[i]);
-            damgr_tasks_append(tasks, module_queue);
-          }
+          host->modules.items[i].is_compared = true; // to skip later
+          damgr_log(
+              INFO,
+              "successfully got %zu tasks after comparison for module: %s",
+              module_queue.count, &host->modules.items[i].name);
+          damgr_tasks_append(tasks, module_queue);
+          break;
         }
       }
     }
-    // check module itself for tasks if queue is empty
-    if (module_queue.count == 0) {
+    if (!host->modules.items[i].is_compared) {
       if (get_tasks_from_module(&module_queue, &host->modules.items[i], true) !=
           EXIT_SUCCESS) {
         return EXIT_FAILURE;
       } else {
         if (module_queue.count > 0) {
           damgr_log(INFO, "successfully got %zu tasks for module: %s",
-                    module_queue.count, &old_host->modules.items[i]);
+                    module_queue.count, &host->modules.items[i].name);
           damgr_tasks_append(tasks, module_queue);
         }
       }
