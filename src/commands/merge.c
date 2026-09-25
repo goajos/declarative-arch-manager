@@ -70,25 +70,26 @@ int damgr_merge() {
     // TODO: what to do on failure?
   }
 
-  if (damgr_write_config(user, &config) != EXIT_SUCCESS) {
-    goto cleanup;
-  }
-  if (damgr_write_host(user, &config.active_host) != EXIT_SUCCESS) {
-    goto cleanup;
-  }
-  if (config.active_host.modules.count > 0) {
-    for (size_t i = 0; i < config.active_host.modules.count; ++i) {
-      if (damgr_write_module(user, &config.active_host.modules.items[i]) !=
-          EXIT_SUCCESS) {
-        goto cleanup;
-      }
-    }
-  }
+  // if (damgr_write_config(user, &config) != EXIT_SUCCESS) {
+  //   goto cleanup;
+  // }
+  // if (damgr_write_host(user, &config.active_host) != EXIT_SUCCESS) {
+  //   goto cleanup;
+  // }
+  // if (config.active_host.modules.count > 0) {
+  //   for (size_t i = 0; i < config.active_host.modules.count; ++i) {
+  //     if (damgr_write_module(user, &config.active_host.modules.items[i]) !=
+  //         EXIT_SUCCESS) {
+  //       goto cleanup;
+  //     }
+  //   }
+  // }
 
   ret = EXIT_SUCCESS;
 
 cleanup:
-  // free_config(old_config);
-  // free_config(config);
+  damgr_free_config(&config);
+  damgr_free_config(&old_config);
+  damgr_free_tasks(&tasks);
   return ret;
 }

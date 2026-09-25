@@ -426,3 +426,31 @@ int damgr_write_module(char *user, Damgr_Module *module) {
   damgr_log(INFO, "succesfully wrote state module: %s", fidbuf);
   return EXIT_SUCCESS;
 }
+
+void damgr_free_darray(Damgr_Darray *darray) {
+  for (size_t i = 0; i < darray->count; ++i) {
+    free(darray->items[i]);
+  }
+  free(darray->items); // free items buffer itself
+}
+
+static void damgr_free_module(Damgr_Module *module) {
+  damgr_free_darray(&module->pre_root_hooks);
+  damgr_free_darray(&module->pre_user_hooks);
+  damgr_free_darray(&module->packages);
+  damgr_free_darray(&module->aur_packages);
+  damgr_free_darray(&module->user_services);
+  damgr_free_darray(&module->post_root_hooks);
+  damgr_free_darray(&module->post_user_hooks);
+  free(module->name);
+}
+
+void damgr_free_config(Damgr_Config *config) {
+  for (size_t i = 0; i < config->active_host.modules.count; ++i) {
+    damgr_free_module(&config->active_host.modules.items[i]);
+  }
+  free(config->active_host.modules.items); // free modules buffer itself
+  damgr_free_darray(&config->active_host.root_services);
+  free(config->active_host.name);
+  free(config->aur_helper);
+}

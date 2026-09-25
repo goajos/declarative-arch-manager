@@ -214,13 +214,14 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
                                             Damgr_Host old_host,
                                             Damgr_Host host) {
   Damgr_Task_Queue host_queue = {.queue_name = host.name};
-  damgr_tasks_append(tasks, host_queue);
   damgr_get_tasks_from_services_diff(&host_queue, old_host.root_services,
                                      host.root_services, ROOT_SERVICE,
                                      host.name);
-  damgr_log(INFO, "successfully got %zu tasks for host: %s", host_queue.count,
-            host.name);
-  damgr_tasks_append(tasks, host_queue);
+  if (host_queue.count > 0) {
+    damgr_log(INFO, "successfully got %zu tasks for host: %s", host_queue.count,
+              host.name);
+    damgr_tasks_append(tasks, host_queue);
+  }
   for (size_t i = 0; i < host.modules.count; ++i) {
     Damgr_Module module = host.modules.items[i];
     Damgr_Task_Queue module_queue = {.queue_name = module.name};
@@ -233,18 +234,23 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
         old_module.is_orphan = false; // to remove later
         damgr_get_tasks_from_module_diff(&module_queue, old_module, module);
         module.is_compared = true; // to skip later
-        damgr_log(INFO,
-                  "successfully got %zu tasks after comparison for module: %s",
-                  module_queue.count, module.name);
-        damgr_tasks_append(tasks, module_queue);
-        break;
+        if (module_queue.count > 0) {
+          damgr_log(
+              INFO,
+              "successfully got %zu tasks after comparison for module: %s",
+              module_queue.count, module.name);
+          damgr_tasks_append(tasks, module_queue);
+          break;
+        }
       }
     }
     if (!module.is_compared) {
       get_tasks_from_module(&module_queue, module, true);
-      damgr_log(INFO, "successfully got %zu tasks for module: %s",
-                module_queue.count, module.name);
-      damgr_tasks_append(tasks, module_queue);
+      if (module_queue.count > 0) {
+        damgr_log(INFO, "successfully got %zu tasks for module: %s",
+                  module_queue.count, module.name);
+        damgr_tasks_append(tasks, module_queue);
+      }
     }
   }
   // old modules need cleanup (is_new_state=false)
@@ -253,9 +259,11 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
     if (old_module.is_orphan) {
       Damgr_Task_Queue module_queue = {.queue_name = old_module.name};
       get_tasks_from_module(&module_queue, old_module, false);
-      damgr_log(INFO, "successfully got %zu tasks for module: %s",
-                module_queue.count, old_host.modules.items[i].name);
-      damgr_tasks_append(tasks, module_queue);
+      if (module_queue.count > 0) {
+        damgr_log(INFO, "successfully got %zu tasks for module: %s",
+                  module_queue.count, old_host.modules.items[i].name);
+        damgr_tasks_append(tasks, module_queue);
+      }
     }
   }
 }
@@ -275,9 +283,11 @@ static void damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host host) {
   for (size_t i = 0; i < host.modules.count; i++) {
     Damgr_Task_Queue module_queue = {};
     get_tasks_from_module(&module_queue, host.modules.items[i], true);
-    damgr_log(INFO, "successfully got %zu tasks for module: %s",
-              module_queue.count, host.modules.items[i].name);
-    damgr_tasks_append(tasks, module_queue);
+    if (module_queue.count > 0) {
+      damgr_log(INFO, "successfully got %zu tasks for module: %s",
+                module_queue.count, host.modules.items[i].name);
+      damgr_tasks_append(tasks, module_queue);
+    }
   }
 }
 
@@ -464,3 +474,11 @@ int damgr_do_tasks(Damgr_Tasks tasks, char *aur_helper, char *user) {
 //
 //   return EXIT_SUCCESS;
 // }
+
+// only need to free the buffers, tasks borrowed ownership from config
+void damgr_free_tasks(Damgr_Tasks *tasks) {
+  for (size_t i = 0; i < tasks->count; ++i) {
+    free(tasks->queues[i].items); // free the items buffer itself
+  }
+  free(tasks->queues); // free queues buffer itself
+}

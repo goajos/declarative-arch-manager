@@ -44,6 +44,7 @@ typedef struct tasks {
   size_t count;
 } Damgr_Tasks;
 
+void damgr_free_tasks(Damgr_Tasks *tasks);
 int damgr_get_tasks(Damgr_Tasks *tasks, Damgr_Config old_config,
                     Damgr_Config config);
 int damgr_do_tasks(Damgr_Tasks tasks, char *aur_helper, char *user);

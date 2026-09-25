@@ -105,6 +105,7 @@ char *damgr_get_user() {
   return pwd->pw_name;
 }
 
+// TODO: replace with strdup?
 char *damgr_string_copy(char *str) {
   char *ret = nullptr;
   size_t len = strlen(str);
