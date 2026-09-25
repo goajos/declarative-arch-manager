@@ -32,6 +32,6 @@ int damgr_execute_package_remove_command(struct darray packages);
 int damgr_execute_hook_command(char *user, bool privileged, char *hook);
 int damgr_execute_service_command(bool privileged, bool to_enable,
                                   char *service);
-int damgr_execute_dotfile_command(char *user, bool to_link, char *service);
+int damgr_execute_dotfile_command(char *user, bool to_link, char *dotfile);
 
 #endif /* DAMGR_UTILS_H */
