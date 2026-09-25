@@ -44,15 +44,12 @@ struct config {
 };
 
 int read_config(struct config *config, bool is_state);
-int parse_config(FILE *fid, struct config *config);
-// int write_config();
+int write_config(struct config config);
 
 int read_host(struct host *host, bool is_state);
-int parse_host(FILE *fid, struct host *host);
-// int write_host();
+int write_host(struct host host);
 
 int read_module(struct module *module, bool is_state);
-int parse_module(FILE *fid, struct module *module);
-// int write_module();
+int write_module(struct module module);
 
 #endif /* STATE_H */

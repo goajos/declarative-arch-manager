@@ -34,6 +34,11 @@ size_t read_func(void *user_data, char *buf, size_t bufsize) {
   return fread(buf, 1, bufsize, fid);
 }
 
+size_t write_func(void *user_data, char const *data, size_t nbytes) {
+  FILE *fid = (FILE *)user_data;
+  return fwrite(data, 1, nbytes, fid);
+}
+
 char *string_copy(char *str) {
   char *ret = nullptr;
   size_t len = strlen(str);
