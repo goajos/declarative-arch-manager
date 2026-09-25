@@ -24,7 +24,6 @@ typedef struct payload {
 } Damgr_Task_Payload;
 
 typedef struct task {
-  char *task_name;
   Damgr_Task_Payload payload;
   Damgr_Task_Status status;
   Damgr_Task_Type type;
