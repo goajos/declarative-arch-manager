@@ -1,7 +1,7 @@
 // #include "src/commands/init.c"
 #include "src/commands/merge.c"
 // #include "src/commands/update.c"
-#include "src/logging.h"
+#include "damgr/logging.h"
 #include <stdlib.h>
 #include <string.h>
 

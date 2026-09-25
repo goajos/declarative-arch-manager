@@ -1,0 +1,5 @@
+CompileFlags:
+  Add: [
+    -I/home/jappe/Repositories/declarative-arch-manager/include,
+    -I/home/jappe/Repositories/declarative-arch-manager/include/kdl
+]
