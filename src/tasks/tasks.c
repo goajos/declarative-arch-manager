@@ -292,7 +292,7 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
         break;
       }
     }
-    if (module.is_compared) {
+    if (!module.is_compared) {
       if (get_tasks_from_module(&module_queue, module, true) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
       }
