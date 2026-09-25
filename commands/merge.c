@@ -112,21 +112,23 @@ int damngr_merge() {
 
 
     struct service_actions root_service_actions = { };
-    struct dynamic_array root_hook_actions = { };
+    struct service_actions user_service_actions = { };
     struct package_actions package_actions = { };
     struct package_actions aur_package_actions = { };
-    struct dynamic_array dotfile_actions = { };
-    struct service_actions user_service_actions = { };
+    struct dotfile_actions dotfile_actions = { };
+    struct dynamic_array root_hook_actions = { };
     struct dynamic_array user_hook_actions = { };
     ret = determine_actions(&old_config,
                     &new_config,
                     &root_service_actions,
-                    &root_hook_actions,
+                    &user_service_actions,
                     &package_actions,
                     &aur_package_actions,
                     &dotfile_actions,
-                    &user_service_actions,
+                    &root_hook_actions,
                     &user_hook_actions);
+    if (ret == EXIT_FAILURE) goto action_cleanup;
+
 
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/share/damngr/config_state.kdl", get_user());
     FILE* new_config_state_fid = fopen(fidbuf, "w");
@@ -166,6 +168,15 @@ int damngr_merge() {
         fclose(new_module_state_fid);
         if (ret == EXIT_FAILURE) goto exit_cleanup; 
     }
+
+    action_cleanup:
+        free_actions(root_service_actions,
+                    user_service_actions,
+                    package_actions,
+                    aur_package_actions,
+                    dotfile_actions,
+                    root_hook_actions,
+                    user_hook_actions);
 
     exit_cleanup:
         if (old_config_fid != nullptr) {    
