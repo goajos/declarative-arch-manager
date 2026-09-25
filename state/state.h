@@ -148,32 +148,27 @@ int write_module_kdl(FILE* fid, struct module* module);
         }\
     } while(0)
 
-struct service_action {
-    char* name;
-    bool to_enable;
-};
+
 struct service_actions {
-    struct service_action* items;
-    size_t capacity;
-    size_t count;
+    struct dynamic_array root_to_disable;
+    struct dynamic_array root_to_enable;
+    struct dynamic_array user_to_disable;
+    struct dynamic_array user_to_enable;
 };
-struct package_action {
-    char* name;
-    bool to_install;
-};
+
 struct package_actions {
-    struct package_action* items;
-    size_t capacity;
-    size_t count;
+    struct dynamic_array to_remove;
+    struct dynamic_array to_install;
 };
-struct dotfile_action {
-    char* name;
-    bool to_sync;
-};
+
 struct dotfile_actions {
-    struct dotfile_action* items;
-    size_t capacity;
-    size_t count;
+    struct dynamic_array to_unsync;
+    struct dynamic_array to_sync;
+};
+
+struct hook_actions {
+    struct dynamic_array root;
+    struct dynamic_array user;
 };
 
 enum action {
@@ -183,23 +178,19 @@ enum action {
 
 int determine_actions(struct config* old_config,
                         struct config* new_config,
-                        struct service_actions* root_service_actions,
-                        struct service_actions* user_service_actions,
+                        struct service_actions* service_actions,
                         struct package_actions* package_actions,
                         struct package_actions* aur_package_actions,
                         struct dotfile_actions* dotfile_actions,
-                        struct dynamic_array* root_hook_actions,
-                        struct dynamic_array* user_hook_actions);
+                        struct hook_actions* hook_actions);
 
 int free_config(struct config config);
 int free_host(struct host host);
 int free_module(struct module module);
-int free_actions(struct service_actions root_service_actions,
-                struct service_actions user_service_actions,
+int free_actions(struct service_actions service_actions,
                 struct package_actions package_actions,
                 struct package_actions aur_package_actions,
                 struct dotfile_actions dotfile_actions,
-                struct dynamic_array root_hook_actions,
-                struct dynamic_array user_hook_actions);
+                struct hook_actions hook_actions);
 
 #endif /* STATE_H */
