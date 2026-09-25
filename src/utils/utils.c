@@ -201,3 +201,38 @@ int execute_dotfile_command(bool to_link, char *dotfile) {
   }
   return EXIT_SUCCESS;
 }
+
+int execute_aur_update_command(char *aur_helper) {
+  char fidbuf[PATH_MAX];
+  snprintf(fidbuf, sizeof(fidbuf), "/usr/bin/%s", aur_helper);
+  pid_t pid = fork();
+  if (pid == -1)
+    return EXIT_FAILURE;
+  if (pid == 0) {
+    char **argv = malloc(3 * sizeof(char *));
+    argv[0] = fidbuf;
+    argv[1] = "-Syu";
+    argv[2] = nullptr;
+    execv(fidbuf, argv);
+  } else {
+    waitpid(pid, nullptr, 0);
+  }
+  return EXIT_SUCCESS;
+}
+
+int execute_update_command() {
+  pid_t pid = fork();
+  if (pid == -1)
+    return EXIT_FAILURE;
+  if (pid == 0) {
+    char **argv = malloc(4 * sizeof(char *));
+    argv[0] = "sudo";
+    argv[1] = "pacman";
+    argv[2] = "-Syu";
+    argv[3] = nullptr;
+    execv("/usr/bin/sudo", argv);
+  } else {
+    waitpid(pid, nullptr, 0);
+  }
+  return EXIT_SUCCESS;
+}
