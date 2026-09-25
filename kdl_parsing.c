@@ -19,6 +19,7 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
         const char *name_data = parsed_event->name.data;
         kdl_type value_type = parsed_event->value.type;
         bool boolean = parsed_event->value.boolean;
+        long long integer = parsed_event->value.number.integer;
     
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
@@ -35,7 +36,10 @@ void parse_config_kdl(FILE *fid, Hosts *hosts)
                 node_depth -= 1;
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
-                if (value_type == KDL_TYPE_BOOLEAN) {
+                if (value_type == KDL_TYPE_BOOLEAN || value_type == KDL_TYPE_NUMBER) {
+                    if (integer > 1) integer = 1; // ensure integer is always 0 or 1
+                    else if (integer < 0) integer = 0;
+                    if (value_type == KDL_TYPE_NUMBER && integer == 1) boolean = true;
                     Host host = { node, boolean };
                     array_append((*hosts), host);
                 }
@@ -73,6 +77,7 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
         const char *name_data = parsed_event->name.data;
         kdl_type value_type = parsed_event->value.type;
         bool boolean = parsed_event->value.boolean;
+        long long integer = parsed_event->value.number.integer;
     
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
@@ -92,7 +97,10 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
                 node_depth -= 1;
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
-                if (value_type == KDL_TYPE_BOOLEAN) {
+                if (value_type == KDL_TYPE_BOOLEAN || value_type == KDL_TYPE_NUMBER) {
+                    if (integer > 1) integer = 1; // ensure integer is always 0 or 1
+                    else if (integer < 0) integer = 0;
+                    if (value_type == KDL_TYPE_NUMBER && integer == 1) boolean = true;
                     if (string_equal(node_d2, modules_str)) {
                         Module module = { node_d3, boolean };
                         array_append((*modules), module);
@@ -121,7 +129,7 @@ void parse_host_kdl(FILE *fid, Modules *modules, Services *services, Hooks *hook
    kdl_destroy_parser(parser); // parser cleans the rest
 }
 
-void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *hooks)
+void parse_module_kdl(FILE *fid, Packages *packages, AurPackages *aur_packages, Services *services, Hooks *hooks)
 {
    kdl_parser *parser = kdl_create_stream_parser(&read_func, (void *)fid, KDL_DEFAULTS); 
    
@@ -132,6 +140,7 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
    String node_d3 = { .data = nullptr };
    String module = String("module");
    String packages_str = String("packages");
+   String aur_packages_str = String("aur-packages");
    String services_str = String("services");
    String hooks_str = String("hooks");
    bool user_type_flag;
@@ -142,6 +151,7 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
         const char *name_data = parsed_event->name.data;
         kdl_type value_type = parsed_event->value.type;
         bool boolean = parsed_event->value.boolean;
+        long long integer = parsed_event->value.number.integer;
     
         while(1) {
             if (event == KDL_EVENT_START_NODE) {
@@ -162,10 +172,16 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
                 node_depth -= 1;
                 break;
             } else if (event == KDL_EVENT_ARGUMENT) {
-                if (value_type == KDL_TYPE_BOOLEAN) {
+                if (value_type == KDL_TYPE_BOOLEAN || value_type == KDL_TYPE_NUMBER) {
+                    if (integer > 1) integer = 1; // ensure integer is always 0 or 1
+                    else if (integer < 0) integer = 0;
+                    if (value_type == KDL_TYPE_NUMBER && integer == 1) boolean = true;
                     if (string_equal(node_d2, packages_str)) {
                         Package package = { node_d3, boolean };
                         array_append((*packages), package);
+                    }else if (string_equal(node_d2, aur_packages_str)) {
+                        Package package = { node_d3, boolean };
+                        array_append((*aur_packages), package);
                     } else if (string_equal(node_d2, services_str)) {
                         Service service = { node_d3, boolean, user_type_flag };
                         array_append((*services), service);
