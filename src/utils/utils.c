@@ -38,6 +38,36 @@ int damgr_is_state_dir_empty(char *dir) {
   return count;
 }
 
+static int mkdir_p(char *path) {
+  char *_path = nullptr;
+  char *p;
+  mode_t mode = 0777;
+
+  _path = strdup(path);
+  if (_path == nullptr) {
+    return EXIT_FAILURE;
+  }
+
+  int ret = EXIT_SUCCESS;
+  for (p = _path + 1; *p; p++) {
+    if (*p == '/') {
+      *p = '\0';
+      if (mkdir(_path, mode) != 0 && errno != EEXIST) {
+        ret = EXIT_FAILURE;
+        break;
+      }
+      *p = '/';
+    }
+  }
+
+  if (ret == EXIT_SUCCESS && mkdir(_path, mode) != 0 && errno != EEXIST) {
+    ret = EXIT_FAILURE;
+  }
+
+  free(_path);
+  return ret;
+}
+
 int damgr_init_dir(char *user, bool is_state) {
   struct stat st;
   char fidbuf[damgr_path_max];
@@ -47,7 +77,7 @@ int damgr_init_dir(char *user, bool is_state) {
   char *fmt = (is_state) ? "state" : "config";
   if (stat(fidbuf, &st) == -1) {
     if (errno == ENOENT) {
-      if (mkdir(fidbuf, 0777) != -1) {
+      if (mkdir_p(fidbuf) != -1) {
         damgr_log(INFO, "successfully created damgr %s directory: %s", fmt,
                   fidbuf);
       } else {
