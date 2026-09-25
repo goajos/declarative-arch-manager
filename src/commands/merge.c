@@ -69,6 +69,10 @@ int damgr_merge() {
     goto cleanup;
   }
 
+  if (damgr_write_config(user, &config) != EXIT_SUCCESS) {
+    goto cleanup;
+  }
+
   ret = EXIT_SUCCESS;
 
 cleanup:

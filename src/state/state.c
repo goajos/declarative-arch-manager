@@ -237,6 +237,30 @@ int damgr_read_config(char *user, Damgr_Config *config, bool is_state) {
   }
 }
 
+int damgr_write_config(char *user, Damgr_Config *config) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf),
+           "/home/%s/.local/state/damgr/config_state.conf", user);
+  FILE *config_fid = fopen(fidbuf, "w");
+  if (config_fid == nullptr) {
+    damgr_log(ERROR, "failed to open state config for writing: %s", fidbuf);
+    return EXIT_FAILURE;
+  }
+
+  if (config->aur_helper != nullptr) {
+    fprintf(config_fid, "%s=%s\n", damgr_conf_keys[AUR_HELPER],
+            config->aur_helper);
+  }
+  if (config->active_host.name != nullptr) {
+    fprintf(config_fid, "%s=%s\n", damgr_conf_keys[ACTIVE_HOST],
+            config->active_host.name);
+  }
+
+  fclose(config_fid);
+  damgr_log(INFO, "succesfully wrote state config: %s", fidbuf);
+  return EXIT_SUCCESS;
+}
+
 static int damgr_validate_host(Damgr_Host host, char *fidbuf) {
   // TODO: is there any more validation to do for the host?
   if (host.modules.count == 0) {
