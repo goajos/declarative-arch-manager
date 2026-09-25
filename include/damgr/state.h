@@ -20,11 +20,7 @@ typedef struct module {
   Damgr_Darray post_user_hooks;
   char *name;
   bool to_link;
-  // TODO: do we really need module state???
-  union {
-    bool is_orphan;
-    bool is_done;
-  } module_state;
+  bool is_orphan;
 } Damgr_Module;
 
 typedef struct modules {

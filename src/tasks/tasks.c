@@ -136,9 +136,6 @@ static int get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module *module,
       damgr_get_task(queue, POST_ROOT_HOOK, is_new_state, payload);
     }
   }
-  size_t module_queue_task_count = queue->count > 0 ? queue->count : 0;
-  damgr_log(INFO, "successfully got %zu tasks for module: %s",
-            module_queue_task_count, module->name);
   return EXIT_SUCCESS;
 }
 
@@ -250,18 +247,21 @@ static int damgr_get_tasks_from_module_diff(Damgr_Task_Queue *queue,
 static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
                                            Damgr_Host *old_host,
                                            Damgr_Host *host) {
-  // host queue is always index 0
   Damgr_Task_Queue host_queue = {};
   damgr_tasks_append(tasks, host_queue);
-  if (damgr_get_tasks_from_services_diff(
-          &tasks->queues[0], &old_host->root_services, &host->root_services,
-          ROOT_SERVICE) != EXIT_SUCCESS) {
+  if (damgr_get_tasks_from_services_diff(&host_queue, &old_host->root_services,
+                                         &host->root_services,
+                                         ROOT_SERVICE) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
+  } else {
+    if (host_queue.count > 0) {
+      damgr_log(INFO, "successfully got %zu tasks for host: %s",
+                host_queue.count, host->name);
+      damgr_tasks_append(tasks, host_queue);
+    }
   }
-  // new host module queue is always index 1
-  Damgr_Task_Queue new_module_queue = {};
-  damgr_tasks_append(tasks, new_module_queue);
   for (size_t i = 0; i < host->modules.count; ++i) {
+    Damgr_Task_Queue module_queue = {};
     for (size_t j = 0; j < old_host->modules.count; ++j) {
       // first check if the name lengths are equal, if so perform needle in
       // haystack search, else skip
@@ -269,32 +269,47 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
               strlen(host->modules.items[i].name) &&
           damgr_string_contains(old_host->modules.items[j].name,
                                 host->modules.items[i].name)) {
-        old_host->modules.items[j].module_state.is_orphan =
-            false; // to remove later
+        old_host->modules.items[j].is_orphan = false; // to remove later
         if (damgr_get_tasks_from_module_diff(
-                &tasks->queues[1], &old_host->modules.items[j],
+                &module_queue, &old_host->modules.items[j],
                 &host->modules.items[i]) != EXIT_SUCCESS) {
           return EXIT_FAILURE;
         } else {
-          host->modules.items[i].module_state.is_done = true;
+          if (module_queue.count > 0) {
+            damgr_log(INFO, "successfully got %zu tasks for module: %s",
+                      module_queue.count, &old_host->modules.items[i]);
+            damgr_tasks_append(tasks, module_queue);
+          }
         }
       }
     }
-    if (!host->modules.items[i].module_state.is_done) {
-      if (get_tasks_from_module(&tasks->queues[1], &host->modules.items[i],
-                                true) != EXIT_SUCCESS) {
+    // check module itself for tasks if queue is empty
+    if (module_queue.count == 0) {
+      if (get_tasks_from_module(&module_queue, &host->modules.items[i], true) !=
+          EXIT_SUCCESS) {
         return EXIT_FAILURE;
+      } else {
+        if (module_queue.count > 0) {
+          damgr_log(INFO, "successfully got %zu tasks for module: %s",
+                    module_queue.count, &old_host->modules.items[i]);
+          damgr_tasks_append(tasks, module_queue);
+        }
       }
     }
   }
-  // old host module queue is always index 2
-  Damgr_Task_Queue old_module_queue = {};
-  damgr_tasks_append(tasks, old_module_queue);
+  // old modules need cleanup (is_new_state=false)
   for (size_t i = 0; i < old_host->modules.count; ++i) {
-    if (old_host->modules.items[i].module_state.is_orphan) {
-      if (get_tasks_from_module(&tasks->queues[2], &old_host->modules.items[i],
+    if (old_host->modules.items[i].is_orphan) {
+      Damgr_Task_Queue module_queue = {};
+      if (get_tasks_from_module(&module_queue, &old_host->modules.items[i],
                                 false) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
+      } else {
+        if (module_queue.count > 0) {
+          damgr_log(INFO, "successfully got %zu tasks for module: %s",
+                    module_queue.count, old_host->modules.items[i].name);
+          damgr_tasks_append(tasks, module_queue);
+        }
       }
     }
   }
@@ -302,28 +317,31 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
 }
 
 static int damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host *host) {
-  // host queue is always index 0
   Damgr_Task_Queue host_queue = {};
-  damgr_tasks_append(tasks, host_queue);
   for (size_t i = 0; i < host->root_services.count; i++) {
     char *service = host->root_services.items[i];
     if (service == nullptr) {
       return EXIT_FAILURE;
     }
     struct payload payload = {.name = service, .packages = {}};
-    damgr_get_task(&tasks->queues[0], ROOT_SERVICE, true, payload);
+    damgr_get_task(&host_queue, ROOT_SERVICE, true, payload);
   }
-  size_t host_queue_task_count =
-      tasks->queues->count > 0 ? tasks->queues[0].count : 0;
-  damgr_log(INFO, "successfully got %zu tasks for host: %s",
-            host_queue_task_count, host->name);
-  // new host module queue is always index 1
-  Damgr_Task_Queue module_queue = {};
-  damgr_tasks_append(tasks, module_queue);
+  if (host_queue.count > 0) {
+    damgr_log(INFO, "successfully got %zu tasks for host: %s", host_queue.count,
+              host->name);
+    damgr_tasks_append(tasks, host_queue);
+  }
   for (size_t i = 0; i < host->modules.count; i++) {
-    if (get_tasks_from_module(&tasks->queues[1], &host->modules.items[i],
-                              true) != EXIT_SUCCESS) {
+    Damgr_Task_Queue module_queue = {};
+    if (get_tasks_from_module(&module_queue, &host->modules.items[i], true) !=
+        EXIT_SUCCESS) {
       return EXIT_FAILURE;
+    } else {
+      if (module_queue.count > 0) {
+        damgr_log(INFO, "successfully got %zu tasks for module: %s",
+                  module_queue.count, host->modules.items[i].name);
+        damgr_tasks_append(tasks, module_queue);
+      }
     }
   }
   return EXIT_SUCCESS;
