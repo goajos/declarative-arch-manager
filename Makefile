@@ -1,47 +1,35 @@
-CC = gcc
-CFLAGS = -g -std=c23 -Wall -Wextra -Werror -pedantic
-CFLAGS += -I$(CKDL_DIR)/include
-LDFLAGS = -lc -lm
-LDFLAGS += -L$(CKDL_BUILD_DIR)
-LDFLAGS += -lkdl
+CC=gcc
+BIN=bin/damgr
+# code can be found in . and lib
+CODEDIRS=. lib
+# include can be found in . and include/kdl
+INCDIRS=. ./include/kdl
+# generate files that encode make rules for the user header deps (-MD includes system headers)
+DEPFLAGS=-MMD
+CFLAGS=-Wall -Wextra -Werror -pedantic -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)) $(DEPFLAGS)
 
-BIN = bin/damgr
-BIN_DIR = /usr/bin
+BUILDDIR=build
+CFILES=main.c \
+			 src/utils.c \
+			 src/state/config.c
+OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
+DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 
-BUILD_DIR = build
-SRC = main.c \
-	  src/commands/utils.c \
-	  src/state/utils.c \
-	  src/state/action.c \
-	  src/state/config.c \
-	  src/state/host.c \
-	  src/state/module.c
-OBJ = $(SRC:%.c=$(BUILD_DIR)/%.o)
+all: $(BIN)
 
-CKDL_DIR = libs/ckdl
-CKDL_BUILD_DIR = $(CKDL_DIR)/build
-CKDL_LIB = $(CKDL_BUILD_DIR)/libkdl.a
-$(CKDL_LIB):
-	mkdir -p $(CKDL_BUILD_DIR)
-	cd $(CKDL_BUILD_DIR) && cmake ..
-	$(MAKE) -C $(CKDL_BUILD_DIR)
+$(BIN): $(OBJECTS) lib/libkdl.a
+	@mkdir -p -m 0755 bin
+	$(CC) -lm -o $@ $^
 
-$(BUILD_DIR)/%.o: %.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+lib/libkdl.a:
+	$(MAKE) -C lib
 
-$(BIN): $(OBJ) $(CKDL_LIB) # bin depends on ckdl_lib
-	$(CC) $(OBJ) -o $(BIN) $(LDFLAGS)
+# $@ pastes %.o (target)
+# $^ pastes %.c (source)
+# => how to make target from source
+$(BUILDDIR)/%.o:%.c
+	@mkdir -p -m 0755 $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $^
 
-clean:
-	rm -rf $(BUILD_DIR)
-	rm -rf $(CKDL_BUILD_DIR)
-
-install: $(BIN)
-	install -m 755 $(BIN) $(BIN_DIR)/damgr
-	mkdir -p /usr/share/damgr
-	cp -r damgr/* /usr/share/damgr
-
-uninstall:
-	rm -f $(BIN_DIR)/damgr
-	rm -rf /usr/share/damgr # clear share data
+# clean:
+# 	rm -rf $(BIN) $(OBJECTS)
