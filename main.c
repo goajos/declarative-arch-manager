@@ -1,5 +1,3 @@
-#define _DEFAULT_SOURCE
-#include <stdio.h>
 #include "commands/init.c"
 #include "commands/validate.c"
 #include "commands/sync.c"

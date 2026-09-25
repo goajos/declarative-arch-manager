@@ -1,10 +1,9 @@
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <stdio.h>
 #include "../context.h"
 
 void execute_update_command() {
-    printf("Executing the update command...\n");
     int pipe_fds[2];
     pipe(pipe_fds);
     pid_t pid = fork();
@@ -21,7 +20,6 @@ void execute_update_command() {
 }
 
 void execute_aur_update_command(char* path, char* command) {
-    printf("Executing the aur update command...\n");
     int pipe_fds[2];
     pipe(pipe_fds);
     pid_t pid = fork();
@@ -39,8 +37,6 @@ void execute_aur_update_command(char* path, char* command) {
 
 Context damngr_update(Context context)
 {
-    printf("hello from inside damngr_update...\n");
-
     context = get_context(context);
 
     String aur_helper = context.aur_helper;

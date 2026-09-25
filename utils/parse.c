@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <kdl/kdl.h>
 #include "array.c"
 #include "memory.c"
@@ -49,7 +48,7 @@ Context parse_config_kdl(FILE *fid, Context context)
                         if (boolean) context.aur_helper = node_d3;
                     } else {
                         Host host = { node_d2, boolean };
-                        array_append((context.hosts), host);
+                        array_append(context.hosts, host);
                     }
                 }
                 break;
@@ -118,13 +117,13 @@ Context parse_host_kdl(FILE *fid, Context context)
                     if (value_type == KDL_TYPE_NUMBER && integer == 1) boolean = true;
                     if (string_equal(node_d2, modules_str)) {
                         Module module = { node_d3, boolean };
-                        array_append((context.modules), module);
+                        array_append(context.modules, module);
                     } else if (string_equal(node_d2, services_str)) {
                         Service service = { node_d3, boolean, user_type_flag };
-                        array_append((context.services), service);
+                        array_append(context.services, service);
                     } else if (string_equal(node_d2, hooks_str)) {
                         Hook hook = { node_d3, boolean, user_type_flag };
-                        array_append((context.hooks), hook);
+                        array_append(context.hooks, hook);
                     }
                 }
                 break;
@@ -195,16 +194,16 @@ Context parse_module_kdl(FILE *fid, Context context)
                     if (value_type == KDL_TYPE_NUMBER && integer == 1) boolean = true;
                     if (string_equal(node_d2, packages_str)) {
                         Package package = { node_d3, boolean };
-                        array_append((context.packages), package);
+                        array_append(context.packages, package);
                     }else if (string_equal(node_d2, aur_packages_str)) {
                         Package package = { node_d3, boolean };
-                        array_append((context.aur_packages), package);
+                        array_append(context.aur_packages, package);
                     } else if (string_equal(node_d2, services_str)) {
                         Service service = { node_d3, boolean, user_type_flag };
-                        array_append((context.services), service);
+                        array_append(context.services, service);
                     } else if (string_equal(node_d2, hooks_str)) {
                         Hook hook = { node_d3, boolean, user_type_flag };
-                        array_append((context.hooks), hook);
+                        array_append(context.hooks, hook);
                     }
                 }
                 break;
@@ -225,4 +224,3 @@ Context parse_module_kdl(FILE *fid, Context context)
                             
    return context;
 }
-
