@@ -258,10 +258,10 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
           ROOT_SERVICE) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
+  // new host module queue is always index 1
+  Damgr_Task_Queue new_module_queue = {};
+  damgr_tasks_append(tasks, new_module_queue);
   for (size_t i = 0; i < host->modules.count; ++i) {
-    // module queues are index i+1
-    Damgr_Task_Queue module_queue = {};
-    damgr_tasks_append(tasks, module_queue);
     for (size_t j = 0; j < old_host->modules.count; ++j) {
       // first check if the name lengths are equal, if so perform needle in
       // haystack search, else skip
@@ -272,7 +272,7 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
         old_host->modules.items[j].module_state.is_orphan =
             false; // to remove later
         if (damgr_get_tasks_from_module_diff(
-                &tasks->queues[i + 1], &old_host->modules.items[j],
+                &tasks->queues[1], &old_host->modules.items[j],
                 &host->modules.items[i]) != EXIT_SUCCESS) {
           return EXIT_FAILURE;
         } else {
@@ -281,18 +281,18 @@ static int damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
       }
     }
     if (!host->modules.items[i].module_state.is_done) {
-      if (get_tasks_from_module(&tasks->queues[i + 1], &host->modules.items[i],
+      if (get_tasks_from_module(&tasks->queues[1], &host->modules.items[i],
                                 true) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
       }
     }
   }
-  // module queues are index i+1
-  Damgr_Task_Queue module_queue = {};
-  damgr_tasks_append(tasks, module_queue);
+  // old host module queue is always index 2
+  Damgr_Task_Queue old_module_queue = {};
+  damgr_tasks_append(tasks, old_module_queue);
   for (size_t i = 0; i < old_host->modules.count; ++i) {
     if (old_host->modules.items[i].module_state.is_orphan) {
-      if (get_tasks_from_module(&module_queue, &old_host->modules.items[i],
+      if (get_tasks_from_module(&tasks->queues[2], &old_host->modules.items[i],
                                 false) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
       }
@@ -317,11 +317,11 @@ static int damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host *host) {
       tasks->queues->count > 0 ? tasks->queues[0].count : 0;
   damgr_log(INFO, "successfully got %zu tasks for host: %s",
             host_queue_task_count, host->name);
-  // module queues are index i+1
+  // new host module queue is always index 1
   Damgr_Task_Queue module_queue = {};
   damgr_tasks_append(tasks, module_queue);
   for (size_t i = 0; i < host->modules.count; i++) {
-    if (get_tasks_from_module(&tasks->queues[i + 1], &host->modules.items[i],
+    if (get_tasks_from_module(&tasks->queues[1], &host->modules.items[i],
                               true) != EXIT_SUCCESS) {
       return EXIT_FAILURE;
     }
