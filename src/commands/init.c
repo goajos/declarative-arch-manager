@@ -4,8 +4,8 @@ int damngr_init() {
     puts("hello from damngr init...");
     int ret;
     struct stat st;
-    char* src = "damngr";
-    char fidbuf[path_max]; 
+    char* src = "/usr/share/damngr";
+    char fidbuf[path_max];
     // create the .local/share/damngr folder
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damngr", get_user());
     // stat returns -1 if fidbuf doesn't exist
@@ -19,7 +19,7 @@ int damngr_init() {
         puts("Config already exists:");
         puts("Remove the .config/damngr folder before calling init again");
         ret = EXIT_FAILURE;
-        goto exit_cleanup; 
+        goto exit_cleanup;
     }
     ret = recursive_init_state(st, src, fidbuf);
 
