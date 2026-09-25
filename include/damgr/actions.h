@@ -16,34 +16,21 @@ enum action_type {
   POST_USER_HOOK,
 };
 
-struct payload {
-  struct darray packages;
+union payload {
   char *name;
+  struct darray packages;
 };
 
 struct action {
-  struct payload payload;
+  union payload payload;
   enum action_status status;
   enum action_type type;
   bool is_positive;
 };
 
-struct actions {
-  struct action *items;
-  size_t capacity;
-  size_t count;
-};
-
-int get_actions_from_services_diff(struct actions *actions,
-                                   struct darray old_services,
-                                   struct darray services, bool is_root);
-int get_actions_from_modules_diff(struct actions *actions,
-                                  struct module old_module,
-                                  struct module module);
-int get_actions_from_module(struct actions *actions, struct module module,
-                            bool is_postive);
-
+// TODO: or do_actions()?
+int get_actions(struct config *old_config, struct config *config);
 int do_action(struct action action, char *aur_helper);
-int undo_action(struct action action, char *aur_helper);
+// int undo_action(struct action action, char *aur_helper);
 
 #endif /* ACTIONS_H */

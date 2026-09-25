@@ -307,10 +307,6 @@ void free_actions(struct actions actions) {
   for (size_t i = 0; i < actions.count; ++i) {
     struct action action = actions.items[i];
     action.payload.name = nullptr;
-    if (action.payload.packages.count > 0) {
-      for (size_t j = 0; j < action.payload.packages.count; ++j) {
-        action.payload.packages.items[j] = nullptr;
-      }
-    }
+    free_darray(action.payload.packages);
   }
 }
