@@ -5,7 +5,7 @@ LDFLAGS = -lc -lm
 LDFLAGS += -L$(CKDL_BUILD_DIR)
 LDFLAGS += -lkdl
 
-BIN = bin/damngr
+BIN = bin/damgr
 BIN_DIR = /usr/bin
 
 BUILD_DIR = build
@@ -38,10 +38,10 @@ clean:
 	rm -rf $(CKDL_BUILD_DIR)
 
 install: $(BIN)
-	install -m 755 $(BIN) $(BIN_DIR)/damngr
-	mkdir -p /usr/share/damngr
-	cp -r damngr/* /usr/share/damngr
+	install -m 755 $(BIN) $(BIN_DIR)/damgr
+	mkdir -p /usr/share/damgr
+	cp -r damgr/* /usr/share/damgr
 
 uninstall:
-	rm -f $(BIN_DIR)/damngr
-	rm -rf /usr/share/damngr # clear share data
+	rm -f $(BIN_DIR)/damgr
+	rm -rf /usr/share/damgr # clear share data
