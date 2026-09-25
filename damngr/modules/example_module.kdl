@@ -1,0 +1,15 @@
+module {
+    example_module
+
+    packages {
+    }
+
+    aur_packages {
+    }
+
+    services {
+    }
+
+    hooks {
+    }
+}
