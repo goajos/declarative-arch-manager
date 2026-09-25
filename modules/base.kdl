@@ -2,27 +2,28 @@ module {
     base
     
     packages {
-        base
-        base-devel
-        btrfs-progs
-        intel-ucode
-        less
-        linux
-        linux-firmware
-        man-db
-        man-pages
-        networkmanager
-        nvidia-open
-        nvidia-utils
-        openssh
-        sudo
-        fzf
-        paru
-        snapper
-        yay
+        base false
+        base-devel false
+        btrfs-progs false
+        intel-ucode false
+        less false
+        linux false
+        linux-firmware false
+        man-db false
+        man-pages false
+        networkmanager false
+        nvidia-open false
+        nvidia-utils false
+        openssh false
+        sudo false
+        fzf false
+        paru false
+        snapper false
+        yay true
     }
 
     services {
+        bt-auto-connect true
     }
 
     hooks {

@@ -261,7 +261,7 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
                 if (value_type == KDL_TYPE_BOOLEAN) {
                     char *dest = copy_data(node_data_d3);
                     if (dest) {
-                        if (strcmp(node_data_d2, "modules") == 0) {
+                        if (strcmp(node_data_d2, "packages") == 0) {
                             Package package = { dest, boolean };
                             da_append((*packages), package);
                         } else if (strcmp(node_data_d2, "services") == 0) {
@@ -292,6 +292,7 @@ void parse_module_kdl(FILE *fid, Packages *packages, Services *services, Hooks *
 }
 
 // clang main.c -o main -g -lc -lkdl -lm -std=c23 -Wall -Wextra -Werror -pedantic
+// :lua require'dap'.repl.open()
 int main()
 {
     printf("Hello world!\n");
@@ -341,7 +342,6 @@ int main()
             printf("Module %s - is active: %b\n", modules.items[i].item, modules.items[i].active);
         }
     }
-    
     // no longer need hosts and host glob
     for (int i = 0; i < (int)hosts.count; ++i) {
         char *item = hosts.items[i].item;
@@ -353,10 +353,10 @@ int main()
     globfree(&host_globbuf);
 
     Packages packages = {0};
-    char fidbuf[0x256];
-    for (int i = 0; i < (int)modules.count; i++) {
+    for (int i = 0; i < (int)modules.count; ++i) {
         Module module = modules.items[i];
         if (module.active) {
+            char fidbuf[0x256];
             snprintf(fidbuf, sizeof(fidbuf), "modules/%s.kdl", module.item);
             printf("%s\n", fidbuf);
             FILE *module_fid = fopen(fidbuf, "r");
@@ -364,38 +364,45 @@ int main()
             fclose(module_fid);
         }
 
-        printf("Packages count: %d\n", (int)packages.count);
+        printf("Packages count for module %s: %d\n", module.item, (int)packages.count);
         for (int i = 0; i < (int)packages.count; ++i) {
             printf("Package %s - is active: %b\n", packages.items[i].item, packages.items[i].active);
         }
     }
 
-    free_sized(modules.items, modules.capacity*sizeof(*modules.items));
+    printf("Service count: %d\n", (int)services.count);
+    for (int i = 0; i < (int)services.count; ++i) {
+        Service service = services.items[i];
+        printf("Service %s - is active: %b and user service: %b\n", service.item, service.active, service.user_type);
+    }
+
+
     for (int i = 0; i < (int)modules.count; ++i) {
         char *item = modules.items[i].item;
         free_sized(item, sizeof(*item));
     }
+    free_sized(modules.items, modules.capacity*sizeof(*modules.items));
     modules.items = nullptr;
 
-    free_sized(packages.items, packages.capacity*sizeof(*packages.items));
     for (int i = 0; i < (int)packages.count; ++i) {
         char *item = packages.items[i].item;
         free_sized(item, sizeof(*item));
     }
+    free_sized(packages.items, packages.capacity*sizeof(*packages.items));
     packages.items = nullptr;
     
-    free_sized(services.items, services.capacity*sizeof(*services.items));
     for (int i = 0; i < (int)services.count; ++i) {
         char *item = services.items[i].item;
         free_sized(item, sizeof(*item));
     }
+    free_sized(services.items, services.capacity*sizeof(*services.items));
     services.items = nullptr;
 
-    free_sized(hooks.items, hooks.capacity*sizeof(*hooks.items));
     for (int i = 0; i < (int)hooks.count; ++i) {
         char *item = hooks.items[i].item;
         free_sized(item, sizeof(*item));
     }
+    free_sized(hooks.items, hooks.capacity*sizeof(*hooks.items));
     hooks.items = nullptr;
 
     return 0;
