@@ -41,7 +41,11 @@ static int damgr_parse_val(int *conf_key, Damgr_Config *config, char *line,
                            int *idx) {
   char key[256];
   char val[256];
-  if (sscanf(line, "%255[^:]:%255[^\n]", key, val) == 2) {
+  int ret = sscanf(line, "%255[^:]:%255[^\n]", key, val);
+  if (ret != 1 && ret != 2) {
+    damgr_log(ERROR, "failed to parse key:value from line: %s", line);
+    return EXIT_FAILURE;
+  } else {
     Damgr_Module *module = &config->active_host.modules.items[*idx];
     damgr_string_trim(key);
     damgr_string_trim(val);
@@ -65,6 +69,9 @@ static int damgr_parse_val(int *conf_key, Damgr_Config *config, char *line,
         module->to_link = true;
       }
       break;
+    default:
+      damgr_log(ERROR, "failed to parse line: %s", line);
+      return EXIT_FAILURE;
     }
   }
 
@@ -80,13 +87,21 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
   char key[256];
   char val[256];
   if (damgr_string_contains(line, "=")) {
-    if (sscanf(line, "%255[^=]=%255[^\n]", key, val) == 2 && *val != '\n') {
-      damgr_string_trim(key);
-      *conf_key = damgr_get_conf_key(key);
+    int ret = sscanf(line, "%255[^=]=%255[^\n]", key, val);
+    if (ret != 1 && ret != 2) {
+      damgr_log(ERROR, "failed to parse key:value from line: %s", line);
+      return EXIT_FAILURE;
+    }
+    // make sure the conf key is always set on = lines
+    damgr_string_trim(key);
+    *conf_key = damgr_get_conf_key(key);
+    if (ret == 2 && *val != '\n') {
       damgr_string_trim(val);
       if (damgr_string_contains(val, ":")) {
         // a str = str:true, e.g. hooks one-liner
-        damgr_parse_val(conf_key, config, val, idx);
+        if (damgr_parse_val(conf_key, config, val, idx) != EXIT_SUCCESS) {
+          return EXIT_FAILURE;
+        }
       } else {
         // a str = str line, e.g. aur_helper=paru
         switch (*conf_key) {
@@ -119,15 +134,18 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
               &config->active_host.modules.items[*idx].aur_packages,
               damgr_string_copy(val));
           break;
+        default:
+          damgr_log(ERROR, "failed to parse line: %s", line);
+          return EXIT_FAILURE;
         }
       }
-    } else {
-      *conf_key = damgr_get_conf_key(key); // also set conf key on str=\n lines
     }
   } else {
     if (damgr_string_contains(line, ":")) {
       // a __str:true line, e.g. nested hooks
-      damgr_parse_val(conf_key, config, line, idx);
+      if (damgr_parse_val(conf_key, config, line, idx) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      }
     } else {
       // a __str line, e.g. nested packages
       switch (*conf_key) {
@@ -136,7 +154,7 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
         damgr_modules_append(&config->active_host.modules, module);
         break;
       case SERVICES:
-        if (idx == nullptr) {
+        if (idx == nullptr) { // not parsing a module
           damgr_darray_append(&config->active_host.root_services,
                               damgr_string_copy(line));
         } else {
@@ -154,6 +172,9 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
             &config->active_host.modules.items[*idx].aur_packages,
             damgr_string_copy(line));
         break;
+      default:
+        damgr_log(ERROR, "failed to parse line: %s", line);
+        return EXIT_FAILURE;
       }
     }
   }
