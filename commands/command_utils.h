@@ -17,10 +17,7 @@ int execute_aur_package_install_command(char* fid,
 int execute_service_command(bool privileged,
                             bool enable,
                             struct dynamic_array services);
-//TODO: finish these commands
-int execute_dotfile_unsync_command();
-int execute_dotfile_sync_command();
-int execute_hook_command(bool privileged,
-                        char* hook);
+int execute_dotfile_link_command(bool link, struct dynamic_array dotfiles);
+int execute_hook_command(bool privileged, struct dynamic_array hooks);
 
 #endif /* COMMAND_UTILS_H */

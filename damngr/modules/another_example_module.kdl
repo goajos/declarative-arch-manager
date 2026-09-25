@@ -1,6 +1,6 @@
 module {
     another_example_module {
-        dotfiles sync=#false // can also be omitted?
+        dotfiles link=#true
         packages {
             another_example_package
         }
