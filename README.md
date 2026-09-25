@@ -82,7 +82,7 @@ host {
 ```
 
 ## damgr \<module\>.kdl
-Stored in `~/.config/damgr/modules/<module>.kdl`. Declares the modules dotfile linking, (aur-)packages, services and hooks. E.g.
+Stored in `~/.config/damgr/modules/<module>.kdl`. Declares the modules dotfile linking, (aur-)packages, services and (pre/post-)hooks. E.g.
 ```
 module {
     example_module {
@@ -96,8 +96,10 @@ module {
         services {
             example_user_service // implicit root=#false
         }
-        hooks {
+        pre-hooks {
             example_user_hook.sh root=#false
+        }
+        post-hooks {
             example_root_hook.sh root=#true
         }
     }    
