@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "commands/init.c"
 #include "commands/update.c"
 
 int main(int argc, char* argv[]) {
@@ -31,7 +32,7 @@ int main(int argc, char* argv[]) {
     switch (command_idx) {
         case 0:
             puts("damngr init...");
-            ret = 0;
+            ret = damngr_init();
             break;
         case 1:
             puts("damngr validate...");
