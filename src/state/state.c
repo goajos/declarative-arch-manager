@@ -300,8 +300,8 @@ int damgr_read_host(char *user, Damgr_Config *config, bool is_state) {
 
 int damgr_write_host(char *user, Damgr_Host *host) {
   char fidbuf[damgr_path_max];
-  snprintf(fidbuf, sizeof(fidbuf),
-           "/home/%s/.local/state/damgr/config_state.conf", user);
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
+           user, host->name);
   FILE *host_fid = fopen(fidbuf, "w");
   if (host_fid == nullptr) {
     damgr_log(ERROR, "failed to open state host for writing: %s", fidbuf);
@@ -359,4 +359,70 @@ int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
     damgr_log(ERROR, "failed to open %s module: %s", fmt, fidbuf);
     return EXIT_FAILURE;
   }
+}
+
+int damgr_write_module(char *user, Damgr_Module *module) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
+           user, module->name);
+  FILE *module_fid = fopen(fidbuf, "w");
+  if (module_fid == nullptr) {
+    damgr_log(ERROR, "failed to open state module for writing: %s", fidbuf);
+    return EXIT_FAILURE;
+  }
+
+  if (module->to_link) {
+    fprintf(module_fid, "%s=link:true\n", damgr_conf_keys[DOTFILES]);
+  }
+
+  if (module->pre_root_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
+    for (size_t i = 0; i < module->pre_root_hooks.count; ++i) {
+      fprintf(module_fid, "\t%s:true\n", module->pre_root_hooks.items[i]);
+    }
+  }
+  if (module->pre_user_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
+    for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
+      fprintf(module_fid, "\t%s:false\n", module->pre_user_hooks.items[i]);
+    }
+  }
+
+  if (module->packages.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[PACKAGES]);
+    for (size_t i = 0; i < module->packages.count; ++i) {
+      fprintf(module_fid, "\t%s\n", module->packages.items[i]);
+    }
+  }
+
+  if (module->aur_packages.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[AUR_PACKAGES]);
+    for (size_t i = 0; i < module->aur_packages.count; ++i) {
+      fprintf(module_fid, "\t%s\n", module->aur_packages.items[i]);
+    }
+  }
+
+  if (module->user_services.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[SERVICES]);
+    for (size_t i = 0; i < module->user_services.count; ++i) {
+      fprintf(module_fid, "\t%s\n", module->user_services.items[i]);
+    }
+  }
+
+  if (module->post_root_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
+    for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
+      fprintf(module_fid, "\t%s:true\n", module->post_root_hooks.items[i]);
+    }
+  }
+  if (module->post_user_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
+    for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
+      fprintf(module_fid, "\t%s:false\n", module->post_user_hooks.items[i]);
+    }
+  }
+
+  fclose(module_fid);
+  damgr_log(INFO, "succesfully wrote state module: %s", fidbuf);
+  return EXIT_SUCCESS;
 }

@@ -75,6 +75,14 @@ int damgr_merge() {
   if (damgr_write_host(user, &config.active_host) != EXIT_SUCCESS) {
     goto cleanup;
   }
+  if (config.active_host.modules.count > 0) {
+    for (size_t i = 0; i < config.active_host.modules.count; ++i) {
+      if (damgr_write_module(user, &config.active_host.modules.items[i]) !=
+          EXIT_SUCCESS) {
+        goto cleanup;
+      }
+    }
+  }
 
   ret = EXIT_SUCCESS;
 
