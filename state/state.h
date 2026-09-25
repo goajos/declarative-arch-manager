@@ -39,13 +39,14 @@ struct permission {
     bool root;
 };
 
+// a dynamic array with a permission item instead of a char*
 struct permissions {
     struct permission* items;
     size_t capacity;
     size_t count;
 };
 
-struct packages {
+struct dynamic_array {
     char** items;
     size_t capacity;
     size_t count;
@@ -54,8 +55,8 @@ struct packages {
 struct module {
     char* name;
     bool sync;
-    struct packages packages;
-    struct packages aur_packages;
+    struct dynamic_array packages;
+    struct dynamic_array aur_packages;
     struct permissions services;
     struct permissions hooks;
 };
@@ -83,6 +84,13 @@ int parse_host_kdl(FILE* fid, struct host* host);
 int write_host_kdl(FILE* fid, struct host* host);
 int parse_module_kdl(FILE* fid, struct module* module);
 int write_module_kdl(FILE* fid, struct module* module);
+
+int calculate_config_diff(struct config* old_config,
+                        struct config* new_config
+                        // struct packages* to_remove,
+                        // struct packages* to_install,
+                        // struct packages* to_keep
+                        );
 
 int free_config(struct config config);
 int free_host(struct host host);

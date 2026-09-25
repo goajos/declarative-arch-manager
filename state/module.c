@@ -1,6 +1,7 @@
 #include <kdl/kdl.h> 
+#include <string.h>
 #include "state.h"
-#include "utils.c"
+#include "state_utils.h"
 
 int parse_module_kdl(FILE* fid, struct module* module)  {
     kdl_parser* parser = kdl_create_stream_parser(&read_func, (void* )fid, KDL_DEFAULTS);
@@ -35,11 +36,11 @@ int parse_module_kdl(FILE* fid, struct module* module)  {
                         break;
                     case 3: // child level
                         if (memcmp(node_d2, "packages", 8) == 0) {
-                            struct packages* packages = &module->packages;
+                            struct dynamic_array* packages = &module->packages;
                             char* package = string_copy((char* )name_data);
                             DYNAMIC_ARRAY_APPEND((*packages), package);
                         } else if (memcmp(node_d2, "aur_packages", 12) == 0) {
-                            struct packages* aur_packages = &module->aur_packages;
+                            struct dynamic_array* aur_packages = &module->aur_packages;
                             char* aur_package = string_copy((char* )name_data);
                             DYNAMIC_ARRAY_APPEND((*aur_packages), aur_package);
                         } else if (memcmp(node_d2, "services", 8) == 0){
