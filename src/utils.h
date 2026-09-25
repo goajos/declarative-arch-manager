@@ -8,4 +8,6 @@ char *get_user();
 
 size_t read_func(void *user_data, char *buf, size_t bufsize);
 
+char *string_copy(char *str);
+
 #endif /* UTILS_H */

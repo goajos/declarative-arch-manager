@@ -8,16 +8,20 @@ struct darray {
   size_t count;
 };
 
+struct module {
+  char *name;
+};
+
 struct modules {
-  struct darray *items;
+  struct module *items;
   size_t capacity;
   size_t count;
 };
 
 struct host {
-  struct module *items;
-  size_t capacity;
-  size_t count;
+  char *name;
+  struct module modules;
+  struct darray root_services;
 };
 
 struct config {
