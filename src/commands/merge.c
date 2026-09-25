@@ -64,6 +64,7 @@ int damgr_merge() {
   }
   if (task_count == 0) {
     damgr_log(INFO, "got no tasks to do...");
+    ret = EXIT_SUCCESS;
     goto cleanup;
   }
 
