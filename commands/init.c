@@ -1,6 +1,5 @@
 #include "command_utils.h"
 
-// TODO: rewrite with new hooks/<module> and dotfiles/<module> structure?
 int damngr_init() {
     puts("hello from damngr init...");
     int ret;

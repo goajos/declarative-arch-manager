@@ -35,7 +35,7 @@ static int get_package_actions(struct package_actions* actions,
     return EXIT_SUCCESS;
 }
 
-// TODO: rewrite with /dotfiles/<module> structure?
+// TODO: use the new /dotfiles/<module> structure
 static int get_dotfile_actions(struct dotfile_actions* actions,
                             bool module_sync,
                             char* module_name,
@@ -67,7 +67,7 @@ static int get_dotfile_actions(struct dotfile_actions* actions,
 // TODO: how to set up the hook folder structure
 static int get_hook_actions(struct hook_actions* actions,
                             struct dynamic_array hooks,
-                            char* module_name,
+                            [[maybe_unused]] char* module_name,
                             bool root) {
     for (size_t i = 0; i < hooks.count; ++i) {
         char* hook = hooks.items[i];
