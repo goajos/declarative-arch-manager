@@ -58,6 +58,15 @@ int damgr_merge() {
     goto cleanup;
   }
 
+  size_t task_count = 0;
+  for (size_t i = 0; i < tasks.count; ++i) {
+    task_count += tasks.queues[i].count;
+  }
+  if (task_count == 0) {
+    damgr_log(INFO, "got no tasks to do...");
+    goto cleanup;
+  }
+
   Damgr_Task_Queue succeeded_queue = {};
   if (damgr_do_tasks(&tasks, config.aur_helper, user, &succeeded_queue) !=
       EXIT_SUCCESS) {
