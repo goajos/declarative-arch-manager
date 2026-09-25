@@ -42,8 +42,8 @@ typedef struct tasks {
 
 int damgr_get_tasks(Damgr_Tasks *tasks, Damgr_Config *old_config,
                     Damgr_Config *config);
-// int damgr_do_tasks(Damgr_Tasks *tasks, char *user, Damgr_Config *old_config,
-//                    Damgr_Config *config);
-int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user);
+int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user,
+                   Damgr_Task_Queue *succeeded_queue);
+int damgr_undo_tasks(Damgr_Task_Queue *succeeded_Queue);
 
 #endif /* DAMGR_TASKS_H */

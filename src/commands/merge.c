@@ -58,6 +58,17 @@ int damgr_merge() {
     goto cleanup;
   }
 
+  Damgr_Task_Queue succeeded_queue = {};
+  if (damgr_do_tasks(&tasks, config.aur_helper, user, &succeeded_queue) !=
+      EXIT_SUCCESS) {
+    damgr_log(ERROR, "failed to do tasks, performing a roll back...");
+    if (damgr_undo_tasks(&succeeded_queue) != EXIT_SUCCESS) {
+      // TODO: report what tasks were not rolled back?
+      damgr_log(ERROR, "failed to roll back...");
+    }
+    goto cleanup;
+  }
+
   ret = EXIT_SUCCESS;
 
 cleanup:

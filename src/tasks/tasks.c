@@ -456,7 +456,8 @@ static void damgr_do_task(Damgr_Task *task, char *aur_helper, char *user) {
   }
 }
 
-int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user) {
+int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user,
+                   Damgr_Task_Queue *succeeded_queue) {
   // index 0 tasks is host queue
   // index 1 tasks is new config queue
   // index 2 tasks is old config queue
@@ -464,8 +465,27 @@ int damgr_do_tasks(Damgr_Tasks *tasks, char *aur_helper, char *user) {
     size_t queue_task_count =
         tasks->queues[i].count > 0 ? tasks->queues[i].count : 0;
     for (size_t j = 0; j < queue_task_count; ++j) {
-      damgr_do_task(&tasks->queues[i].items[j], aur_helper, user);
+      Damgr_Task task = tasks->queues[i].items[j];
+      damgr_do_task(&task, aur_helper, user);
+      if (task.status == SUCCEEDED) {
+        damgr_queue_append(succeeded_queue, task);
+      } else if (task.status == FAILED) {
+        return EXIT_FAILURE;
+      }
     }
   }
+  return EXIT_SUCCESS;
+}
+
+// TODO: should this return an exit status?
+static void damgr_undo_task([[maybe_unused]] Damgr_Task task) {
+  // TODO: implement the undo task logic
+}
+
+int damgr_undo_tasks(Damgr_Task_Queue *succeeded_queue) {
+  for (size_t i = 0; i < succeeded_queue->count; ++i) {
+    damgr_undo_task(succeeded_queue->items[i]);
+  }
+
   return EXIT_SUCCESS;
 }
