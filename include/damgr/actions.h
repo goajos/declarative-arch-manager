@@ -3,8 +3,6 @@
 #include "state.h"
 
 enum action_status { PENDING, SUCCEEDED, FAILED };
-[[maybe_unused]] static const char *action_status_names[] = {
-    [PENDING] = "PENDING", [SUCCEEDED] = "SUCCEEDED", [FAILED] = "FAILED"};
 
 enum action_type {
   ROOT_SERVICE,
@@ -17,16 +15,6 @@ enum action_type {
   POST_ROOT_HOOK,
   POST_USER_HOOK,
 };
-[[maybe_unused]] static const char *action_type_names[] = {
-    [ROOT_SERVICE] = "ROOT_SERVICE",
-    [PRE_ROOT_HOOK] = "PRE_ROOT_HOOK",
-    [PRE_USER_HOOK] = "PRE_USER_HOOK",
-    [PACKAGE] = "PACKAGE",
-    [AUR_PACKAGE] = "AUR_PACKAGE",
-    [USER_SERVICE] = "USER_SERVICE",
-    [DOTFILE] = "DOTFILE",
-    [POST_ROOT_HOOK] = "POST_ROOT_HOOK",
-    [POST_USER_HOOK] = "POST_USER_HOOK"};
 
 struct payload {
   char *name;

@@ -125,7 +125,7 @@ static int execute_execv(char *path, char **argv) {
     execv(path, argv);
   } else {
     int wstatus;
-    if (waitpid(pid, &wstatus, 0) != EXIT_SUCCESS) {
+    if (waitpid(pid, &wstatus, 0) != pid) {
       damgr_log(ERROR, "execv waitpid failed: %s", strerror(errno));
       return EXIT_FAILURE;
     }
@@ -294,11 +294,6 @@ void log_module_actions(struct module module, bool is_state) {
   char *fmt = (is_state) ? "state" : "config";
   damgr_log(ERROR, "failed to do module actions for %s module: %s", fmt,
             module.name);
-  for (size_t i = 0; i < module.module_actions.count; ++i) {
-    struct action action = module.module_actions.items[i];
-    damgr_log(ERROR, "  [%s] %s: %s", action_status_names[action.status],
-              action_type_names[action.type], action.payload.name);
-  }
 }
 
 static void free_darray(struct darray array) {
