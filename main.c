@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "commands/init.c"
-#include "commands/merge.c"
+#include "src/commands/init.c"
+#include "src/commands/merge.c"
 
 int main(int argc, char* argv[]) {
     if (argc == 1 || argc > 2) {
