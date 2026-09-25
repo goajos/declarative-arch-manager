@@ -351,22 +351,22 @@ int get_actions(struct config *old_config, struct config *config) {
     int ret = strcmp(old_config->active_host.name, config->active_host.name);
     if (ret < 0 || ret > 0) { // different host
       if (get_actions_from_host(&config->active_host) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to get actions for the new host: %s",
-            config->active_host.name);
+        damgr_log(ERROR, "failed to get actions for the new host: %s",
+                  config->active_host.name);
         return EXIT_FAILURE;
       }
     } else { // same host
       if (get_actions_from_hosts_diff(&old_config->active_host,
                                       &config->active_host) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to get actions comparing the hosts: %s",
-            config->active_host.name);
+        damgr_log(ERROR, "failed to get actions comparing the hosts: %s",
+                  config->active_host.name);
         return EXIT_FAILURE;
       }
     }
   } else { // no state host
     if (get_actions_from_host(&config->active_host) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to get actions for the new host: %s",
-          config->active_host.name);
+      damgr_log(ERROR, "failed to get actions for the new host: %s",
+                config->active_host.name);
       return EXIT_FAILURE;
     }
   }
@@ -377,59 +377,59 @@ static int do_action(struct action *action, char *aur_helper) {
   switch (action->type) {
   case ROOT_SERVICE:
     if (action->is_positive) {
-      LOG(LOG_INFO, "enabling root service: %s", action->payload.name);
+      damgr_log(INFO, "enabling root service: %s", action->payload.name);
       if (execute_service_command(true, true, action->payload.name) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to enable root service: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to enable root service: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully enabled root service: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully enabled root service: %s",
+                action->payload.name);
     } else {
-      LOG(LOG_INFO, "disabling root service: %s", action->payload.name);
+      damgr_log(INFO, "disabling root service: %s", action->payload.name);
       if (execute_service_command(true, false, action->payload.name) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to disable root service: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to disable root service: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully disabled root service: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully disabled root service: %s",
+                action->payload.name);
     }
     break;
   case USER_SERVICE:
     if (action->is_positive) {
-      LOG(LOG_INFO, "enabling user service: %s", action->payload.name);
+      damgr_log(INFO, "enabling user service: %s", action->payload.name);
       if (execute_service_command(false, true, action->payload.name) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to enable user service: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to enable user service: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully enabled user service: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully enabled user service: %s",
+                action->payload.name);
     } else {
-      LOG(LOG_INFO, "disabling user service: %s", action->payload.name);
+      damgr_log(INFO, "disabling user service: %s", action->payload.name);
       if (execute_service_command(false, false, action->payload.name) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to disable user service: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to disable user service: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully disabled user service: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully disabled user service: %s",
+                action->payload.name);
     }
     break;
   case PRE_ROOT_HOOK:
   case POST_ROOT_HOOK:
     if (action->is_positive) {
-      LOG(LOG_INFO, "running hook: %s", action->payload.name);
+      damgr_log(INFO, "running hook: %s", action->payload.name);
       if (execute_hook_command(true, action->payload.name) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to run hook: %s", action->payload.name);
+        damgr_log(ERROR, "failed to run hook: %s", action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully ran hook: %s", action->payload.name);
+      damgr_log(INFO, "succesfully ran hook: %s", action->payload.name);
     } else {
       // can't undo a hook...
     }
@@ -437,76 +437,78 @@ static int do_action(struct action *action, char *aur_helper) {
   case PRE_USER_HOOK:
   case POST_USER_HOOK:
     if (action->is_positive) {
-      LOG(LOG_INFO, "running hook: %s", action->payload.name);
+      damgr_log(INFO, "running hook: %s", action->payload.name);
       if (execute_hook_command(false, action->payload.name) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to run hook: %s", action->payload.name);
+        damgr_log(ERROR, "failed to run hook: %s", action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully ran hook: %s", action->payload.name);
+      damgr_log(INFO, "succesfully ran hook: %s", action->payload.name);
     } else {
       // can't undo a hook...
     }
     break;
   case PACKAGE:
     if (action->is_positive) {
-      LOG(LOG_INFO, "installing packages for module: %s", action->payload.name);
+      damgr_log(INFO, "installing packages for module: %s",
+                action->payload.name);
       if (execute_package_install_command(action->payload.packages) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to install packages for module: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to install packages for module: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully installed packages for module: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully installed packages for module: %s",
+                action->payload.name);
     } else {
     package_remove:
-      LOG(LOG_INFO, "removing packages for module: %s", action->payload.name);
+      damgr_log(INFO, "removing packages for module: %s", action->payload.name);
       if (execute_package_remove_command(action->payload.packages) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to remove packages for module: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to remove packages for module: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully removed packages for module: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully removed packages for module: %s",
+                action->payload.name);
     }
     break;
   case AUR_PACKAGE:
     if (action->is_positive) {
-      LOG(LOG_INFO, "installing aur packages for module: %s",
-          action->payload.name);
+      damgr_log(INFO, "installing aur packages for module: %s",
+                action->payload.name);
       if (execute_aur_package_install_command(action->payload.packages,
                                               aur_helper) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to install aur packages for module: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to install aur packages for module: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully installed aur packages for module: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully installed aur packages for module: %s",
+                action->payload.name);
     } else {
       goto package_remove;
     }
     break;
   case DOTFILE:
     if (action->is_positive) {
-      LOG(LOG_INFO, "linking dotfiles for module: %s", action->payload.name);
+      damgr_log(INFO, "linking dotfiles for module: %s", action->payload.name);
       if (execute_dotfile_command(true, action->payload.name) != EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to link dotfiles for module: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to link dotfiles for module: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully linked dotfiles for module: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully linked dotfiles for module: %s",
+                action->payload.name);
     } else {
-      LOG(LOG_INFO, "unlinking dotfiles for module: %s", action->payload.name);
+      damgr_log(INFO, "unlinking dotfiles for module: %s",
+                action->payload.name);
       if (execute_dotfile_command(false, action->payload.name) !=
           EXIT_SUCCESS) {
-        LOG(LOG_ERROR, "failed to link dotfiles for module: %s",
-            action->payload.name);
+        damgr_log(ERROR, "failed to link dotfiles for module: %s",
+                  action->payload.name);
         return EXIT_FAILURE;
       }
-      LOG(LOG_INFO, "succesfully linked dotfiles for module: %s",
-          action->payload.name);
+      damgr_log(INFO, "succesfully linked dotfiles for module: %s",
+                action->payload.name);
     }
     break;
   }
@@ -539,8 +541,8 @@ int do_actions(struct config *old_config, struct config *config) {
   for (size_t i = 0; i < config->active_host.host_actions.count; ++i) {
     struct action *action = &config->active_host.host_actions.items[i];
     if (do_action(action, config->aur_helper) != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "failed to do host actions for the host: %s",
-          config->active_host.name);
+      damgr_log(ERROR, "failed to do host actions for the host: %s",
+                config->active_host.name);
       action->status = FAILED;
       return EXIT_FAILURE;
     } else {

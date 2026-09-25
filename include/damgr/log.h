@@ -1,8 +1,17 @@
-#ifndef LOGGING_H
-#define LOGGING_H
+#ifndef DAMGR_LOG_H
+#define DAMGR_LOG_H
 
-enum log_level { LOG_INFO, LOG_ERROR };
+#include <stdarg.h>
+#include <stdio.h>
 
-void LOG(enum log_level level, const char *log, ...);
+enum damgr_log_level { INFO, WARNING, ERROR };
 
-#endif /* LOGGING_H */
+// function pointer
+typedef void(damgr_log_handler)(enum damgr_log_level level, const char *fmt,
+                                va_list args);
+
+damgr_log_handler damgr_default_log_handler;
+
+void damgr_log(enum damgr_log_level level, const char *fmt, ...);
+
+#endif /* DAMGR_LOG_H */

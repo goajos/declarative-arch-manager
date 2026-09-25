@@ -36,9 +36,9 @@ int init_damgr_state_dir() {
   // stat returns -1 if fidbuf doesn't exist
   if (stat(fidbuf, &st) == -1) {
     mkdir(fidbuf, 0777);
-    LOG(LOG_INFO, "successfully created damgr state directory: %s", fidbuf);
+    damgr_log(INFO, "successfully created damgr state directory: %s", fidbuf);
   } else {
-    LOG(LOG_ERROR, "damgr state directory already exists");
+    damgr_log(ERROR, "damgr state directory already exists");
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
@@ -51,9 +51,9 @@ int init_damgr_config_dir() {
   // stat returns -1 if fidbuf doesn't exist
   if (stat(fidbuf, &st) == -1) {
     mkdir(fidbuf, 0777);
-    LOG(LOG_INFO, "successfully created damgr config directory: %s", fidbuf);
+    damgr_log(INFO, "successfully created damgr config directory: %s", fidbuf);
   } else {
-    LOG(LOG_ERROR, "damgr config directory already exists");
+    damgr_log(ERROR, "damgr config directory already exists");
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
@@ -330,17 +330,17 @@ int execute_update_command() {
 
 void report_module_actions(struct module module, bool is_state) {
   if (is_state) {
-    LOG(LOG_ERROR, "failed to do module actions for state module: %s",
-        module.name);
+    damgr_log(ERROR, "failed to do module actions for state module: %s",
+              module.name);
   } else {
-    LOG(LOG_ERROR, "failed to do module actions for new module: %s",
-        module.name);
+    damgr_log(ERROR, "failed to do module actions for new module: %s",
+              module.name);
   }
   for (size_t i = 0; i < module.module_actions.count; ++i) {
     struct action action = module.module_actions.items[i];
     if (action.status == PENDING) {
-      LOG(LOG_ERROR, "  [%s] %s: %s", action_status_names[action.status],
-          action_type_names[action.type], action.payload.name);
+      damgr_log(ERROR, "  [%s] %s: %s", action_status_names[action.status],
+                action_type_names[action.type], action.payload.name);
     }
   }
 }

@@ -6,7 +6,7 @@
 #include <string.h>
 
 int damgr_merge() {
-  LOG(LOG_INFO, "running damgr merge...");
+  damgr_log(INFO, "running damgr merge...");
 
   int ret;
   char fidbuf[PATH_MAX];
@@ -14,11 +14,11 @@ int damgr_merge() {
   snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr", get_user());
   ret = is_damgr_state_dir_empty(fidbuf);
   if (is_damgr_state_dir_empty(fidbuf) == EXIT_FAILURE) {
-    LOG(LOG_ERROR, "failed to open state directory: %s", fidbuf);
+    damgr_log(ERROR, "failed to open state directory: %s", fidbuf);
   }
   if (ret == 2) { // only "." and ".." dirs found
-    LOG(LOG_INFO, "no state to parse, the state directory is empty: %s",
-        fidbuf);
+    damgr_log(INFO, "no state to parse, the state directory is empty: %s",
+              fidbuf);
   } else {
     if (read_config(&old_config, true) != EXIT_SUCCESS) {
       goto cleanup;
@@ -62,7 +62,7 @@ int damgr_merge() {
       old_config.active_host.all_modules_actions_count == 0 &&
       config.active_host.host_actions.count == 0 &&
       config.active_host.all_modules_actions_count == 0) {
-    LOG(LOG_INFO, "got no actions, nothing to do...");
+    damgr_log(INFO, "got no actions, nothing to do...");
   } else {
     if (do_actions(&old_config, &config) != EXIT_SUCCESS) {
       goto cleanup;

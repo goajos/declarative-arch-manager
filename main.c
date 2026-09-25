@@ -7,10 +7,10 @@
 
 // TODO: add proper documentation
 int main(int argc, char *argv[]) {
-  LOG(LOG_INFO, "damgr started!");
+  damgr_log(INFO, "damgr started!");
   if (argc == 1 || argc > 2) {
-    LOG(LOG_ERROR, "No damgr argument given, possible commands "
-                   "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
+    damgr_log(ERROR, "No damgr argument given, possible commands "
+                     "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
     return EXIT_FAILURE;
   }
 
@@ -25,30 +25,30 @@ int main(int argc, char *argv[]) {
     // TODO: add validate command?
     // else if (memcmp(argv[1], "validate", 8) == 0) command_idx = 3;
   } else {
-    LOG(LOG_ERROR, "Not a valid damgr argument, possible commands "
-                   "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
+    damgr_log(ERROR, "Not a valid damgr argument, possible commands "
+                     "are:\n\tdamgr init\n\tdamgr merge\n\tdamgr update");
     return EXIT_FAILURE;
   }
 
   switch (command_idx) {
   case 0:
-    LOG(LOG_INFO, "starting damgr init..");
+    damgr_log(INFO, "starting damgr init..");
     if (damgr_init() != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
+      damgr_log(ERROR, "damgr %s failed...", argv[1]);
       return EXIT_FAILURE;
     }
     break;
   case 1:
-    LOG(LOG_INFO, "starting damgr merge...");
+    damgr_log(INFO, "starting damgr merge...");
     if (damgr_merge() != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
+      damgr_log(ERROR, "damgr %s failed...", argv[1]);
       return EXIT_FAILURE;
     }
     break;
   case 2:
-    LOG(LOG_INFO, "starting damgr update...");
+    damgr_log(INFO, "starting damgr update...");
     if (damgr_update() != EXIT_SUCCESS) {
-      LOG(LOG_ERROR, "damgr %s failed...", argv[1]);
+      damgr_log(ERROR, "damgr %s failed...", argv[1]);
       return EXIT_FAILURE;
     }
     break;
@@ -56,6 +56,6 @@ int main(int argc, char *argv[]) {
     //     break;
   }
 
-  LOG(LOG_INFO, "damgr finished!");
+  damgr_log(INFO, "damgr finished!");
   return EXIT_SUCCESS;
 }
