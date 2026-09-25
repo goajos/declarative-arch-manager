@@ -54,7 +54,7 @@ int damgr_merge() {
   }
 
   Damgr_Tasks tasks = {};
-  if (damgr_get_tasks(&tasks, &old_config, &config) != EXIT_SUCCESS) {
+  if (damgr_get_tasks(&tasks, old_config, config) != EXIT_SUCCESS) {
     goto cleanup;
   }
 
