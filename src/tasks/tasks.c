@@ -269,7 +269,7 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
 }
 
 static void damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host host) {
-  Damgr_Task_Queue host_queue = {};
+  Damgr_Task_Queue host_queue = {.queue_name = host.name};
   for (size_t i = 0; i < host.root_services.count; i++) {
     char *service = host.root_services.items[i];
     struct payload payload = {.payload_name = service};
@@ -281,8 +281,9 @@ static void damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host host) {
     damgr_tasks_append(tasks, host_queue);
   }
   for (size_t i = 0; i < host.modules.count; i++) {
-    Damgr_Task_Queue module_queue = {};
-    get_tasks_from_module(&module_queue, host.modules.items[i], true);
+    Damgr_Module module = host.modules.items[i];
+    Damgr_Task_Queue module_queue = {.queue_name = module.name};
+    get_tasks_from_module(&module_queue, module, true);
     if (module_queue.count > 0) {
       damgr_log(INFO, "successfully got %zu tasks for module: %s",
                 module_queue.count, host.modules.items[i].name);
@@ -475,7 +476,6 @@ int damgr_do_tasks(Damgr_Tasks tasks, char *aur_helper, char *user) {
 //   return EXIT_SUCCESS;
 // }
 
-// only need to free the buffers, tasks borrowed ownership from config
 void damgr_free_tasks(Damgr_Tasks *tasks) {
   for (size_t i = 0; i < tasks->count; ++i) {
     free(tasks->queues[i].items); // free the items buffer itself
