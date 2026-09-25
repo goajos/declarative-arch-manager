@@ -1,0 +1,17 @@
+module {
+    example_module {
+        dotfiles sync=#true
+        packages {
+            example_package
+        }
+        aur_packages {
+            example_aur_package
+        }
+        services {
+            example_user_service // implicit root=#false
+        }
+        hooks {
+            example_user_hook root=#false
+        }
+    }
+}

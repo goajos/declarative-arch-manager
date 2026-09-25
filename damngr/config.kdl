@@ -1,0 +1,4 @@
+config {
+    aur_helper paru
+    active_host example_host
+}

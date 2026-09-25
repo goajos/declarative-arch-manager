@@ -1,0 +1,16 @@
+module {
+    another_example_module {
+        dotfiles sync=#false // can also be omitted?
+        packages {
+            another_example_package
+        }
+        aur_packages {
+        }
+        services {
+        }
+        hooks {
+            example_root_hook root=#false
+        }
+    }
+}
+
