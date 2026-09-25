@@ -92,14 +92,14 @@ cleanup:
   return ret;
 }
 
-int read_host(struct host *host, bool is_state) {
+int read_host(char *user, struct host *host, bool is_state) {
   char fidbuf[PATH_MAX];
   if (is_state) {
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
-             get_user(), host->name);
+             user, host->name);
   } else {
     snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/hosts/%s.kdl",
-             get_user(), host->name);
+             user, host->name);
   }
   FILE *host_fid = fopen(fidbuf, "r");
   if (host_fid != nullptr) {
@@ -122,10 +122,10 @@ int read_host(struct host *host, bool is_state) {
   }
 }
 
-int write_host(struct host host) {
+int write_host(char *user, struct host host) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.kdl",
-           get_user(), host.name);
+           user, host.name);
   FILE *host_fid = fopen(fidbuf, "w");
 
   kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;

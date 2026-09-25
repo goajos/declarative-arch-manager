@@ -92,14 +92,13 @@ cleanup:
   return ret;
 }
 
-int read_config(struct config *config, bool is_state) {
+int read_config(char *user, struct config *config, bool is_state) {
   char fidbuf[PATH_MAX];
   if (is_state) {
     snprintf(fidbuf, sizeof(fidbuf),
-             "/home/%s/.local/state/damgr/config_state.kdl", get_user());
+             "/home/%s/.local/state/damgr/config_state.kdl", user);
   } else {
-    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/config.kdl",
-             get_user());
+    snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.config/damgr/config.kdl", user);
   }
   FILE *config_fid = fopen(fidbuf, "r");
   if (config_fid != nullptr) {
@@ -122,10 +121,10 @@ int read_config(struct config *config, bool is_state) {
   }
 }
 
-int write_config(struct config config) {
+int write_config(char *user, struct config config) {
   char fidbuf[PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf),
-           "/home/%s/.local/state/damgr/config_state.kdl", get_user());
+           "/home/%s/.local/state/damgr/config_state.kdl", user);
   FILE *config_fid = fopen(fidbuf, "w");
 
   kdl_emitter_options e_opts = KDL_DEFAULT_EMITTER_OPTIONS;

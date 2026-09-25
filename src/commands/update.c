@@ -5,8 +5,12 @@
 int damgr_update() {
   damgr_log(INFO, "running damgr update...");
 
+  char *user = get_user();
+  if (user == nullptr) {
+    return EXIT_FAILURE;
+  }
   struct config new_config = {};
-  if (read_config(&new_config, false) != EXIT_SUCCESS) {
+  if (read_config(user, &new_config, false) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   };
   if (new_config.aur_helper) {
