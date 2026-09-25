@@ -1,4 +1,0 @@
-config_state {
-    aur_helper paru
-    active_host example_host
-}

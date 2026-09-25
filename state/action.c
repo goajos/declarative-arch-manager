@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <string.h>
 #include "../commands/command_utils.h"
 #include "state_utils.h"
@@ -36,29 +35,39 @@ static int get_package_actions(struct package_actions* actions,
     return EXIT_SUCCESS;
 }
 
+// TODO: rewrite with /dotfiles/<module> structure?
 static int get_dotfile_actions(struct dotfile_actions* actions,
-                            bool sync,
-                            char* name,
+                            bool module_sync,
+                            char* module_name,
                             bool to_sync) {
-    if (sync) {
+    if (module_sync) {
         char* ret;
+        char fidbuf[path_max];
+        snprintf(fidbuf,
+                sizeof(fidbuf),
+                "/home/%s/.config/damngr/modules/%s",
+                get_user(),
+                module_name);
         if (to_sync) {
             // to_sync=true, sync the module dotfiles
-            ret = string_copy(name);
+            ret = string_copy(module_name);
             if (ret == nullptr) return EXIT_FAILURE;
-            else DYNAMIC_ARRAY_APPEND(actions->to_sync, ret);
+            else DYNAMIC_ARRAY_APPEND(actions->to_sync, fidbuf);
         } else if (!to_sync) {
             // to_sync=false, unsync the module dotfiles
-            ret = string_copy(name);
+            ret = string_copy(module_name);
             if (ret == nullptr) return EXIT_FAILURE;
-            else DYNAMIC_ARRAY_APPEND(actions->to_unsync, ret);
+            else DYNAMIC_ARRAY_APPEND(actions->to_unsync, fidbuf);
         }
     }
     return EXIT_SUCCESS;
 }
 
+// TODO: add the path to hook action instead
+// TODO: how to set up the hook folder structure
 static int get_hook_actions(struct hook_actions* actions,
                             struct dynamic_array hooks,
+                            char* module_name,
                             bool root) {
     for (size_t i = 0; i < hooks.count; ++i) {
         char* hook = hooks.items[i];
@@ -90,9 +99,9 @@ static int get_module_actions(struct module module,
             if (ret == EXIT_FAILURE) return ret;
             ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_hook_actions(hook_actions, module.root_hooks, true);
+            ret = get_hook_actions(hook_actions, module.root_hooks, module.name, true);
             if (ret == EXIT_FAILURE) return ret;
-            ret = get_hook_actions(hook_actions, module.user_hooks, false);
+            ret = get_hook_actions(hook_actions, module.user_hooks, module.name, false);
             if (ret == EXIT_FAILURE) return ret;
             break;
         case TO_REMOVE:
@@ -189,8 +198,8 @@ static int determine_actions_from_dotfiles_diff(struct module old_module,
 }
 
 // TODO: to implement a hook reset, delete the hook from the old hooks list!
-static int determine_actions_from_hooks_diff(struct dynamic_array old_hooks,
-                                            struct dynamic_array new_hooks,
+static int determine_actions_from_hooks_diff(struct module old_module,
+                                            struct module new_module,
                                             struct hook_actions* hook_actions,
                                             bool root) {
     int ret;
@@ -200,9 +209,9 @@ static int determine_actions_from_hooks_diff(struct dynamic_array old_hooks,
     COMPUTE_DYNAMIC_ARRAY_DIFF(&hooks_to_install,
                             &hooks_to_remove,
                             &hooks_to_keep,
-                            old_hooks,
-                            new_hooks);
-    ret = get_hook_actions(hook_actions, hooks_to_install, root);
+                            ((root) ? old_module.root_hooks : old_module.user_hooks),
+                            ((root) ? new_module.root_hooks : new_module.user_hooks));
+    ret = get_hook_actions(hook_actions, hooks_to_install, new_module.name, root);
     // hooks_to_remove are ignored (can't undo a script)
     // hooks_to_keep are ignored (hooks have been ran in the past)
 
@@ -233,13 +242,13 @@ static int determine_actions_from_module_diff(struct module old_module,
                                             new_module,
                                             dotfile_actions);
     if (ret == EXIT_FAILURE) return ret;
-    ret = determine_actions_from_hooks_diff(old_module.root_hooks,
-                                            new_module.root_hooks,
+    ret = determine_actions_from_hooks_diff(old_module,
+                                            new_module,
                                             hook_actions,
                                             true);
     if (ret == EXIT_FAILURE) return ret;
-    ret = determine_actions_from_hooks_diff(old_module.user_hooks,
-                                            new_module.user_hooks,
+    ret = determine_actions_from_hooks_diff(old_module,
+                                            new_module,
                                             hook_actions,
                                             false);
 
@@ -323,9 +332,9 @@ int determine_actions(struct config* old_config,
                 if (ret == EXIT_FAILURE) return ret;
                 ret = get_dotfile_actions(dotfile_actions, module.sync, module.name, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_hook_actions(hook_actions, module.root_hooks, true);
+                ret = get_hook_actions(hook_actions, module.root_hooks, module.name, true);
                 if (ret == EXIT_FAILURE) return ret;
-                ret = get_hook_actions(hook_actions, module.user_hooks, false);
+                ret = get_hook_actions(hook_actions, module.user_hooks, module.name, false);
                 if (ret == EXIT_FAILURE) return ret;
             }
     } else {
@@ -356,7 +365,7 @@ int determine_actions(struct config* old_config,
     return ret;
 }
 
-// TODO: how to make atomic
+// TODO: how to make atomic?
 int handle_package_actions(struct package_actions package_actions) {
     int ret;
     if (package_actions.to_remove.count > 0) {
@@ -368,7 +377,7 @@ int handle_package_actions(struct package_actions package_actions) {
     return ret;
 }
 
-// TODO: how to make atomic
+// TODO: how to make atomic?
 int handle_aur_package_actions(struct package_actions aur_package_actions,
                             char* aur_helper) {
     int ret;
@@ -399,6 +408,27 @@ int handle_service_actions(struct service_actions service_actions) {
     }
     if (service_actions.user_to_enable.count > 0) {
         ret = execute_service_command(false, true, service_actions.user_to_enable);
+    }
+    return ret;
+}
+
+// TODO: how to make atomic?
+int handle_dotfile_actions([[maybe_unused]] struct dotfile_actions dotfile_actions) {
+    return EXIT_SUCCESS;
+}
+
+// TODO: how to make atomic?
+int handle_hook_actions(struct hook_actions hook_actions) {
+    int ret;
+    if (hook_actions.root.count > 0) {
+        for (size_t i = 0; i < hook_actions.root.count; ++i) {
+            ret = execute_hook_command(true, hook_actions.root.items[i]); 
+        }
+    }
+    if (hook_actions.user.count > 0) {
+        for (size_t i = 0; i < hook_actions.root.count; ++i) {
+            ret = execute_hook_command(false, hook_actions.user.items[i]);
+        }
     }
     return ret;
 }
