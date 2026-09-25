@@ -41,3 +41,19 @@ char *string_copy(char *str) {
   }
   return ret;
 }
+
+bool string_contains(char *haystack, char *needle) {
+  bool contains = false;
+  for (size_t i = 0, j = 0; i < strlen(haystack) && !contains; ++i) {
+    while (haystack[i] == needle[j]) {
+      ++j;
+      ++i;
+      if (j == strlen(needle)) {
+        contains = true;
+        return contains;
+      }
+    }
+    j = 0;
+  }
+  return contains;
+}

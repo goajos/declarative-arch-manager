@@ -11,5 +11,6 @@ char *get_user();
 size_t read_func(void *user_data, char *buf, size_t bufsize);
 
 char *string_copy(char *str);
+bool string_contains(char *haystack, char *needle);
 
 #endif /* UTILS_H */

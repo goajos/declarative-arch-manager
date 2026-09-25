@@ -1,7 +1,8 @@
-#include "damgr/logging.h"
+#include "damgr/log.h"
 #include "damgr/state.h"
 #include "damgr/utils.h"
 #include <stdlib.h>
+#include <string.h>
 
 int damgr_merge() {
   LOG(LOG_INFO, "running damgr merge...");
@@ -31,9 +32,39 @@ int damgr_merge() {
     if (get_host(&old_config.active_host, true) != EXIT_SUCCESS) {
       return EXIT_FAILURE;
     }
+    for (size_t i = 0; i < old_config.active_host.modules.count; ++i) {
+      struct module module = old_config.active_host.modules.items[i];
+      if (get_module(&module, true) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+      }
+    }
   }
   if (get_host(&new_config.active_host, false) != EXIT_SUCCESS) {
     return EXIT_FAILURE;
+  }
+  for (size_t i = 0; i < new_config.active_host.modules.count; ++i) {
+    struct module module = new_config.active_host.modules.items[i];
+    if (get_module(&module, false) != EXIT_SUCCESS) {
+      return EXIT_FAILURE;
+    }
+    for (size_t j = 0; j < old_config.active_host.modules.count; ++j) {
+      struct module old_module = old_config.active_host.modules.items[j];
+      // first check if the name lengths are equal, if so perform needle in
+      // haystack search, else skip
+      if (strlen(old_module.name) == strlen(module.name) &&
+          string_contains(old_module.name, module.name)) {
+        // old and new module available
+        // get_modules_diff(old_module, module);
+        // get_diff_actions();
+        // do_actions();
+      } else {
+        // only new module available
+        // get_module_actions();
+        // do_actions();
+      }
+    }
+    // TODO: how to handle the orphan old modules?
+    // for every orphan -> get_module_actions -> do_actions
   }
 
   return EXIT_SUCCESS;

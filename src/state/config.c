@@ -1,4 +1,4 @@
-#include "damgr/logging.h"
+#include "damgr/log.h"
 #include "damgr/state.h"
 #include "damgr/utils.h"
 #include "kdl/kdl.h"
@@ -19,9 +19,9 @@ static int validate_config(struct config config, char *fidbuf) {
   return EXIT_SUCCESS;
 }
 
-int get_config(struct config *config, bool state) {
+int get_config(struct config *config, bool is_state) {
   char fidbuf[PATH_MAX];
-  if (state) {
+  if (is_state) {
     snprintf(fidbuf, sizeof(fidbuf),
              "/home/%s/.local/state/damgr/config_state.kdl", get_user());
   } else {
@@ -39,7 +39,7 @@ int get_config(struct config *config, bool state) {
     fclose(config_fid);
     return validate_config(*config, fidbuf);
   } else {
-    if (state) {
+    if (is_state) {
       LOG(LOG_ERROR, "failed to open state config: %s", fidbuf);
       return EXIT_FAILURE;
     } else {
