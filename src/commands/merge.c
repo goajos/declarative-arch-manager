@@ -77,6 +77,14 @@ int damgr_merge() {
   ret = EXIT_SUCCESS;
 
 cleanup:
+  if (old_config.active_host.is_orphan) {
+    damgr_remove_host(user, old_config.active_host);
+    for (size_t i = 0; old_config.active_host.modules.count; ++i) {
+      if (old_config.active_host.modules.items[i].is_orphan) {
+        damgr_remove_module(user, old_config.active_host.modules.items[i]);
+      }
+    }
+  }
   damgr_free_config(&config);
   damgr_free_config(&old_config);
   damgr_free_tasks(&tasks);

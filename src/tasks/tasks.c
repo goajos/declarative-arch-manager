@@ -316,6 +316,7 @@ int damgr_get_tasks(Damgr_Tasks *tasks, Damgr_Config *old_config,
     int ret = strcmp(old_config->active_host.name, config->active_host.name);
     if (ret < 0 || ret > 0) { // different host
       damgr_get_tasks_from_host(tasks, &config->active_host);
+      old_config->active_host.is_orphan = true; // flag the old host for removal
       return EXIT_SUCCESS;
     } else { // same host
       damgr_get_tasks_from_hosts_diff(tasks, &old_config->active_host,

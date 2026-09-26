@@ -45,6 +45,7 @@ typedef struct host {
   Damgr_Modules modules;
   Damgr_Root_Services root_services;
   char *name;
+  bool is_orphan;
 } Damgr_Host;
 
 typedef struct config {
@@ -71,7 +72,9 @@ void damgr_free_config(Damgr_Config *config);
 int damgr_read_config(char *user, Damgr_Config *config, bool is_state);
 int damgr_write_config(char *user, Damgr_Config config);
 int damgr_read_host(char *user, Damgr_Config *config, bool is_state);
+void damgr_remove_host(char *user, Damgr_Host host);
 int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
                       bool is_state);
+void damgr_remove_module(char *user, Damgr_Module module);
 
 #endif /* DAMGR_STATE_H */

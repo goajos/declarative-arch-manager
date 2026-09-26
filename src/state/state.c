@@ -291,6 +291,14 @@ int damgr_read_host(char *user, Damgr_Config *config, bool is_state) {
   }
 }
 
+// TODO: add a return status with log?
+void damgr_remove_host(char *user, Damgr_Host host) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
+           user, host.name);
+  remove(fidbuf);
+}
+
 static int damgr_validate_module([[maybe_unused]] struct module module,
                                  char *fidbuf) {
   damgr_log(INFO, "successfully parsed module: %s", fidbuf);
@@ -323,6 +331,14 @@ int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
     damgr_log(ERROR, "failed to open %s module: %s", fmt, fidbuf);
     return EXIT_FAILURE;
   }
+}
+
+// TODO: add a return status with log?
+void damgr_remove_module(char *user, Damgr_Module module) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
+           user, module.name);
+  remove(fidbuf);
 }
 
 static int damgr_write_module(char *user, Damgr_Module module) {
