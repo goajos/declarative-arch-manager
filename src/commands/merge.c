@@ -70,23 +70,8 @@ int damgr_merge() {
     goto cleanup;
   }
 
-  if (damgr_write_config(user, &config) != EXIT_SUCCESS) {
+  if (damgr_write_config(user, config) != EXIT_SUCCESS) {
     goto cleanup;
-  }
-  if (config.active_host.to_write) {
-    if (damgr_write_host(user, &config.active_host) != EXIT_SUCCESS) {
-      goto cleanup;
-    }
-    if (config.active_host.modules.count > 0) {
-      for (size_t i = 0; i < config.active_host.modules.count; ++i) {
-        if (config.active_host.modules.items[i].to_write) {
-          if (damgr_write_module(user, &config.active_host.modules.items[i]) !=
-              EXIT_SUCCESS) {
-            goto cleanup;
-          }
-        }
-      }
-    }
   }
 
   ret = EXIT_SUCCESS;

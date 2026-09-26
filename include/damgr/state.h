@@ -25,7 +25,7 @@ typedef struct module {
     bool is_orphan;
     bool is_compared;
   };
-  bool to_write;
+  bool to_write; // flags that a queue with this module ran successfully
 } Damgr_Module;
 
 typedef struct modules {
@@ -35,11 +35,18 @@ typedef struct modules {
 } Damgr_Modules;
 void damgr_modules_append(Damgr_Modules *modules, Damgr_Module module);
 
+typedef struct root_servives {
+  char **items;
+  size_t capacity;
+  size_t count;
+  bool to_write; // flags that a queue with these root services ran successfully
+} Damgr_Root_Services;
+void damgr_root_services_append(Damgr_Root_Services *services, char *service);
+
 typedef struct host {
   Damgr_Modules modules;
-  Damgr_Darray root_services;
+  Damgr_Root_Services root_services;
   char *name;
-  bool to_write;
 } Damgr_Host;
 
 typedef struct config {
@@ -64,11 +71,9 @@ extern const char *damgr_conf_keys[];
 
 void damgr_free_config(Damgr_Config *config);
 int damgr_read_config(char *user, Damgr_Config *config, bool is_state);
-int damgr_write_config(char *user, Damgr_Config *config);
+int damgr_write_config(char *user, Damgr_Config config);
 int damgr_read_host(char *user, Damgr_Config *config, bool is_state);
-int damgr_write_host(char *user, Damgr_Host *host);
 int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
                       bool is_state);
-int damgr_write_module(char *user, Damgr_Module *module);
 
 #endif /* DAMGR_STATE_H */

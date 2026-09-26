@@ -16,7 +16,7 @@ typedef enum task_type {
   POST_USER_HOOK,
 } Damgr_Task_Type;
 
-typedef enum queue_type { HOST, MODULE } Damgr_Queue_Type;
+typedef enum queue_type { SERVICE, MODULE } Damgr_Queue_Type;
 
 typedef struct payload {
   union {

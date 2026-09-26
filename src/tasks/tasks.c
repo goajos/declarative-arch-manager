@@ -137,8 +137,8 @@ static void damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
                                                Damgr_Darray old_services,
                                                Damgr_Darray services,
                                                Damgr_Task_Type type) {
-  struct darray to_disable = {};
-  struct darray to_enable = {};
+  Damgr_Darray to_disable = {};
+  Damgr_Darray to_enable = {};
   damgr_compute_darray_diff(&to_disable, &to_enable, old_services, services);
   for (size_t i = 0; i < to_disable.count; ++i) {
     char *service = to_disable.items[i];
@@ -152,12 +152,27 @@ static void damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
   }
 }
 
+static void damgr_get_tasks_from_root_services_diff(
+    Damgr_Task_Queue *queue, Damgr_Root_Services old_services,
+    Damgr_Root_Services services, Damgr_Task_Type type) {
+  Damgr_Darray old_services_darray = {};
+  Damgr_Darray services_darray = {};
+  for (size_t i = 0; i < old_services.count; ++i) {
+    damgr_darray_append(&old_services_darray, old_services.items[i]);
+  }
+  for (size_t i = 0; i < services.count; ++i) {
+    damgr_darray_append(&services_darray, services.items[i]);
+  }
+  damgr_get_tasks_from_services_diff(queue, old_services_darray,
+                                     services_darray, type);
+}
+
 static void damgr_get_tasks_from_hooks_diff(Damgr_Task_Queue *queue,
                                             Damgr_Darray old_hooks,
                                             Damgr_Darray hooks,
                                             Damgr_Task_Type type) {
   // can't undo hooks
-  struct darray to_run = {};
+  Damgr_Darray to_run = {};
   damgr_compute_darray_diff(nullptr, &to_run, old_hooks, hooks);
   for (size_t i = 0; i < to_run.count; ++i) {
     char *hook = to_run.items[i];
@@ -169,8 +184,8 @@ static void damgr_get_tasks_from_hooks_diff(Damgr_Task_Queue *queue,
 static void damgr_get_tasks_from_packages_diff(Damgr_Task_Queue *queue,
                                                Damgr_Darray old_packages,
                                                Damgr_Darray packages) {
-  struct darray to_install = {};
-  struct darray to_remove = {};
+  Damgr_Darray to_install = {};
+  Damgr_Darray to_remove = {};
   damgr_compute_darray_diff(&to_install, &to_remove, old_packages, packages);
   if (to_install.count > 0) {
     struct payload payload = {.packages = to_install};
@@ -204,14 +219,16 @@ static void damgr_get_tasks_from_module_diff(Damgr_Task_Queue *queue,
 static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
                                             Damgr_Host *old_host,
                                             Damgr_Host *host) {
-  Damgr_Task_Queue host_queue = {
-      .type = HOST, .queue_name = host->name, .owner_ptr = host};
-  damgr_get_tasks_from_services_diff(&host_queue, old_host->root_services,
-                                     host->root_services, ROOT_SERVICE);
-  if (host_queue.count > 0) {
-    damgr_log(INFO, "successfully got %zu tasks for host: %s", host_queue.count,
-              host->name);
-    damgr_tasks_append(tasks, host_queue);
+  Damgr_Task_Queue service_queue = {.type = SERVICE,
+                                    .queue_name = host->name,
+                                    .owner_ptr = &host->root_services};
+  damgr_get_tasks_from_root_services_diff(&service_queue,
+                                          old_host->root_services,
+                                          host->root_services, ROOT_SERVICE);
+  if (service_queue.count > 0) {
+    damgr_log(INFO, "successfully got %zu tasks for host: %s",
+              service_queue.count, host->name);
+    damgr_tasks_append(tasks, service_queue);
   }
   for (size_t i = 0; i < host->modules.count; ++i) {
     Damgr_Module *module = &host->modules.items[i];
@@ -264,17 +281,18 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
 }
 
 static void damgr_get_tasks_from_host(Damgr_Tasks *tasks, Damgr_Host *host) {
-  Damgr_Task_Queue host_queue = {
-      .type = HOST, .queue_name = host->name, .owner_ptr = host};
+  Damgr_Task_Queue service_queue = {.type = SERVICE,
+                                    .queue_name = host->name,
+                                    .owner_ptr = &host->root_services};
   for (size_t i = 0; i < host->root_services.count; i++) {
     char *service = host->root_services.items[i];
     struct payload payload = {.payload_name = service};
-    damgr_get_task(&host_queue, ROOT_SERVICE, true, payload);
+    damgr_get_task(&service_queue, ROOT_SERVICE, true, payload);
   }
-  if (host_queue.count > 0) {
-    damgr_log(INFO, "successfully got %zu tasks for host: %s", host_queue.count,
-              host->name);
-    damgr_tasks_append(tasks, host_queue);
+  if (service_queue.count > 0) {
+    damgr_log(INFO, "successfully got %zu tasks for host: %s",
+              service_queue.count, host->name);
+    damgr_tasks_append(tasks, service_queue);
   }
   for (size_t i = 0; i < host->modules.count; i++) {
     Damgr_Module *module = &host->modules.items[i];
@@ -401,8 +419,6 @@ static void damgr_undo_task(Damgr_Task *task, char *user) {
   }
 }
 
-// TODO: queues that succeeded should be written to state so they are ignored on
-// a new run
 static int queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
                              char *user) {
   damgr_log(INFO, "%s queue transaction started...", queue.queue_name);
@@ -412,9 +428,8 @@ static int queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
     Damgr_Task *task = &queue.items[i];
     if (task->status == PENDING) {
       damgr_log(INFO, "%s queue do task: %s", queue.queue_name,
-                task->payload.payload_name);
+                damgr_task_type_keys[task->type]);
       damgr_do_task(task, aur_helper, user);
-
       if (task->status == SUCCEEDED) {
         damgr_log(INFO, "%s queue task: %s succeeded!", queue.queue_name,
                   damgr_task_type_keys[task->type]);
@@ -443,8 +458,8 @@ static int queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
     }
 
     damgr_log(INFO, "%s queue rollback finished!", queue.queue_name);
-    if (queue.type == HOST) {
-      Damgr_Host *owner_ptr = queue.owner_ptr;
+    if (queue.type == SERVICE) {
+      Damgr_Root_Services *owner_ptr = queue.owner_ptr;
       owner_ptr->to_write = false;
     } else {
       Damgr_Module *owner_ptr = queue.owner_ptr;
@@ -454,8 +469,8 @@ static int queue_transaction(Damgr_Task_Queue queue, char *aur_helper,
   }
 
   damgr_log(INFO, "%s queue transaction finished!", queue.queue_name);
-  if (queue.type == HOST) {
-    Damgr_Host *owner_ptr = queue.owner_ptr;
+  if (queue.type == SERVICE) {
+    Damgr_Root_Services *owner_ptr = queue.owner_ptr;
     owner_ptr->to_write = true;
   } else {
     Damgr_Module *owner_ptr = queue.owner_ptr;

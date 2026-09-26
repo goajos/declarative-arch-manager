@@ -37,6 +37,19 @@ void damgr_modules_append(Damgr_Modules *modules, Damgr_Module module) {
   modules->items[modules->count++] = module;
 }
 
+void damgr_root_services_append(Damgr_Root_Services *services, char *service) {
+  if (services->count >= services->capacity) {
+    if (services->capacity == 0) {
+      services->capacity = 16;
+    } else {
+      services->capacity *= 2;
+    }
+    services->items =
+        realloc(services->items, services->capacity * sizeof(*services->items));
+  }
+  services->items[services->count++] = service;
+}
+
 static int damgr_parse_val(int *conf_key, Damgr_Config *config, char *line,
                            int *idx) {
   char key[256];
@@ -112,13 +125,14 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
           config->active_host.name = damgr_string_copy(val);
           break;
         case MODULES:
-          Damgr_Module module = {.name = damgr_string_copy(val)};
+          Damgr_Module module = {.name = damgr_string_copy(val),
+                                 .to_write = false};
           damgr_modules_append(&config->active_host.modules, module);
           break;
         case SERVICES:
           if (idx == nullptr) {
-            damgr_darray_append(&config->active_host.root_services,
-                                damgr_string_copy(val));
+            damgr_root_services_append(&config->active_host.root_services,
+                                       damgr_string_copy(val));
           } else {
             damgr_darray_append(
                 &config->active_host.modules.items[*idx].user_services,
@@ -150,13 +164,14 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
       // a __str line, e.g. nested packages
       switch (*conf_key) {
       case MODULES:
-        Damgr_Module module = {.name = damgr_string_copy(line)};
+        Damgr_Module module = {.name = damgr_string_copy(line),
+                               .to_write = false};
         damgr_modules_append(&config->active_host.modules, module);
         break;
       case SERVICES:
         if (idx == nullptr) { // not parsing a module
-          damgr_darray_append(&config->active_host.root_services,
-                              damgr_string_copy(line));
+          damgr_root_services_append(&config->active_host.root_services,
+                                     damgr_string_copy(line));
         } else {
           damgr_darray_append(
               &config->active_host.modules.items[*idx].user_services,
@@ -237,30 +252,6 @@ int damgr_read_config(char *user, Damgr_Config *config, bool is_state) {
   }
 }
 
-int damgr_write_config(char *user, Damgr_Config *config) {
-  char fidbuf[damgr_path_max];
-  snprintf(fidbuf, sizeof(fidbuf),
-           "/home/%s/.local/state/damgr/config_state.conf", user);
-  FILE *config_fid = fopen(fidbuf, "w");
-  if (config_fid == nullptr) {
-    damgr_log(ERROR, "failed to open state config for writing: %s", fidbuf);
-    return EXIT_FAILURE;
-  }
-
-  if (config->aur_helper != nullptr) {
-    fprintf(config_fid, "%s=%s\n", damgr_conf_keys[AUR_HELPER],
-            config->aur_helper);
-  }
-  if (config->active_host.name != nullptr) {
-    fprintf(config_fid, "%s=%s\n", damgr_conf_keys[ACTIVE_HOST],
-            config->active_host.name);
-  }
-
-  fclose(config_fid);
-  damgr_log(INFO, "succesfully wrote state config: %s", fidbuf);
-  return EXIT_SUCCESS;
-}
-
 static int damgr_validate_host(Damgr_Host host, char *fidbuf) {
   // TODO: is there any more validation to do for the host?
   if (host.modules.count == 0) {
@@ -298,35 +289,6 @@ int damgr_read_host(char *user, Damgr_Config *config, bool is_state) {
   }
 }
 
-int damgr_write_host(char *user, Damgr_Host *host) {
-  char fidbuf[damgr_path_max];
-  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
-           user, host->name);
-  FILE *host_fid = fopen(fidbuf, "w");
-  if (host_fid == nullptr) {
-    damgr_log(ERROR, "failed to open state host for writing: %s", fidbuf);
-    return EXIT_FAILURE;
-  }
-
-  if (host->modules.count > 0) {
-    fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
-    for (size_t i = 0; i < host->modules.count; ++i) {
-      fprintf(host_fid, "  %s\n", host->modules.items[i].name);
-    }
-  }
-
-  if (host->root_services.count > 0) {
-    fprintf(host_fid, "%s=\n", damgr_conf_keys[SERVICES]);
-    for (size_t i = 0; i < host->root_services.count; ++i) {
-      fprintf(host_fid, "  %s\n", host->root_services.items[i]);
-    }
-  }
-
-  fclose(host_fid);
-  damgr_log(INFO, "succesfully wrote state host: %s", fidbuf);
-  return EXIT_SUCCESS;
-}
-
 static int damgr_validate_module([[maybe_unused]] struct module module,
                                  char *fidbuf) {
   damgr_log(INFO, "successfully parsed module: %s", fidbuf);
@@ -361,69 +323,132 @@ int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
   }
 }
 
-int damgr_write_module(char *user, Damgr_Module *module) {
+static int damgr_write_module(char *user, Damgr_Module module) {
   char fidbuf[damgr_path_max];
   snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
-           user, module->name);
+           user, module.name);
   FILE *module_fid = fopen(fidbuf, "w");
   if (module_fid == nullptr) {
     damgr_log(ERROR, "failed to open state module for writing: %s", fidbuf);
     return EXIT_FAILURE;
   }
 
-  if (module->to_link) {
+  if (module.to_link) {
     fprintf(module_fid, "%s=link:true\n", damgr_conf_keys[DOTFILES]);
   }
 
-  if (module->pre_root_hooks.count > 0) {
+  if (module.pre_root_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
-    for (size_t i = 0; i < module->pre_root_hooks.count; ++i) {
-      fprintf(module_fid, "  %s:true\n", module->pre_root_hooks.items[i]);
+    for (size_t i = 0; i < module.pre_root_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:true\n", module.pre_root_hooks.items[i]);
     }
   }
-  if (module->pre_user_hooks.count > 0) {
+  if (module.pre_user_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
-    for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
-      fprintf(module_fid, "  %s:false\n", module->pre_user_hooks.items[i]);
+    for (size_t i = 0; i < module.pre_user_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:false\n", module.pre_user_hooks.items[i]);
     }
   }
 
-  if (module->packages.count > 0) {
+  if (module.packages.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[PACKAGES]);
-    for (size_t i = 0; i < module->packages.count; ++i) {
-      fprintf(module_fid, "  %s\n", module->packages.items[i]);
+    for (size_t i = 0; i < module.packages.count; ++i) {
+      fprintf(module_fid, "  %s\n", module.packages.items[i]);
     }
   }
 
-  if (module->aur_packages.count > 0) {
+  if (module.aur_packages.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[AUR_PACKAGES]);
-    for (size_t i = 0; i < module->aur_packages.count; ++i) {
-      fprintf(module_fid, "  %s\n", module->aur_packages.items[i]);
+    for (size_t i = 0; i < module.aur_packages.count; ++i) {
+      fprintf(module_fid, "  %s\n", module.aur_packages.items[i]);
     }
   }
 
-  if (module->user_services.count > 0) {
+  if (module.user_services.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[SERVICES]);
-    for (size_t i = 0; i < module->user_services.count; ++i) {
-      fprintf(module_fid, "  %s\n", module->user_services.items[i]);
+    for (size_t i = 0; i < module.user_services.count; ++i) {
+      fprintf(module_fid, "  %s\n", module.user_services.items[i]);
     }
   }
 
-  if (module->post_root_hooks.count > 0) {
+  if (module.post_root_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
-    for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
-      fprintf(module_fid, "  %s:true\n", module->post_root_hooks.items[i]);
+    for (size_t i = 0; i < module.post_root_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:true\n", module.post_root_hooks.items[i]);
     }
   }
-  if (module->post_user_hooks.count > 0) {
+  if (module.post_user_hooks.count > 0) {
     fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
-    for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
-      fprintf(module_fid, "  %s:false\n", module->post_user_hooks.items[i]);
+    for (size_t i = 0; i < module.post_user_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:false\n", module.post_user_hooks.items[i]);
     }
   }
 
   fclose(module_fid);
   damgr_log(INFO, "succesfully wrote state module: %s", fidbuf);
+  return EXIT_SUCCESS;
+}
+
+static int damgr_write_host(char *user, Damgr_Host host) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "/home/%s/.local/state/damgr/%s_state.conf",
+           user, host.name);
+  FILE *host_fid = fopen(fidbuf, "w");
+  if (host_fid == nullptr) {
+    damgr_log(ERROR, "failed to open state host for writing: %s", fidbuf);
+    return EXIT_FAILURE;
+  }
+
+  if (host.modules.count > 0) {
+    fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
+    for (size_t i = 0; i < host.modules.count; ++i) {
+      if (host.modules.items[i].to_write) {
+        fprintf(host_fid, "  %s\n", host.modules.items[i].name);
+        // nested write module call
+        damgr_write_module(user, host.modules.items[i]);
+      }
+    }
+  }
+
+  if (host.root_services.count > 0) {
+    if (host.root_services.to_write) {
+      fprintf(host_fid, "%s=\n", damgr_conf_keys[SERVICES]);
+      for (size_t i = 0; i < host.root_services.count; ++i) {
+        fprintf(host_fid, "  %s\n", host.root_services.items[i]);
+      }
+    }
+  }
+
+  fclose(host_fid);
+  damgr_log(INFO, "succesfully wrote state host: %s", fidbuf);
+  return EXIT_SUCCESS;
+}
+
+int damgr_write_config(char *user, Damgr_Config config) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf),
+           "/home/%s/.local/state/damgr/config_state.conf", user);
+  FILE *config_fid = fopen(fidbuf, "w");
+  if (config_fid == nullptr) {
+    damgr_log(ERROR, "failed to open state config for writing: %s", fidbuf);
+    return EXIT_FAILURE;
+  }
+
+  if (config.aur_helper != nullptr) {
+    fprintf(config_fid, "%s=%s\n", damgr_conf_keys[AUR_HELPER],
+            config.aur_helper);
+  }
+  if (config.active_host.name != nullptr) {
+    fprintf(config_fid, "%s=%s\n", damgr_conf_keys[ACTIVE_HOST],
+            config.active_host.name);
+  }
+
+  fclose(config_fid);
+  damgr_log(INFO, "succesfully wrote state config: %s", fidbuf);
+
+  // nested write host call
+  damgr_write_host(user, config.active_host);
+
   return EXIT_SUCCESS;
 }
 
@@ -450,7 +475,11 @@ void damgr_free_config(Damgr_Config *config) {
     damgr_free_module(&config->active_host.modules.items[i]);
   }
   free(config->active_host.modules.items); // free modules buffer itself
-  damgr_free_darray(&config->active_host.root_services);
+  for (size_t i = 0; i < config->active_host.root_services.count; ++i) {
+    free(config->active_host.root_services.items[i]);
+  }
+  free(config->active_host.root_services
+           .items); // free root services buffer itself
   free(config->active_host.name);
   free(config->aur_helper);
 }
