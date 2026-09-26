@@ -21,11 +21,9 @@ typedef struct module {
   Damgr_Darray post_user_hooks;
   char *name;
   bool to_link;
-  union {
-    bool is_orphan;
-    bool is_compared;
-  };
-  bool to_write; // flags that a queue with this module ran successfully
+  bool is_compared; // for new modules this should start on false
+  bool is_orphan;   // for old modules this should start on true
+  bool to_write;    // flags that a queue with this module ran successfully
 } Damgr_Module;
 
 typedef struct modules {

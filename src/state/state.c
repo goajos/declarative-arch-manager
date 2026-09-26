@@ -126,7 +126,8 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
           break;
         case MODULES:
           Damgr_Module module = {.name = damgr_string_copy(val),
-                                 .to_write = false};
+                                 .is_compared = false,
+                                 .is_orphan = true};
           damgr_modules_append(&config->active_host.modules, module);
           break;
         case SERVICES:
@@ -165,7 +166,8 @@ static int damgr_parse_line(int *conf_key, Damgr_Config *config, char *line,
       switch (*conf_key) {
       case MODULES:
         Damgr_Module module = {.name = damgr_string_copy(line),
-                               .to_write = false};
+                               .is_compared = false,
+                               .is_orphan = true};
         damgr_modules_append(&config->active_host.modules, module);
         break;
       case SERVICES:

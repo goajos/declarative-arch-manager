@@ -240,9 +240,10 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
       // haystack search, else skip
       if (strlen(old_module->name) == strlen(module->name) &&
           damgr_string_contains(old_module->name, module->name)) {
-        old_module->is_orphan = false; // to remove later
+        old_module->is_orphan =
+            false; // to remove later flip the old module state
         damgr_get_tasks_from_module_diff(&module_queue, *old_module, *module);
-        module->is_compared = true; // to skip later
+        module->is_compared = true; // to skip later flip the new module state
         if (module_queue.count > 0) {
           damgr_log(
               INFO,
@@ -256,7 +257,7 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
     if (!module->is_compared) {
       get_tasks_from_module(&module_queue, *module, true);
       if (module_queue.count > 0) {
-        damgr_log(INFO, "successfully got %zu tasks for module: %s",
+        damgr_log(INFO, "successfully got %zu tasks for new module: %s",
                   module_queue.count, module->name);
         damgr_tasks_append(tasks, module_queue);
       }
@@ -272,7 +273,7 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Tasks *tasks,
                                            &old_host->modules.items[i]};
       get_tasks_from_module(&module_queue, *old_module, false);
       if (module_queue.count > 0) {
-        damgr_log(INFO, "successfully got %zu tasks for module: %s",
+        damgr_log(INFO, "successfully got %zu tasks for orphan module: %s",
                   module_queue.count, old_host->modules.items[i].name);
         damgr_tasks_append(tasks, module_queue);
       }
