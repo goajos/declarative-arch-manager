@@ -1,11 +1,8 @@
 #include "damgr/log.h"
-#include "src/commands/init.c"
 #include "src/commands/merge.c"
-#include "src/commands/update.c"
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: add proper documentation
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
   if (argc == 1 || argc > 2) {
@@ -14,7 +11,9 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // TODO: reimplement init and update!
   // TODO: reset hooks command? -> remove from state to reset
+  int ret;
   int command_idx;
   if (memcmp(argv[1], "init", 4) == 0) {
     command_idx = 0;
@@ -33,29 +32,22 @@ int main(int argc, char *argv[]) {
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr init..");
-    if (damgr_init() != EXIT_SUCCESS) {
-      damgr_log(ERROR, "damgr %s failed...", argv[1]);
-      return EXIT_FAILURE;
-    }
+    ret = EXIT_SUCCESS;
     break;
   case 1:
     damgr_log(INFO, "starting damgr merge...");
-    if (damgr_merge() != EXIT_SUCCESS) {
-      damgr_log(ERROR, "damgr %s failed...", argv[1]);
-      return EXIT_FAILURE;
-    }
+    ret = damgr_merge();
     break;
   case 2:
     damgr_log(INFO, "starting damgr update...");
-    if (damgr_update() != EXIT_SUCCESS) {
-      damgr_log(ERROR, "damgr %s failed...", argv[1]);
-      return EXIT_FAILURE;
-    }
+    ret = EXIT_SUCCESS;
     break;
-    // case 3:
-    //     break;
   }
 
-  damgr_log(INFO, "damgr finished!");
-  return EXIT_SUCCESS;
+  if (ret != EXIT_SUCCESS) {
+    damgr_log(ERROR, "damgr %s failed...", argv[1]);
+  } else {
+    damgr_log(INFO, "damgr finished!");
+  }
+  return ret;
 }
