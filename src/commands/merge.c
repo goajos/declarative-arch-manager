@@ -34,6 +34,7 @@ int damgr_merge() {
 
   damgr_get_task_queues(&old_config, &config);
   // TODO: finish walking through the queues
+  damgr_do_task_queues(&old_config, &config);
 
   return EXIT_SUCCESS;
 }

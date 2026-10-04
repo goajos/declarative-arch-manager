@@ -35,9 +35,7 @@ typedef struct task_queue {
   Damgr_Task *tasks;
   size_t capacity;
   size_t count;
-  char *queue_name;
-  Damgr_Module *module_ptr; // points to new module
-  Damgr_Module *old_ptr;    // points to old module if present
+  Damgr_Module *module_ptr;
   Damgr_Status status;
 } Damgr_Task_Queue;
 
@@ -46,11 +44,11 @@ typedef struct queues {
   Damgr_Task_Queue *queues;
   size_t capacity;
   size_t count;
-  Damgr_Host *host_ptr; // points to new host
-  Damgr_Host *old_ptr;  // points to old host if present
+  Damgr_Host *host_ptr;
 } Damgr_Task_Queues;
 
 typedef struct config Damgr_Config; // forward declaration works for pointers?
 void damgr_get_task_queues(Damgr_Config *old_config, Damgr_Config *config);
+void damgr_do_task_queues(Damgr_Config *old_config, Damgr_Config *config);
 
 #endif /* DAMGR_TASKS_H */

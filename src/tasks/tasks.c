@@ -213,42 +213,39 @@ static void get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module module,
   }
 }
 
-static void damgr_get_tasks_from_hosts_diff(Damgr_Task_Queues *queues,
-                                            Damgr_Host *old_host,
+static void damgr_get_tasks_from_hosts_diff(Damgr_Host *old_host,
                                             Damgr_Host *host) {
   bool *is_orphan = malloc(old_host->modules.count * sizeof(bool));
   for (size_t i = 0; i < host->modules.count; ++i) {
     Damgr_Module *module = &host->modules.modules[i];
-    Damgr_Task_Queue queue = {.queue_name = module->module_name,
-                              .module_ptr = &host->modules.modules[i],
-                              .old_ptr = nullptr,
-                              .status = PENDING};
+    Damgr_Task_Queue queue = {.module_ptr = nullptr, .status = PENDING};
     for (size_t j = 0; j < old_host->modules.count; ++j) {
       Damgr_Module *old_module = &old_host->modules.modules[j];
       // first check if the name lengths are equal, if so perform needle in
       // haystack search, else skip
       if (strlen(old_module->module_name) == strlen(module->module_name) &&
           damgr_string_contains(old_module->module_name, module->module_name)) {
+        queue.module_ptr = module;
         is_orphan[j] = false;
-        queue.old_ptr = old_module;
         damgr_get_tasks_from_module_diff(&queue, *old_module, *module);
         if (queue.count > 0) {
           damgr_log(
               INFO,
               "successfully got %zu tasks after comparison for module: %s",
               queue.count, module->module_name);
-          damgr_queues_append(queues, queue);
+          damgr_queues_append(&host->task_queues, queue);
         }
         break; // always break after diff calculation
       }
     }
-    if (queue.old_ptr == nullptr) {
+    if (queue.module_ptr == nullptr) {
       // no old module matched, so the module is new
+      queue.module_ptr = module;
       get_tasks_from_module(&queue, *module, true);
       if (queue.count > 0) {
         damgr_log(INFO, "successfully got %zu tasks for new module: %s",
                   queue.count, module->module_name);
-        damgr_queues_append(queues, queue);
+        damgr_queues_append(&host->task_queues, queue);
       }
     }
   }
@@ -256,61 +253,83 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Task_Queues *queues,
   for (size_t i = 0; i < old_host->modules.count; ++i) {
     Damgr_Module *old_module = &old_host->modules.modules[i];
     if (is_orphan[i]) {
-      Damgr_Task_Queue queue = {.queue_name = old_module->module_name,
-                                .module_ptr = &old_host->modules.modules[i],
-                                .old_ptr = nullptr,
+      Damgr_Task_Queue queue = {.module_ptr = &old_host->modules.modules[i],
                                 .status = PENDING};
       get_tasks_from_module(&queue, *old_module, false);
       if (queue.count > 0) {
         damgr_log(INFO, "successfully got %zu tasks for old module: %s",
                   queue.count, old_host->modules.modules[i].module_name);
-        damgr_queues_append(queues, queue);
+        damgr_queues_append(&old_host->task_queues, queue);
       }
     }
   }
   free(is_orphan);
 }
 
-static void damgr_get_tasks_from_host(Damgr_Task_Queues *queues,
-                                      Damgr_Host *host) {
+static void damgr_get_tasks_from_host(Damgr_Host *host) {
   for (size_t i = 0; i < host->modules.count; i++) {
     Damgr_Module *module = &host->modules.modules[i];
-    Damgr_Task_Queue queue = {.queue_name = module->module_name,
-                              .module_ptr = &host->modules.modules[i],
-                              .old_ptr = nullptr,
+    Damgr_Task_Queue queue = {.module_ptr = &host->modules.modules[i],
                               .status = PENDING};
     get_tasks_from_module(&queue, *module, true);
     if (queue.count > 0) {
       damgr_log(INFO, "successfully got %zu tasks for module: %s", queue.count,
                 host->modules.modules[i].module_name);
-      damgr_queues_append(queues, queue);
+      damgr_queues_append(&host->task_queues, queue);
     }
   }
 }
 
 void damgr_get_task_queues(Damgr_Config *old_config, Damgr_Config *config) {
-  Damgr_Task_Queues *queues = &config->active_host.task_queues;
-  queues->host_ptr = &config->active_host;
-  queues->old_ptr = nullptr;
   if (old_config->active_host.host_name != nullptr) {
-    queues->old_ptr = &old_config->active_host; // flag for cleanup
+    config->active_host.task_queues.host_ptr = &config->active_host;
+    old_config->active_host.task_queues.host_ptr = &old_config->active_host;
     int ret = strcmp(old_config->active_host.host_name,
                      config->active_host.host_name);
     if (ret < 0 || ret > 0) { // different host
-      damgr_get_tasks_from_host(queues, &config->active_host);
+      damgr_get_tasks_from_host(&config->active_host);
       goto exit;
     } else { // same host
-      damgr_get_tasks_from_hosts_diff(queues, &old_config->active_host,
+      damgr_get_tasks_from_hosts_diff(&old_config->active_host,
                                       &config->active_host);
+      goto exit;
     }
   } else { // no state host
-    damgr_get_tasks_from_host(queues, &config->active_host);
+    config->active_host.task_queues.host_ptr = &config->active_host;
+    damgr_get_tasks_from_host(&config->active_host);
     goto exit;
   }
   return;
 exit:
-  if (queues->count > 0) {
+  if (config->active_host.task_queues.count > 0) {
     damgr_log(INFO, "successfully got %zu task queues for host: %s",
-              queues->count, config->active_host.host_name);
+              config->active_host.task_queues.count,
+              config->active_host.host_name);
+  }
+  if (old_config->active_host.task_queues.count > 0) {
+    damgr_log(INFO, "successfully got %zu task queues for old host: %s",
+              old_config->active_host.task_queues.count,
+              old_config->active_host.host_name);
+  }
+}
+
+static void queue_transaction(Damgr_Task_Queue queue,
+                              [[maybe_unused]] char *aur_helper) {
+  damgr_log(INFO, "%s queue transaction started...",
+            queue.module_ptr->module_name);
+}
+
+void damgr_do_task_queues(Damgr_Config *old_config, Damgr_Config *config) {
+  damgr_log(INFO, "starting queue transactions for host %s",
+            config->active_host.host_name);
+  for (size_t i = 0; i < config->active_host.task_queues.count; ++i) {
+    queue_transaction(config->active_host.task_queues.queues[i],
+                      config->aur_helper);
+  }
+  damgr_log(INFO, "starting queue transactions for host %s",
+            old_config->active_host.host_name);
+  for (size_t i = 0; i < old_config->active_host.task_queues.count; ++i) {
+    queue_transaction(old_config->active_host.task_queues.queues[i],
+                      config->aur_helper);
   }
 }
