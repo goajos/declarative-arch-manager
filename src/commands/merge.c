@@ -8,7 +8,7 @@ int damgr_merge() {
 
   int ret;
   char fidbuf[damgr_path_max];
-  Damgr_Config old_config = {};
+  Damgr_Config old_config = {.active_host.host_name = nullptr};
   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr", getenv("HOME"));
   ret = damgr_is_state_dir_empty(fidbuf);
   if (ret == EXIT_FAILURE) {
@@ -32,9 +32,19 @@ int damgr_merge() {
     damgr_read_module(&config, i, false);
   }
 
-  damgr_get_task_queues(&old_config, &config);
-  // TODO: finish walking through the queues
-  damgr_do_task_queues(&old_config, &config);
+  damgr_get_task_queues_from_configs(&old_config, &config);
+  if (config.active_host.task_queues.count > 0) {
+    damgr_do_task_queues_for_config(&config, true);
+  } else {
+    // TODO: report no task queues?
+  }
+  if (old_config.active_host.host_name != nullptr) {
+    if (old_config.active_host.task_queues.count > 0) {
+      damgr_do_task_queues_for_config(&old_config, false);
+    } else {
+      // TODO: report no task queues?
+    }
+  }
 
   return EXIT_SUCCESS;
 }
