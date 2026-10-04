@@ -51,6 +51,6 @@ typedef struct queues {
 } Damgr_Task_Queues;
 
 typedef struct config Damgr_Config; // forward declaration works for pointers?
-void damgr_get_tasks(Damgr_Config *old_config, Damgr_Config *config);
+void damgr_get_task_queues(Damgr_Config *old_config, Damgr_Config *config);
 
 #endif /* DAMGR_TASKS_H */

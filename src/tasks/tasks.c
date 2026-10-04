@@ -4,6 +4,42 @@
 #include "damgr/utils.h"
 #include <string.h>
 
+static void damgr_compute_darray_diff(Damgr_Darray *negative,
+                                      Damgr_Darray *positive,
+                                      Damgr_Darray old_array,
+                                      Damgr_Darray array) {
+  qsort(old_array.items, old_array.count, sizeof(old_array.items[0]),
+        damgr_qcharcmp);
+  qsort(array.items, array.count, sizeof(array.items[0]), damgr_qcharcmp);
+  size_t i = 0;
+  size_t j = 0;
+  while (i < old_array.count && j < array.count) {
+    int ret = strcmp(old_array.items[i], array.items[j]);
+    if (ret < 0) {
+      if (negative != nullptr) {
+        damgr_darray_append(negative, old_array.items[i]);
+      }
+      ++i;
+    } else if (ret > 0) {
+      damgr_darray_append(positive, array.items[j]);
+      ++j;
+    } else {
+      ++i;
+      ++j;
+    }
+  }
+  while (i < old_array.count) {
+    if (negative != nullptr) {
+      damgr_darray_append(negative, old_array.items[i]);
+    }
+    ++i;
+  }
+  while (j < array.count) {
+    damgr_darray_append(positive, array.items[j]);
+    ++j;
+  }
+}
+
 static void damgr_queue_append(Damgr_Task_Queue *queue, Damgr_Task task) {
   if (queue->count >= queue->capacity) {
     if (queue->capacity == 0) {
@@ -38,24 +74,93 @@ static void damgr_get_task(Damgr_Task_Queue *queue, Damgr_Task_Type type,
   damgr_queue_append(queue, task);
 }
 
-// TODO: finish copying over these functions
+static void damgr_get_tasks_from_services_diff(Damgr_Task_Queue *queue,
+                                               Damgr_Darray old_services,
+                                               Damgr_Darray services,
+                                               Damgr_Task_Type type) {
+  Damgr_Darray to_enable = {};
+  Damgr_Darray to_disable = {};
+  damgr_compute_darray_diff(&to_disable, &to_enable, old_services, services);
+  for (size_t i = 0; i < to_enable.count; ++i) {
+    char *service = to_enable.items[i];
+    Damgr_Task_Payload payload = {.payload_name = service};
+    damgr_get_task(queue, type, true, payload);
+  }
+  for (size_t i = 0; i < to_disable.count; ++i) {
+    char *service = to_disable.items[i];
+    Damgr_Task_Payload payload = {.payload_name = service};
+    damgr_get_task(queue, type, false, payload);
+  }
+}
+
+static void damgr_get_tasks_from_packages_diff(Damgr_Task_Queue *queue,
+                                               Damgr_Darray old_packages,
+                                               Damgr_Darray packages) {
+  Damgr_Darray to_install = {};
+  Damgr_Darray to_remove = {};
+  damgr_compute_darray_diff(&to_install, &to_remove, old_packages, packages);
+  if (to_install.count > 0) {
+    Damgr_Task_Payload payload = {.packages = to_install};
+    damgr_get_task(queue, PACKAGE, true, payload);
+  }
+  if (to_remove.count > 0) {
+    Damgr_Task_Payload payload = {.packages = to_remove};
+    damgr_get_task(queue, PACKAGE, false, payload);
+  }
+}
+
+static void damgr_get_tasks_from_hooks_diff(Damgr_Task_Queue *queue,
+                                            Damgr_Darray old_hooks,
+                                            Damgr_Darray hooks,
+                                            Damgr_Task_Type type) {
+  // can't undo hooks
+  Damgr_Darray to_run = {};
+  damgr_compute_darray_diff(nullptr, &to_run, old_hooks, hooks);
+  for (size_t i = 0; i < to_run.count; ++i) {
+    char *hook = to_run.items[i];
+    Damgr_Task_Payload payload = {.payload_name = hook};
+    damgr_get_task(queue, type, true, payload);
+  }
+}
+
+static void damgr_get_tasks_from_dotfiles_diff(Damgr_Task_Queue *queue,
+                                               bool to_link, bool old_to_link,
+                                               char *module_name) {
+  bool link;
+  if (to_link && !old_to_link) {
+    link = true;
+  } else if (!to_link && old_to_link) {
+    link = false;
+  } else {
+    return; // no need for (un)linking
+  }
+  Damgr_Task_Payload payload = {.payload_name = module_name};
+  damgr_get_task(queue, DOTFILE, link, payload);
+}
+
 static void damgr_get_tasks_from_module_diff(Damgr_Task_Queue *queue,
                                              Damgr_Module old_module,
                                              Damgr_Module module) {
-  // damgr_get_tasks_from_services_diff(queue, old_module.user_services,
-  //                                    module.user_services, USER_SERVICE);
-  // damgr_get_tasks_from_packages_diff(queue, old_module.packages,
-  //                                    module.packages);
-  // damgr_get_tasks_from_packages_diff(queue, old_module.aur_packages,
-  //                                    module.aur_packages);
-  // damgr_get_tasks_from_hooks_diff(queue, old_module.pre_root_hooks,
-  //                                 module.pre_root_hooks, PRE_ROOT_HOOK);
-  // damgr_get_tasks_from_hooks_diff(queue, old_module.pre_user_hooks,
-  //                                 module.pre_user_hooks, PRE_USER_HOOK);
-  // damgr_get_tasks_from_hooks_diff(queue, old_module.post_root_hooks,
-  //                                 module.post_root_hooks, POST_ROOT_HOOK);
-  // damgr_get_tasks_from_hooks_diff(queue, old_module.post_user_hooks,
-  //                                 module.post_user_hooks, POST_USER_HOOK);
+  damgr_get_tasks_from_packages_diff(queue, old_module.packages,
+                                     module.packages);
+  damgr_get_tasks_from_packages_diff(queue, old_module.aur_packages,
+                                     module.aur_packages);
+  damgr_get_tasks_from_services_diff(queue, old_module.root_services,
+                                     module.root_services, ROOT_SERVICE);
+  damgr_get_tasks_from_services_diff(queue, old_module.user_services,
+                                     module.user_services, USER_SERVICE);
+  // pre hooks
+  damgr_get_tasks_from_hooks_diff(queue, old_module.pre_root_hooks,
+                                  module.pre_root_hooks, PRE_ROOT_HOOK);
+  damgr_get_tasks_from_hooks_diff(queue, old_module.pre_user_hooks,
+                                  module.pre_user_hooks, PRE_USER_HOOK);
+  // post hooks
+  damgr_get_tasks_from_hooks_diff(queue, old_module.post_root_hooks,
+                                  module.post_root_hooks, POST_ROOT_HOOK);
+  damgr_get_tasks_from_hooks_diff(queue, old_module.post_user_hooks,
+                                  module.post_user_hooks, POST_USER_HOOK);
+  damgr_get_tasks_from_dotfiles_diff(queue, module.to_link, old_module.to_link,
+                                     module.module_name);
 }
 
 static void get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module module,
@@ -72,25 +177,6 @@ static void get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module module,
       Damgr_Task_Payload payload = {.payload_name = hook};
       damgr_get_task(queue, PRE_USER_HOOK, is_positive, payload);
     }
-  }
-  if (module.packages.count > 0) {
-    Damgr_Task_Payload payload = {.packages = module.packages};
-    damgr_get_task(queue, PACKAGE, is_positive, payload);
-  }
-  if (module.aur_packages.count > 0) {
-    Damgr_Task_Payload payload = {.packages = module.aur_packages};
-    damgr_get_task(queue, AUR_PACKAGE, is_positive, payload);
-  }
-  for (size_t i = 0; i < module.user_services.count; ++i) {
-    char *service = module.user_services.items[i];
-    Damgr_Task_Payload payload = {.payload_name = service};
-    damgr_get_task(queue, USER_SERVICE, is_positive, payload);
-  }
-  if (module.to_link) {
-    Damgr_Task_Payload payload = {.payload_name = module.module_name};
-    damgr_get_task(queue, DOTFILE, is_positive, payload);
-  }
-  if (is_positive) {
     for (size_t i = 0; i < module.post_root_hooks.count; ++i) {
       char *hook = module.post_root_hooks.items[i];
       Damgr_Task_Payload payload = {.payload_name = hook};
@@ -101,6 +187,29 @@ static void get_tasks_from_module(Damgr_Task_Queue *queue, Damgr_Module module,
       Damgr_Task_Payload payload = {.payload_name = hook};
       damgr_get_task(queue, POST_ROOT_HOOK, is_positive, payload);
     }
+  }
+
+  if (module.packages.count > 0) {
+    Damgr_Task_Payload payload = {.packages = module.packages};
+    damgr_get_task(queue, PACKAGE, is_positive, payload);
+  }
+  if (module.aur_packages.count > 0) {
+    Damgr_Task_Payload payload = {.packages = module.aur_packages};
+    damgr_get_task(queue, AUR_PACKAGE, is_positive, payload);
+  }
+  for (size_t i = 0; i < module.root_services.count; ++i) {
+    char *service = module.root_services.items[i];
+    Damgr_Task_Payload payload = {.payload_name = service};
+    damgr_get_task(queue, ROOT_SERVICE, is_positive, payload);
+  }
+  for (size_t i = 0; i < module.user_services.count; ++i) {
+    char *service = module.user_services.items[i];
+    Damgr_Task_Payload payload = {.payload_name = service};
+    damgr_get_task(queue, USER_SERVICE, is_positive, payload);
+  }
+  if (module.to_link) {
+    Damgr_Task_Payload payload = {.payload_name = module.module_name};
+    damgr_get_task(queue, DOTFILE, is_positive, payload);
   }
 }
 
@@ -153,7 +262,7 @@ static void damgr_get_tasks_from_hosts_diff(Damgr_Task_Queues *queues,
                                 .status = PENDING};
       get_tasks_from_module(&queue, *old_module, false);
       if (queue.count > 0) {
-        damgr_log(INFO, "successfully got %zu tasks for orphan module: %s",
+        damgr_log(INFO, "successfully got %zu tasks for old module: %s",
                   queue.count, old_host->modules.modules[i].module_name);
         damgr_queues_append(queues, queue);
       }
@@ -179,7 +288,7 @@ static void damgr_get_tasks_from_host(Damgr_Task_Queues *queues,
   }
 }
 
-void damgr_get_tasks(Damgr_Config *old_config, Damgr_Config *config) {
+void damgr_get_task_queues(Damgr_Config *old_config, Damgr_Config *config) {
   Damgr_Task_Queues *queues = &config->active_host.task_queues;
   queues->host_ptr = &config->active_host;
   queues->old_ptr = nullptr;
@@ -191,7 +300,6 @@ void damgr_get_tasks(Damgr_Config *old_config, Damgr_Config *config) {
       damgr_get_tasks_from_host(queues, &config->active_host);
       goto exit;
     } else { // same host
-      // TODO: finish the hosts diff for getting tasks!
       damgr_get_tasks_from_hosts_diff(queues, &old_config->active_host,
                                       &config->active_host);
     }

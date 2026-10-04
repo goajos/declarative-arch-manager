@@ -32,7 +32,7 @@ int damgr_merge() {
     damgr_read_module(&config, i, false);
   }
 
-  damgr_get_tasks(&old_config, &config);
+  damgr_get_task_queues(&old_config, &config);
   // TODO: finish walking through the queues
 
   return EXIT_SUCCESS;
