@@ -34,6 +34,12 @@ $(BUILDDIR)/%.o:%.c
 clean:
 	rm -rf $(BIN) $(BUILDDIR)
 
+# TODO: current test installs a package and links a dotfile, what needs to be tested:
+# 	- starting root/user service
+# 	- running pre/post hook
+# 	- removing package
+# 	- installing/removing aur package
+# 	- unlinking dotfile
 test:
 	@echo "Building the test environment..."
 	docker build --no-cache --platform linux/amd64 -t damgr-test-env -f Dockerfile .
