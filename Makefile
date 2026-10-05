@@ -41,6 +41,6 @@ test:
 	docker run --platform linux/amd64 --rm \
 		-v $(PWD)/tests:/home/testuser/damgr/tests \
 		damgr-test-env \
-		bash -c "bash mkdir -p /home/testuser/.local/state/damgr && mkdir -p /home/testuser/.config/ && cp -r tests/.config/* /home/testuser/.config/ && bash tests/merge.sh && bash tests/update.sh"
+		bash -c "mkdir -p /home/testuser/.local/state/damgr && mkdir -p /home/testuser/.config/ && cp -r tests/.config/* /home/testuser/.config/ && bash tests/merge.sh && bash tests/update.sh"
 
 -include $(DEPFILES)

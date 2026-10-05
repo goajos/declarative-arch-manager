@@ -1,3 +1,4 @@
 .rgignore
 build/
 bin/
+tests/.config/damgr/dotfiles/

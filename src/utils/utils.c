@@ -240,8 +240,8 @@ int damgr_execute_dotfile_command(bool to_link, char *dotfile) {
   snprintf(src_fidbuf, sizeof(src_fidbuf), "%s/.config/damgr/dotfiles/%s",
            getenv("HOME"), dotfile);
   char dst_fidbuf[damgr_path_max];
-  snprintf(dst_fidbuf, sizeof(dst_fidbuf), "/home/%s/.config/%s",
-           getenv("HOME"), dotfile);
+  snprintf(dst_fidbuf, sizeof(dst_fidbuf), "%s/.config/%s", getenv("HOME"),
+           dotfile);
 
   if (to_link) {
     struct stat st;
