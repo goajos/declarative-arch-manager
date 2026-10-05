@@ -285,15 +285,17 @@ void damgr_get_task_queues_from_configs(Damgr_Config *old_config,
                                         Damgr_Config *config) {
   if (old_config->active_host.host_name != nullptr) {
     config->active_host.task_queues.host_ptr = &config->active_host;
-    old_config->active_host.task_queues.host_ptr = &old_config->active_host;
     int ret = strcmp(old_config->active_host.host_name,
                      config->active_host.host_name);
     if (ret < 0 || ret > 0) { // different host
       damgr_get_task_queues_from_host(&config->active_host, true);
       // old host needs cleanup
+      old_config->active_host.task_queues.host_ptr = &old_config->active_host;
       damgr_get_task_queues_from_host(&old_config->active_host, false);
       goto exit;
     } else { // same host
+      // old_config->active_host.task_queues.host_ptr stays nullptr here to skip
+      // cleanup
       damgr_get_task_queues_from_hosts_diff(&old_config->active_host,
                                             &config->active_host);
       goto exit;
@@ -420,7 +422,7 @@ static void task_queue_transaction(Damgr_Task_Queue *queue, char *aur_helper) {
   if (queue->status == FAILED) {
     damgr_log(INFO, "starting %s task queue rollback...",
               queue->module_ptr->module_name);
-    while (i >= 0) {
+    while (i > 0) {
       --i; // last task failed so no need for rollback
       damgr_undo_task(&queue->status, queue->tasks[i]);
       if (queue->status == FAILED) {
@@ -461,6 +463,9 @@ void damgr_do_task_queues_for_config(Damgr_Config *config, bool is_positive) {
     damgr_write_host(config->active_host);
   } else {
     // old config is_positive = false
-    damgr_remove_host(config->active_host);
+    if (config->active_host.task_queues.host_ptr->host_name != nullptr) {
+      // only remove the old host state if it's a different host
+      damgr_remove_host(config->active_host);
+    }
   }
 }
