@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO: can there be a single hooks to make cases better?
 const char *damgr_conf_keys[] = {
     [AUR_HELPER] = "aur_helper",     [ACTIVE_HOST] = "active_host",
     [MODULES] = "modules",           [SERVICES] = "services",
@@ -223,4 +224,99 @@ void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state) {
   damgr_log(INFO, "parsing module: %s", fidbuf);
   damgr_parse_conf(module_fid, config, module_idx);
   fclose(module_fid);
+}
+
+void damgr_remove_module(Damgr_Module module) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
+           getenv("HOME"), module.module_name);
+  if (remove(fidbuf) == EXIT_SUCCESS) {
+    damgr_log(INFO, "succesfully removed state module: %s", fidbuf);
+  }
+}
+
+void damgr_write_module(Damgr_Module module) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
+           getenv("HOME"), module.module_name);
+  FILE *module_fid = fopen(fidbuf, "w");
+
+  if (module.to_link) {
+    fprintf(module_fid, "%s=link:true\n", damgr_conf_keys[DOTFILES]);
+  }
+
+  if (module.pre_root_hooks.count > 0 || module.pre_user_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
+    for (size_t i = 0; i < module.pre_root_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:true\n", module.pre_root_hooks.items[i]);
+    }
+    for (size_t i = 0; i < module.pre_user_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:false\n", module.pre_user_hooks.items[i]);
+    }
+  }
+
+  if (module.packages.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[PACKAGES]);
+    for (size_t i = 0; i < module.packages.count; ++i) {
+      fprintf(module_fid, "  %s\n", module.packages.items[i]);
+    }
+  }
+
+  if (module.aur_packages.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[AUR_PACKAGES]);
+    for (size_t i = 0; i < module.aur_packages.count; ++i) {
+      fprintf(module_fid, "  %s\n", module.aur_packages.items[i]);
+    }
+  }
+
+  if (module.root_services.count > 0 || module.user_services.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[SERVICES]);
+    for (size_t i = 0; i < module.root_services.count; ++i) {
+      fprintf(module_fid, "  %s\n", module.root_services.items[i]);
+    }
+    for (size_t i = 0; i < module.user_services.count; ++i) {
+      fprintf(module_fid, "  %s\n", module.user_services.items[i]);
+    }
+  }
+
+  if (module.post_root_hooks.count > 0 || module.post_user_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
+    for (size_t i = 0; i < module.post_root_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:true\n", module.post_root_hooks.items[i]);
+    }
+    for (size_t i = 0; i < module.post_user_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:false\n", module.post_user_hooks.items[i]);
+    }
+  }
+
+  fclose(module_fid);
+  damgr_log(INFO, "succesfully wrote state module: %s", fidbuf);
+}
+
+void damgr_remove_host(Damgr_Host host) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
+           getenv("HOME"), host.host_name);
+  if (remove(fidbuf) == EXIT_SUCCESS) {
+    damgr_log(INFO, "succesfully removed state host: %s", fidbuf);
+  }
+}
+
+void damgr_write_host(Damgr_Host host) {
+  char fidbuf[damgr_path_max];
+  snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
+           getenv("HOME"), host.host_name);
+  FILE *host_fid = fopen(fidbuf, "w");
+  if (host.modules.count > 0) {
+    fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
+    for (size_t i = 0; i < host.modules.count; ++i) {
+      // module_name == nullptr if the task queue transaction for this module
+      // failed
+      if (host.modules.modules[i].module_name != nullptr) {
+        fprintf(host_fid, "  %s\n", host.modules.modules[i].module_name);
+      }
+    }
+  }
+  fclose(host_fid);
+  damgr_log(INFO, "succesfully wrote state host: %s", fidbuf);
 }

@@ -317,13 +317,120 @@ exit:
   }
 }
 
-static void task_queue_transaction(Damgr_Task_Queue *queue,
-                                   [[maybe_unused]] char *aur_helper) {
+static void damgr_do_task(Damgr_Status *queue_status, Damgr_Task task,
+                          char *aur_helper) {
+  bool privileged;
+  switch (task.type) {
+  case PACKAGE:
+  case AUR_PACKAGE:
+    int ret;
+    if (task.is_positive) {
+      if (task.type == PACKAGE) {
+        ret = damgr_execute_package_install_command(task.payload.packages);
+      } else {
+        ret = damgr_execute_aur_package_install_command(task.payload.packages,
+                                                        aur_helper);
+      }
+    } else {
+      // !is_positive
+      ret = damgr_execute_package_remove_command(task.payload.packages);
+    }
+    *queue_status = ret == EXIT_SUCCESS ? SUCCEEDED : FAILED;
+    break;
+  case ROOT_SERVICE:
+  case USER_SERVICE:
+    privileged = (task.type == ROOT_SERVICE) ? true : false;
+    *queue_status =
+        damgr_execute_service_command(privileged, task.is_positive,
+                                      task.payload.payload_name) == EXIT_SUCCESS
+            ? SUCCEEDED
+            : FAILED;
+    break;
+  case DOTFILE:
+    *queue_status =
+        damgr_execute_dotfile_command(task.is_positive,
+                                      task.payload.payload_name) == EXIT_SUCCESS
+            ? SUCCEEDED
+            : FAILED;
+    break;
+  case PRE_ROOT_HOOK:
+  case PRE_USER_HOOK:
+  case POST_ROOT_HOOK:
+  case POST_USER_HOOK:
+    privileged = (task.type == PRE_ROOT_HOOK || task.type == POST_ROOT_HOOK)
+                     ? true
+                     : false;
+    *queue_status = damgr_execute_hook_command(
+                        privileged, task.payload.payload_name) == EXIT_SUCCESS
+                        ? SUCCEEDED
+                        : FAILED;
+    break;
+  }
+}
+
+static void damgr_undo_task(Damgr_Status *queue_status, Damgr_Task task) {
+  int ret;
+  switch (task.type) {
+  case PACKAGE:
+  case AUR_PACKAGE:
+    ret = damgr_execute_package_remove_command(task.payload.packages);
+    break;
+  case ROOT_SERVICE:
+  case USER_SERVICE:
+    bool privileged = (task.type == ROOT_SERVICE) ? true : false;
+    ret = damgr_execute_service_command(privileged, false,
+                                        task.payload.payload_name);
+    break;
+  case DOTFILE:
+    ret = damgr_execute_dotfile_command(false, task.payload.payload_name);
+    break;
+  case PRE_ROOT_HOOK:
+  case PRE_USER_HOOK:
+  case POST_ROOT_HOOK:
+  case POST_USER_HOOK:
+    // can't undo hooks
+    ret = EXIT_SUCCESS;
+    *queue_status = PENDING;
+    break;
+  }
+
+  if (ret == EXIT_SUCCESS) {
+    *queue_status = PENDING;
+  } else {
+    *queue_status = FAILED;
+  }
+}
+
+static void task_queue_transaction(Damgr_Task_Queue *queue, char *aur_helper) {
   damgr_log(INFO, "%s task queue transaction started...",
             queue->module_ptr->module_name);
-  [[maybe_unused]] bool failed = false;
-  [[maybe_unused]] size_t i = 0;
+  size_t i = 0;
   for (; queue->count; ++i) {
+    if (i == queue->count) {
+      return;
+    }
+    damgr_do_task(&queue->status, queue->tasks[i], aur_helper);
+    if (queue->status == FAILED) {
+      damgr_log(ERROR, "%s task queue transaction failed...",
+                queue->module_ptr->module_name);
+      break;
+    }
+  }
+  // undo tasks after queue failure
+  if (queue->status == FAILED) {
+    damgr_log(INFO, "starting %s task queue rollback...",
+              queue->module_ptr->module_name);
+    while (i >= 0) {
+      --i; // last task failed so no need for rollback
+      damgr_undo_task(&queue->status, queue->tasks[i]);
+      if (queue->status == FAILED) {
+        damgr_log(ERROR, "%s task queue rollback failed!",
+                  queue->module_ptr->module_name);
+        return;
+      }
+    }
+    damgr_log(INFO, "%s task queue rollback finished!",
+              queue->module_ptr->module_name);
   }
 }
 
@@ -336,18 +443,24 @@ void damgr_do_task_queues_for_config(Damgr_Config *config, bool is_positive) {
       task_queue_transaction(queue, config->aur_helper);
       if (queue->status == SUCCEEDED) {
         if (is_positive) {
-          // TODO: write module to state
+          // config is_positive = true
+          damgr_write_module(*queue->module_ptr);
         } else {
-          // TODO: remove old module from state
+          // old config is_positive = false
+          damgr_remove_module(*queue->module_ptr);
         }
       } else if (queue->status == FAILED) {
         // TODO: report failure?
+        // to skip writing failed module to host state
+        queue->module_ptr->module_name = nullptr;
       }
     }
   }
   if (is_positive) {
-    // TODO: write host to state
+    // config is_positive = true
+    damgr_write_host(config->active_host);
   } else {
-    // TODO: remove old host from state
+    // old config is_positive = false
+    damgr_remove_host(config->active_host);
   }
 }
