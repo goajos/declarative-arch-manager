@@ -6,7 +6,7 @@
 
 Damgr_Task *task_constructor(Damgr_Task_Payload payload, Damgr_Task_Type type,
                              bool is_positive) {
-  Damgr_Task *task = calloc(1, sizeof(*task));
+  Damgr_Task *task = malloc(sizeof(*task));
   task->payload = payload;
   task->type = type;
   task->is_positive = is_positive;
@@ -14,7 +14,7 @@ Damgr_Task *task_constructor(Damgr_Task_Payload payload, Damgr_Task_Type type,
 }
 
 Damgr_Task_Queue *task_queue_constructor(Damgr_Status status) {
-  Damgr_Task_Queue *task_queue = calloc(1, sizeof(*task_queue));
+  Damgr_Task_Queue *task_queue = malloc(sizeof(*task_queue));
   task_queue->status = status;
   return task_queue;
 }

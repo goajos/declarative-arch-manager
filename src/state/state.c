@@ -13,7 +13,7 @@ const char *damgr_conf_keys[] = {
     [POST_HOOKS] = "post_hooks"};
 
 Damgr_Module *module_constructor(char *module_name, bool is_state) {
-  Damgr_Module *module = calloc(1, sizeof(*module));
+  Damgr_Module *module = malloc(sizeof(*module));
   module->module_name = strdup(module_name);
   module->is_state = is_state;
   module->state_path = nullptr;
@@ -33,12 +33,12 @@ void damgr_free_module(Damgr_Module *module) {
     free(module->module_name);
   if (module->state_path != nullptr)
     free(module->state_path);
-  if (module->path)
+  if (module->path != nullptr)
     free(module->path);
 }
 
 Damgr_Host *host_constructor(char *host_name, bool is_state) {
-  Damgr_Host *host = calloc(1, sizeof(*host));
+  Damgr_Host *host = malloc(sizeof(*host));
   host->host_name = strdup(host_name);
   host->is_state = is_state;
   return host;
