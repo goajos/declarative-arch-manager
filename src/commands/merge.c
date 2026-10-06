@@ -32,11 +32,12 @@ int damgr_merge() {
   for (size_t i = 0; i < config.active_host->modules.count; ++i) {
     damgr_read_module(&config, i, false);
   }
-  // DEBUG
+  // DEBUG:
   // *(Damgr_Task_Queue *)config->active_host.task_queues.ptrs[0]
   // *(Damgr_Task *)(*(Damgr_Task_Queue *)config->
   //    active_host.task_queues.ptrs[0]).tasks.ptrs[1]
   damgr_get_task_queues_from_configs(&old_config, &config);
+  // TODO: finsih this do task queues logic with ptrs!
   // if (config.active_host.task_queues.count > 0) {
   //   damgr_do_task_queues_for_config(&config, true);
   // } else {
