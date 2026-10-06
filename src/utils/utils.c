@@ -151,7 +151,7 @@ int damgr_execute_package_install_command(struct darray packages) {
   argv[2] = "-S";
   argv[3] = "--needed";
   for (size_t i = 0; i < packages.count; ++i) {
-    argv[4 + i] = packages.items[i];
+    argv[4 + i] = packages.ptrs[i];
   }
   argv[4 + packages.count] = nullptr;
   int ret = damgr_execute_execv("/usr/bin/sudo", argv);
@@ -168,7 +168,7 @@ int damgr_execute_aur_package_install_command(struct darray packages,
   argv[1] = "-S";
   argv[2] = "--needed";
   for (size_t i = 0; i < packages.count; ++i) {
-    argv[3 + i] = packages.items[i];
+    argv[3 + i] = packages.ptrs[i];
   }
   argv[3 + packages.count] = nullptr;
   int ret = damgr_execute_execv(fidbuf, argv);
@@ -182,7 +182,7 @@ int damgr_execute_package_remove_command(struct darray packages) {
   argv[1] = "pacman";
   argv[2] = "-Rns";
   for (size_t i = 0; i < packages.count; ++i) {
-    argv[3 + i] = packages.items[i];
+    argv[3 + i] = packages.ptrs[i];
   }
   argv[3 + packages.count] = nullptr;
   int ret = damgr_execute_execv("/usr/bin/sudo", argv);
