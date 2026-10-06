@@ -3,6 +3,8 @@
 #include "darray.h"
 #include <stdlib.h>
 
+// typedef enum status { PENDING, SUCCEEDED, FAILED } Damgr_Status;
+
 typedef struct module {
   Damgr_Darray pre_root_hooks;
   Damgr_Darray pre_user_hooks;
@@ -12,6 +14,7 @@ typedef struct module {
   Damgr_Darray root_services;
   Damgr_Darray post_root_hooks;
   Damgr_Darray post_user_hooks;
+  Damgr_Darray task_queue;
   bool to_link;
   // TODO: union?
   char *module_name;
@@ -23,7 +26,6 @@ Damgr_Module *module_constructor(char *module_name, bool is_state);
 void damgr_free_module(Damgr_Module *module);
 
 typedef struct host {
-  Damgr_Darray task_queues;
   Damgr_Darray modules;
   char *host_name;
   // TODO: union?
@@ -59,10 +61,8 @@ void damgr_read_config(Damgr_Config *config, bool is_state);
 void damgr_read_host(Damgr_Config *config, bool is_state);
 void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state);
 
-// void damgr_write_module(Damgr_Module module);
-// void damgr_remove_module(Damgr_Module module);
-//
-// void damgr_write_host(Damgr_Host host);
-// void damgr_remove_host(Damgr_Host host);
+void damgr_write_module(Damgr_Module *module);
+
+void damgr_write_host(Damgr_Host *host);
 
 #endif /* DAMGR_STATE_H */

@@ -37,19 +37,9 @@ int damgr_merge() {
   // *(Damgr_Task *)(*(Damgr_Task_Queue *)config->
   //    active_host.task_queues.ptrs[0]).tasks.ptrs[1]
   damgr_get_task_queues_from_configs(&old_config, &config);
-  // TODO: finsih this do task queues logic with ptrs!
-  // if (config.active_host.task_queues.count > 0) {
-  //   damgr_do_task_queues_for_config(&config, true);
-  // } else {
-  //   // TODO: report no task queues?
-  // }
-  // if (old_config.active_host.host_name != nullptr) {
-  //   if (old_config.active_host.task_queues.count > 0) {
-  //     damgr_do_task_queues_for_config(&old_config, false);
-  //   } else {
-  //     // TODO: report no task queues?
-  //   }
-  // }
+  ret = damgr_do_task_queues_for_config(&config);
+  // TODO: finish write/remove logic and verify the module queue transaction
+  // logic
 
-  return EXIT_SUCCESS;
+  return ret;
 }

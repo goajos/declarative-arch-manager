@@ -29,6 +29,7 @@ void damgr_free_module(Damgr_Module *module) {
   damgr_darray_free(&module->root_services);
   damgr_darray_free(&module->post_root_hooks);
   damgr_darray_free(&module->post_user_hooks);
+  damgr_darray_free(&module->task_queue);
   if (module->module_name != nullptr)
     free(module->module_name);
   if (module->state_path != nullptr)
@@ -266,7 +267,7 @@ void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state) {
 //     damgr_log(INFO, "succesfully removed state module: %s", fidbuf);
 //   }
 // }
-//
+
 // void damgr_write_module(Damgr_Module module) {
 //   char fidbuf[damgr_path_max];
 //   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
@@ -324,7 +325,7 @@ void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state) {
 //   fclose(module_fid);
 //   damgr_log(INFO, "succesfully wrote state module: %s", fidbuf);
 // }
-//
+
 // void damgr_remove_host(Damgr_Host host) {
 //   char fidbuf[damgr_path_max];
 //   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
@@ -333,7 +334,7 @@ void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state) {
 //     damgr_log(INFO, "succesfully removed state host: %s", fidbuf);
 //   }
 // }
-//
+
 // void damgr_write_host(Damgr_Host host) {
 //   char fidbuf[damgr_path_max];
 //   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
