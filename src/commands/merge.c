@@ -36,6 +36,7 @@ int damgr_merge() {
     damgr_read_module(&config, i, false);
   }
 
+  // TODO: the write host and config logic is not correct!
   // DEBUG:
   // *(Damgr_Task_Queue *)config->active_host.task_queues.ptrs[0]
   // *(Damgr_Task *)(*(Damgr_Task_Queue *)config->
@@ -60,7 +61,8 @@ int damgr_merge() {
   for (size_t i = 0; i < config.active_host->modules.count; ++i) {
     Damgr_Module *module = config.active_host->modules.ptrs[i];
     if (module->path != nullptr) {
-      ret = damgr_do_module_task_queue(module, config.aur_helper);
+      // ret = damgr_do_module_task_queue(module, config.aur_helper);
+      ret = EXIT_SUCCESS;
       if (ret != EXIT_SUCCESS) {
         damgr_undo_module_task_queue(module);
         module->path = nullptr;

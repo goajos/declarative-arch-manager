@@ -338,7 +338,7 @@ void damgr_write_config(Damgr_Config config) {
   fprintf(config_fid, "%s=%s\n", damgr_conf_keys[AUR_HELPER],
           config.aur_helper);
   Damgr_Host *host = config.active_host;
-  if (host->path != nullptr) {
+  if (host->state_path != nullptr) {
     damgr_write_host(host);
     fprintf(config_fid, "%s=%s", damgr_conf_keys[ACTIVE_HOST], host->host_name);
   }
