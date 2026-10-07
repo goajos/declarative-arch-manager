@@ -60,8 +60,6 @@ void damgr_read_config(Damgr_Config *config, bool is_state);
 void damgr_read_host(Damgr_Config *config, bool is_state);
 void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state);
 
-void damgr_write_module(Damgr_Module *module);
-
-void damgr_write_host(Damgr_Host *host);
+void damgr_write_config(Damgr_Config config);
 
 #endif /* DAMGR_STATE_H */

@@ -257,97 +257,100 @@ void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state) {
   fclose(module_fid);
 }
 
-// void damgr_remove_module(Damgr_Module module) {
-//   char fidbuf[damgr_path_max];
-//   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
-//            getenv("HOME"), module.module_name);
-//   if (remove(fidbuf) == EXIT_SUCCESS) {
-//     damgr_log(INFO, "succesfully removed state module: %s", fidbuf);
-//   }
-// }
+static void damgr_write_module(Damgr_Module *module) {
+  FILE *module_fid = fopen(module->path, "w");
 
-// void damgr_write_module(Damgr_Module module) {
-//   char fidbuf[damgr_path_max];
-//   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
-//            getenv("HOME"), module.module_name);
-//   FILE *module_fid = fopen(fidbuf, "w");
-//
-//   if (module.to_link) {
-//     fprintf(module_fid, "%s=link:true\n", damgr_conf_keys[DOTFILES]);
-//   }
-//
-//   if (module.pre_root_hooks.count > 0 || module.pre_user_hooks.count > 0) {
-//     fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
-//     for (size_t i = 0; i < module.pre_root_hooks.count; ++i) {
-//       fprintf(module_fid, "  %s:true\n", module.pre_root_hooks.items[i]);
-//     }
-//     for (size_t i = 0; i < module.pre_user_hooks.count; ++i) {
-//       fprintf(module_fid, "  %s:false\n", module.pre_user_hooks.items[i]);
-//     }
-//   }
-//
-//   if (module.packages.count > 0) {
-//     fprintf(module_fid, "%s=\n", damgr_conf_keys[PACKAGES]);
-//     for (size_t i = 0; i < module.packages.count; ++i) {
-//       fprintf(module_fid, "  %s\n", module.packages.items[i]);
-//     }
-//   }
-//
-//   if (module.aur_packages.count > 0) {
-//     fprintf(module_fid, "%s=\n", damgr_conf_keys[AUR_PACKAGES]);
-//     for (size_t i = 0; i < module.aur_packages.count; ++i) {
-//       fprintf(module_fid, "  %s\n", module.aur_packages.items[i]);
-//     }
-//   }
-//
-//   if (module.root_services.count > 0 || module.user_services.count > 0) {
-//     fprintf(module_fid, "%s=\n", damgr_conf_keys[SERVICES]);
-//     for (size_t i = 0; i < module.root_services.count; ++i) {
-//       fprintf(module_fid, "  %s\n", module.root_services.items[i]);
-//     }
-//     for (size_t i = 0; i < module.user_services.count; ++i) {
-//       fprintf(module_fid, "  %s\n", module.user_services.items[i]);
-//     }
-//   }
-//
-//   if (module.post_root_hooks.count > 0 || module.post_user_hooks.count > 0) {
-//     fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
-//     for (size_t i = 0; i < module.post_root_hooks.count; ++i) {
-//       fprintf(module_fid, "  %s:true\n", module.post_root_hooks.items[i]);
-//     }
-//     for (size_t i = 0; i < module.post_user_hooks.count; ++i) {
-//       fprintf(module_fid, "  %s:false\n", module.post_user_hooks.items[i]);
-//     }
-//   }
-//
-//   fclose(module_fid);
-//   damgr_log(INFO, "succesfully wrote state module: %s", fidbuf);
-// }
+  if (module->to_link) {
+    fprintf(module_fid, "%s=link:true\n", damgr_conf_keys[DOTFILES]);
+  }
 
-// void damgr_remove_host(Damgr_Host host) {
-//   char fidbuf[damgr_path_max];
-//   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
-//            getenv("HOME"), host.host_name);
-//   if (remove(fidbuf) == EXIT_SUCCESS) {
-//     damgr_log(INFO, "succesfully removed state host: %s", fidbuf);
-//   }
-// }
+  if (module->pre_root_hooks.count > 0 || module->pre_user_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[PRE_HOOKS]);
+    for (size_t i = 0; i < module->pre_root_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:true\n",
+              (char *)module->pre_root_hooks.ptrs[i]);
+    }
+    for (size_t i = 0; i < module->pre_user_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:false\n",
+              (char *)module->pre_user_hooks.ptrs[i]);
+    }
+  }
+  if (module->packages.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[PACKAGES]);
+    for (size_t i = 0; i < module->packages.count; ++i) {
+      fprintf(module_fid, "  %s\n", (char *)module->packages.ptrs[i]);
+    }
+  }
 
-// void damgr_write_host(Damgr_Host host) {
-//   char fidbuf[damgr_path_max];
-//   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
-//            getenv("HOME"), host.host_name);
-//   FILE *host_fid = fopen(fidbuf, "w");
-//   if (host.modules.count > 0) {
-//     fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
-//     for (size_t i = 0; i < host.modules.count; ++i) {
-//       // module_name == nullptr if the task queue transaction for this module
-//       // failed
-//       if (host.modules.modules[i].module_name != nullptr) {
-//         fprintf(host_fid, "  %s\n", host.modules.modules[i].module_name);
-//       }
-//     }
-//   }
-//   fclose(host_fid);
-//   damgr_log(INFO, "succesfully wrote state host: %s", fidbuf);
-// }
+  if (module->aur_packages.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[AUR_PACKAGES]);
+    for (size_t i = 0; i < module->aur_packages.count; ++i) {
+      fprintf(module_fid, "  %s\n", (char *)module->aur_packages.ptrs[i]);
+    }
+  }
+
+  if (module->root_services.count > 0 || module->user_services.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[SERVICES]);
+    for (size_t i = 0; i < module->root_services.count; ++i) {
+      fprintf(module_fid, "  %s\n", (char *)module->root_services.ptrs[i]);
+    }
+    for (size_t i = 0; i < module->user_services.count; ++i) {
+      fprintf(module_fid, "  %s\n", (char *)module->user_services.ptrs[i]);
+    }
+  }
+
+  if (module->post_root_hooks.count > 0 || module->post_user_hooks.count > 0) {
+    fprintf(module_fid, "%s=\n", damgr_conf_keys[POST_HOOKS]);
+    for (size_t i = 0; i < module->post_root_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:true\n",
+              (char *)module->post_root_hooks.ptrs[i]);
+    }
+    for (size_t i = 0; i < module->post_user_hooks.count; ++i) {
+      fprintf(module_fid, "  %s:false\n",
+              (char *)module->post_user_hooks.ptrs[i]);
+    }
+  }
+
+  fclose(module_fid);
+  damgr_log(INFO, "succesfully wrote state module: %s", module->path);
+}
+
+static void damgr_write_host(Damgr_Host *host) {
+  FILE *host_fid = fopen(host->path, "w");
+  fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
+  for (size_t i = 0; i < host->modules.count; ++i) {
+    Damgr_Module *module = host->modules.ptrs[i];
+    if (module->path != nullptr) {
+      damgr_write_module(module);
+      fprintf(host_fid, "  %s\n", module->module_name);
+    }
+    if (module->state_path != nullptr) {
+      remove(module->state_path);
+      damgr_log(INFO, "succesfully removed old state module: %s",
+                module->state_path);
+    }
+  }
+  fclose(host_fid);
+  damgr_log(INFO, "succesfully wrote state host: %s", host->path);
+}
+
+void damgr_write_config(Damgr_Config config) {
+  FILE *config_fid = fopen(config.path, "w");
+  fprintf(config_fid, "%s=%s", damgr_conf_keys[AUR_HELPER], config.aur_helper);
+  Damgr_Host *host = config.active_host;
+  if (host->path != nullptr) {
+    damgr_write_host(host);
+    fprintf(config_fid, "%s=%s", damgr_conf_keys[ACTIVE_HOST], host->host_name);
+  }
+  if (host->state_path != nullptr) {
+    remove(host->state_path);
+    damgr_log(INFO, "succesfully removed old state host: %s", host->state_path);
+  }
+  if (config.state_path != nullptr) {
+    remove(config.state_path);
+    damgr_log(INFO, "succesfully removed old state config: %s",
+              config.state_path);
+  }
+  fclose(config_fid);
+  damgr_log(INFO, "succesfully wrote state config: %s", config.path);
+}

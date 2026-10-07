@@ -44,6 +44,10 @@ int damgr_merge() {
     if (ret < 0 || ret > 0) { // different host
       damgr_get_module_task_queues_from_host(config.active_host);
       damgr_get_module_task_queues_from_host(old_config.active_host);
+      // keep state_path for cleanup
+      config.state_path = strdup(old_config.state_path);
+      // old config no longer relevant
+      old_config.state_path = nullptr;
     } else { // same host
       damgr_get_module_task_queues_from_hosts_diff(old_config.active_host,
                                                    config.active_host);
@@ -92,6 +96,12 @@ int damgr_merge() {
                         task->payload.payload_name);
             }
           }
+        } else {
+          // keep state_path for cleanup
+          config.active_host->state_path =
+              strdup(old_config.active_host->state_path);
+          // old host no longer relevant
+          old_config.active_host->state_path = nullptr;
         }
       }
     }
@@ -122,6 +132,7 @@ int damgr_merge() {
     }
   }
 
+  damgr_write_config(config);
   // damgr_free_module(old_module);
   // old_host->modules.ptrs[j] = nullptr;
 
