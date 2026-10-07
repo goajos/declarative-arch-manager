@@ -64,6 +64,9 @@ int damgr_merge() {
             if (task->status == FAILED) {
               damgr_log(ERROR, "\tfailed task: %s!",
                         task->payload.payload_name);
+            } else if (task->status == PENDING) {
+              damgr_log(ERROR, "\tpending task: %s!",
+                        task->payload.payload_name);
             }
           }
         }
@@ -83,6 +86,9 @@ int damgr_merge() {
             Damgr_Task *task = (Damgr_Task *)old_module->task_queue.ptrs[j];
             if (task->status == FAILED) {
               damgr_log(ERROR, "\tfailed task: %s!",
+                        task->payload.payload_name);
+            } else if (task->status == PENDING) {
+              damgr_log(ERROR, "\tpending task: %s!",
                         task->payload.payload_name);
             }
           }
@@ -105,6 +111,9 @@ int damgr_merge() {
             Damgr_Task *task = (Damgr_Task *)module->task_queue.ptrs[j];
             if (task->status == FAILED) {
               damgr_log(ERROR, "\tfailed task: %s!",
+                        task->payload.payload_name);
+            } else if (task->status == PENDING) {
+              damgr_log(ERROR, "\tpending task: %s!",
                         task->payload.payload_name);
             }
           }

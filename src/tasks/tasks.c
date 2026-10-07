@@ -346,6 +346,7 @@ int damgr_do_module_task_queue(Damgr_Module *module, char *aur_helper) {
       damgr_log(ERROR, "failed %s task for module: %s",
                 task->payload.payload_name, module->module_name);
       task->status = FAILED;
+      return EXIT_FAILURE;
     }
   }
   damgr_log(INFO, "finished task queue for module: %s", module->module_name);
