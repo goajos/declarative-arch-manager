@@ -322,28 +322,21 @@ static void damgr_write_module(Damgr_Module *module) {
 }
 
 static void damgr_write_host(Damgr_Host *host) {
-  FILE *host_fid = fopen(host->path, "w");
+  FILE *host_fid = fopen(host->state_path, "w");
   fprintf(host_fid, "%s=\n", damgr_conf_keys[MODULES]);
   for (size_t i = 0; i < host->modules.count; ++i) {
     Damgr_Module *module = host->modules.ptrs[i];
-    if (module->path != nullptr) {
-      damgr_write_module(module);
-      fprintf(host_fid, "  %s\n", module->module_name);
-    }
-    if (module->state_path != nullptr) {
-      // only set after comparison of modules
-      remove(module->state_path);
-      damgr_log(INFO, "succesfully removed old state module: %s",
-                module->state_path);
-    }
+    damgr_write_module(module);
+    fprintf(host_fid, "  %s\n", module->module_name);
   }
   fclose(host_fid);
   damgr_log(INFO, "succesfully wrote state host: %s", host->path);
 }
 
 void damgr_write_config(Damgr_Config config) {
-  FILE *config_fid = fopen(config.path, "w");
-  fprintf(config_fid, "%s=%s", damgr_conf_keys[AUR_HELPER], config.aur_helper);
+  FILE *config_fid = fopen(config.state_path, "w");
+  fprintf(config_fid, "%s=%s\n", damgr_conf_keys[AUR_HELPER],
+          config.aur_helper);
   Damgr_Host *host = config.active_host;
   if (host->path != nullptr) {
     damgr_write_host(host);
@@ -355,5 +348,5 @@ void damgr_write_config(Damgr_Config config) {
     damgr_log(INFO, "succesfully removed old state host: %s", host->state_path);
   }
   fclose(config_fid);
-  damgr_log(INFO, "succesfully wrote state config: %s", config.path);
+  damgr_log(INFO, "succesfully wrote state config: %s", config.state_path);
 }
