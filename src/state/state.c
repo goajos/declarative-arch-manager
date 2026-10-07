@@ -30,12 +30,10 @@ void damgr_free_module(Damgr_Module *module) {
   damgr_darray_free(&module->post_root_hooks);
   damgr_darray_free(&module->post_user_hooks);
   damgr_darray_free(&module->task_queue);
-  if (module->module_name != nullptr)
-    free(module->module_name);
-  if (module->state_path != nullptr)
-    free(module->state_path);
-  if (module->path != nullptr)
-    free(module->path);
+  free(module->module_name);
+  free(module->state_path);
+  free(module->path);
+  free(module); // free the container itself
 }
 
 Damgr_Host *host_constructor(char *host_name, bool is_state) {

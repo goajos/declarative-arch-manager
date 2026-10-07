@@ -4,11 +4,15 @@
 #include "damgr/utils.h"
 #include <string.h>
 
+char *damgr_task_type_map[] = {[PACKAGE] = "package",
+                               [AUR_PACKAGE] = "aur_package"};
+
 Damgr_Task *task_constructor(Damgr_Task_Payload payload, Damgr_Task_Type type,
                              bool is_positive) {
   Damgr_Task *task = malloc(sizeof(*task));
   task->payload = payload;
   task->type = type;
+  task->status = PENDING;
   task->is_positive = is_positive;
   return task;
 }
@@ -78,12 +82,14 @@ static void damgr_get_tasks_from_packages_diff(Damgr_Darray *queue,
   Damgr_Darray to_remove = {};
   damgr_compute_darray_diff(&to_remove, &to_install, old_packages, packages);
   if (to_install.count > 0) {
-    Damgr_Task_Payload payload = {.packages = to_install};
+    Damgr_Task_Payload payload = {.payload_name = damgr_task_type_map[type],
+                                  .packages = to_install};
     Damgr_Task *task = task_constructor(payload, type, true);
     damgr_darray_append(queue, task);
   }
   if (to_remove.count > 0) {
-    Damgr_Task_Payload payload = {.packages = to_remove};
+    Damgr_Task_Payload payload = {.payload_name = damgr_task_type_map[type],
+                                  .packages = to_remove};
     Damgr_Task *task = task_constructor(payload, type, false);
     damgr_darray_append(queue, task);
   }
@@ -119,9 +125,9 @@ static void damgr_get_tasks_from_dotfiles_diff(Damgr_Darray *queue,
   damgr_darray_append(queue, task);
 }
 
-static void damgr_get_task_queue_from_module_diff(Damgr_Darray *queue,
-                                                  Damgr_Module *old_module,
-                                                  Damgr_Module *module) {
+static void damgr_get_task_queue_from_modules_diff(Damgr_Darray *queue,
+                                                   Damgr_Module *old_module,
+                                                   Damgr_Module *module) {
   damgr_get_tasks_from_packages_diff(queue, old_module->packages,
                                      module->packages, PACKAGE);
   damgr_get_tasks_from_packages_diff(queue, old_module->aur_packages,
@@ -177,12 +183,15 @@ static void get_task_queue_from_module(Damgr_Darray *queue,
   }
 
   if (module->packages.count > 0) {
-    Damgr_Task_Payload payload = {.packages = module->packages};
+    Damgr_Task_Payload payload = {.payload_name = damgr_task_type_map[PACKAGE],
+                                  .packages = module->packages};
     Damgr_Task *task = task_constructor(payload, PACKAGE, is_positive);
     damgr_darray_append(queue, task);
   }
   if (module->aur_packages.count > 0) {
-    Damgr_Task_Payload payload = {.packages = module->aur_packages};
+    Damgr_Task_Payload payload = {.payload_name =
+                                      damgr_task_type_map[AUR_PACKAGE],
+                                  .packages = module->aur_packages};
     Damgr_Task *task = task_constructor(payload, AUR_PACKAGE, is_positive);
     damgr_darray_append(queue, task);
   }
@@ -205,32 +214,34 @@ static void get_task_queue_from_module(Damgr_Darray *queue,
   }
 }
 
-static void damgr_get_task_queues_from_hosts_diff(Damgr_Host *old_host,
+void damgr_get_module_task_queues_from_hosts_diff(Damgr_Host *old_host,
                                                   Damgr_Host *host) {
   for (size_t i = 0; i < host->modules.count; ++i) {
     Damgr_Module *module = host->modules.ptrs[i];
     for (size_t j = 0; j < old_host->modules.count; ++j) {
       Damgr_Module *old_module = old_host->modules.ptrs[j];
-      if (old_module == nullptr) {
-        continue;
+      if (old_module->state_path == nullptr) {
+        continue; // next old module
       }
       // first check if the name lengths are equal, if so perform needle in
       // haystack search, else skip
       if (strlen(old_module->module_name) == strlen(module->module_name) &&
           damgr_string_contains(old_module->module_name, module->module_name)) {
-        damgr_get_task_queue_from_module_diff(&module->task_queue, old_module,
-                                              module);
+        damgr_get_task_queue_from_modules_diff(&module->task_queue, old_module,
+                                               module);
         if (module->task_queue.count > 0) {
           damgr_log(
               INFO,
               "successfully got %zu tasks after comparison for module: %s",
               module->task_queue.count, module->module_name);
+          // keep state_path for cleanup
           module->state_path = strdup(old_module->state_path);
-          // old module no longer relevant, so free
-          damgr_free_module(old_module);
-          old_host->modules.ptrs[j] = nullptr;
+          // old module no longer relevant
+          old_module->state_path = nullptr;
+          break; // module->path and module->state_path are valid
+        } else {
+          break;
         }
-        break; // always break after diff calculation
       }
     }
     if (module->state_path == nullptr) {
@@ -239,118 +250,123 @@ static void damgr_get_task_queues_from_hosts_diff(Damgr_Host *old_host,
       if (module->task_queue.count > 0) {
         damgr_log(INFO, "successfully got %zu tasks for new module: %s",
                   module->task_queue.count, module->module_name);
+        break; // module->path is valid
       } else {
         // no queue = module irrelevant, so free
-        damgr_free_module(module);
+        module->path = nullptr;
+        continue; // next module
       }
     }
   }
   // old modules need cleanup
   for (size_t i = 0; i < old_host->modules.count; ++i) {
     Damgr_Module *old_module = old_host->modules.ptrs[i];
-    if (old_module != nullptr) {
+    if (old_module->state_path != nullptr) {
       get_task_queue_from_module(&old_module->task_queue, old_module);
       if (old_module->task_queue.count > 0) {
         damgr_log(INFO, "successfully got %zu tasks for old module: %s",
                   old_module->task_queue.count, old_module->module_name);
+        return; // module->path is valid
       } else {
-        // no queue = old module irrelevant, so free
-        damgr_free_module(old_module);
+        // old module no longer relevant
+        old_module->state_path = nullptr;
+        return;
       }
     }
   }
 }
 
-static void damgr_get_task_queues_from_host(Damgr_Host *host) {
+void damgr_get_module_task_queues_from_host(Damgr_Host *host) {
   for (size_t i = 0; i < host->modules.count; i++) {
     Damgr_Module *module = host->modules.ptrs[i];
     get_task_queue_from_module(&module->task_queue, module);
     if (module->task_queue.count > 0) {
       damgr_log(INFO, "successfully got %zu tasks for module: %s",
-                &module->task_queue.count, module->module_name);
+                module->task_queue.count, module->module_name);
+      return; // module->path is valid
     } else {
-      // no queue = module irrelevant, so free
-      damgr_free_module(module);
+      module->path = nullptr;
+      return;
     }
   }
 }
 
-void damgr_get_task_queues_from_configs(Damgr_Config *old_config,
-                                        Damgr_Config *config) {
-  if (old_config->active_host != nullptr) {
-    int ret = strcmp(old_config->active_host->host_name,
-                     config->active_host->host_name);
-    if (ret < 0 || ret > 0) { // different host
-      damgr_get_task_queues_from_host(config->active_host);
-      damgr_get_task_queues_from_host(old_config->active_host);
-    } else { // same host
-      damgr_get_task_queues_from_hosts_diff(old_config->active_host,
-                                            config->active_host);
-    }
-  } else { // no state host
-    damgr_get_task_queues_from_host(config->active_host);
-  }
-  return;
-}
-
-// TODO: report what task failed?
-static int damgr_do_task(Damgr_Task task, char *aur_helper) {
+static int damgr_do_task(Damgr_Task *task, char *aur_helper) {
   int ret;
   bool privileged;
-  switch (task.type) {
+  switch (task->type) {
   case PACKAGE:
   case AUR_PACKAGE:
-    if (task.is_positive) {
-      if (task.type == PACKAGE) {
-        ret = damgr_execute_package_install_command(task.payload.packages);
+    if (task->is_positive) {
+      if (task->type == PACKAGE) {
+        ret = damgr_execute_package_install_command(task->payload.packages);
       } else {
-        ret = damgr_execute_aur_package_install_command(task.payload.packages,
+        ret = damgr_execute_aur_package_install_command(task->payload.packages,
                                                         aur_helper);
       }
     } else {
       // !is_positive
-      ret = damgr_execute_package_remove_command(task.payload.packages);
+      ret = damgr_execute_package_remove_command(task->payload.packages);
     }
     break;
   case ROOT_SERVICE:
   case USER_SERVICE:
-    privileged = (task.type == ROOT_SERVICE) ? true : false;
-    ret = damgr_execute_service_command(privileged, task.is_positive,
-                                        task.payload.payload_name);
+    privileged = (task->type == ROOT_SERVICE) ? true : false;
+    ret = damgr_execute_service_command(privileged, task->is_positive,
+                                        task->payload.payload_name);
     break;
   case DOTFILE:
-    ret = damgr_execute_dotfile_command(task.is_positive,
-                                        task.payload.payload_name);
+    ret = damgr_execute_dotfile_command(task->is_positive,
+                                        task->payload.payload_name);
     break;
   case PRE_ROOT_HOOK:
   case PRE_USER_HOOK:
   case POST_ROOT_HOOK:
   case POST_USER_HOOK:
-    privileged = (task.type == PRE_ROOT_HOOK || task.type == POST_ROOT_HOOK)
+    privileged = (task->type == PRE_ROOT_HOOK || task->type == POST_ROOT_HOOK)
                      ? true
                      : false;
-    ret = damgr_execute_hook_command(privileged, task.payload.payload_name);
+    ret = damgr_execute_hook_command(privileged, task->payload.payload_name);
     break;
   }
   return ret;
 }
 
-// TODO: report what task failed?
-static int damgr_undo_task(Damgr_Task task) {
+int damgr_do_module_task_queue(Damgr_Module *module, char *aur_helper) {
+  damgr_log(INFO, "starting task queue for module: %s", module->module_name);
   int ret;
-  switch (task.type) {
+  for (size_t i = 0; i < module->task_queue.count; ++i) {
+    Damgr_Task *task = (Damgr_Task *)module->task_queue.ptrs[i];
+    ret = damgr_do_task(task, aur_helper);
+    if (ret == EXIT_SUCCESS) {
+      damgr_log(INFO, "finished %s task for module: %s",
+                task->payload.payload_name, module->module_name);
+      task->status = SUCCEEDED;
+    } else {
+      damgr_log(ERROR, "failed %s task for module: %s",
+                task->payload.payload_name, module->module_name);
+      task->status = FAILED;
+    }
+  }
+  damgr_log(INFO, "finished task queue for module: %s", module->module_name);
+  return EXIT_SUCCESS;
+}
+
+static int damgr_undo_task(Damgr_Task *task) {
+  int ret;
+  switch (task->type) {
   case PACKAGE:
   case AUR_PACKAGE:
-    ret = damgr_execute_package_remove_command(task.payload.packages);
+    ret = damgr_execute_package_remove_command(task->payload.packages);
     break;
   case ROOT_SERVICE:
   case USER_SERVICE:
-    bool privileged = (task.type == ROOT_SERVICE) ? true : false;
+    bool privileged = (task->type == ROOT_SERVICE) ? true : false;
     ret = damgr_execute_service_command(privileged, false,
-                                        task.payload.payload_name);
+                                        task->payload.payload_name);
     break;
   case DOTFILE:
-    ret = damgr_execute_dotfile_command(false, task.payload.payload_name);
+    ret = damgr_execute_dotfile_command(false, task->payload.payload_name);
     break;
   case PRE_ROOT_HOOK:
   case PRE_USER_HOOK:
@@ -363,58 +379,24 @@ static int damgr_undo_task(Damgr_Task task) {
   return ret;
 }
 
-static int do_module_task_queue_transaction(Damgr_Module *module,
-                                            char *aur_helper) {
-  int ret = EXIT_SUCCESS;
-  size_t i = 0;
-  for (; module->task_queue.count; ++i) {
-    if (i == module->task_queue.count) {
-      return ret; // all queues done
-    }
-    ret = damgr_do_task(*(Damgr_Task *)module->task_queue.ptrs[i], aur_helper);
-    if (ret == EXIT_FAILURE) {
-      damgr_log(ERROR, "%s task queue transaction failed...",
-                module->module_name);
-      break;
-    }
-  }
-  // undo tasks after queue failure
-  if (ret == EXIT_FAILURE) {
-    damgr_log(INFO, "starting %s task queue rollback...", module->module_name);
-    while (i > 0) {
-      --i; // last task failed so no need for rollback
-      ret = damgr_undo_task(*(Damgr_Task *)module->task_queue.ptrs[i]);
-      if (ret == EXIT_FAILURE) {
-        damgr_log(ERROR, "%s task queue rollback failed!", module->module_name);
-        return ret;
-      }
-    }
-    damgr_log(INFO, "%s task queue rollback finished!", module->module_name);
-  }
-  return ret;
-}
-
-int damgr_do_task_queues_for_config(Damgr_Config *config) {
-  int ret = EXIT_SUCCESS;
-  damgr_log(INFO, "starting task queue transactions for host %s",
-            config->active_host->host_name);
-  for (size_t i = 0; i < config->active_host->modules.count; ++i) {
-    Damgr_Module *module = config->active_host->modules.ptrs[i];
-    if (module != nullptr) {
-      damgr_log(INFO, "%s task queue transaction started...",
-                module->module_name);
-      ret = do_module_task_queue_transaction(module, config->aur_helper);
+void damgr_undo_module_task_queue(Damgr_Module *module) {
+  damgr_log(INFO, "starting task queue rollback for module: %s",
+            module->module_name);
+  int ret;
+  for (size_t i = 0; i < module->task_queue.count; ++i) {
+    Damgr_Task *task = (Damgr_Task *)module->task_queue.ptrs[i];
+    if (task->status == FAILED) {
+      ret = damgr_undo_task(task);
       if (ret == EXIT_SUCCESS) {
-        return ret;
+        damgr_log(INFO, "finished rollback %s task for module: %s",
+                  task->payload.payload_name, module->module_name);
+        task->status = SUCCEEDED;
       } else {
-        // TODO: report failure?
+        damgr_log(ERROR, "failed to rollback %s task for module: %s",
+                  task->payload.payload_name, module->module_name);
       }
     }
   }
-  if (ret == EXIT_SUCCESS) {
-    return ret;
-  } else {
-    // TODO: report failure?
-  }
-  return EXIT_FAILURE;
+  damgr_log(INFO, "finished task queue rollback for module: %s",
+            module->module_name);
 }

@@ -16,7 +16,6 @@ typedef struct module {
   Damgr_Darray post_user_hooks;
   Damgr_Darray task_queue;
   bool to_link;
-  // TODO: union?
   char *module_name;
   char *state_path;
   char *path;
