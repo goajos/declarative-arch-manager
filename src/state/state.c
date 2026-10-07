@@ -222,6 +222,9 @@ void damgr_read_config(Damgr_Config *config, bool is_state) {
   fclose(config_fid);
 }
 
+// after reading:
+// config active_host has state_path == nullptr
+// old config active_host has path == nullptr
 void damgr_read_host(Damgr_Config *config, bool is_state) {
   char fidbuf[damgr_path_max];
   if (is_state) {
@@ -239,6 +242,9 @@ void damgr_read_host(Damgr_Config *config, bool is_state) {
   fclose(host_fid);
 }
 
+// after reading:
+// config modules have state_path == nullptr
+// old config modules have path == nullptr
 void damgr_read_module(Damgr_Config *config, int module_idx, bool is_state) {
   Damgr_Module *module = config->active_host->modules.ptrs[module_idx];
   char fidbuf[damgr_path_max];
@@ -325,6 +331,7 @@ static void damgr_write_host(Damgr_Host *host) {
       fprintf(host_fid, "  %s\n", module->module_name);
     }
     if (module->state_path != nullptr) {
+      // only set after comparison of modules
       remove(module->state_path);
       damgr_log(INFO, "succesfully removed old state module: %s",
                 module->state_path);
@@ -343,13 +350,9 @@ void damgr_write_config(Damgr_Config config) {
     fprintf(config_fid, "%s=%s", damgr_conf_keys[ACTIVE_HOST], host->host_name);
   }
   if (host->state_path != nullptr) {
+    // only set when hosts are different
     remove(host->state_path);
     damgr_log(INFO, "succesfully removed old state host: %s", host->state_path);
-  }
-  if (config.state_path != nullptr) {
-    remove(config.state_path);
-    damgr_log(INFO, "succesfully removed old state config: %s",
-              config.state_path);
   }
   fclose(config_fid);
   damgr_log(INFO, "succesfully wrote state config: %s", config.path);

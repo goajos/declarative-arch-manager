@@ -38,50 +38,52 @@ int damgr_merge() {
   // *(Damgr_Task_Queue *)config->active_host.task_queues.ptrs[0]
   // *(Damgr_Task *)(*(Damgr_Task_Queue *)config->
   //    active_host.task_queues.ptrs[0]).tasks.ptrs[1]
-  if (old_config.active_host != nullptr) {
+  if (old_config.active_host != nullptr) { // state host
     ret = strcmp(old_config.active_host->host_name,
                  config.active_host->host_name);
     if (ret < 0 || ret > 0) { // different host
       damgr_get_module_task_queues_from_host(config.active_host);
       damgr_get_module_task_queues_from_host(old_config.active_host);
-      // keep state_path for cleanup
-      config.state_path = strdup(old_config.state_path);
-      // old config no longer relevant
-      old_config.state_path = nullptr;
+      // flag old state host for cleanup
+      config.active_host->state_path =
+          strdup(old_config.active_host->state_path);
     } else { // same host
       damgr_get_module_task_queues_from_hosts_diff(old_config.active_host,
                                                    config.active_host);
     }
+  } else { // only new host
+    damgr_get_module_task_queues_from_host(config.active_host);
+  }
 
-    for (size_t i = 0; i < config.active_host->modules.count; ++i) {
-      Damgr_Module *module = config.active_host->modules.ptrs[i];
-      if (module->path != nullptr) {
-        ret = damgr_do_module_task_queue(module, config.aur_helper);
-        if (ret != EXIT_SUCCESS) {
-          damgr_undo_module_task_queue(module);
-          module->path = nullptr;
-          damgr_log(ERROR,
-                    "manual fixing might be required for new module: %s!",
-                    module->module_name);
-          for (size_t j = 0; j < module->task_queue.count; ++j) {
-            Damgr_Task *task = (Damgr_Task *)module->task_queue.ptrs[j];
-            if (task->status == FAILED) {
-              damgr_log(ERROR, "\tfailed task: %s!",
-                        task->payload.payload_name);
-            } else if (task->status == PENDING) {
-              damgr_log(ERROR, "\tpending task: %s!",
-                        task->payload.payload_name);
-            }
+  for (size_t i = 0; i < config.active_host->modules.count; ++i) {
+    Damgr_Module *module = config.active_host->modules.ptrs[i];
+    if (module->path != nullptr) {
+      ret = damgr_do_module_task_queue(module, config.aur_helper);
+      if (ret != EXIT_SUCCESS) {
+        damgr_undo_module_task_queue(module);
+        module->path = nullptr;
+        damgr_log(ERROR, "manual fixing might be required for new module: %s!",
+                  module->module_name);
+        for (size_t j = 0; j < module->task_queue.count; ++j) {
+          Damgr_Task *task = (Damgr_Task *)module->task_queue.ptrs[j];
+          if (task->status == FAILED) {
+            damgr_log(ERROR, "\tfailed task: %s!", task->payload.payload_name);
+          } else if (task->status == PENDING) {
+            damgr_log(ERROR, "\tpending task: %s!", task->payload.payload_name);
           }
         }
       }
     }
+  }
+  damgr_write_config(config);
 
+  if (old_config.active_host != nullptr) { // state host
     for (size_t i = 0; i < old_config.active_host->modules.count; ++i) {
       Damgr_Module *old_module = old_config.active_host->modules.ptrs[i];
       if (old_module->state_path != nullptr) {
         ret = damgr_do_module_task_queue(old_module, config.aur_helper);
         if (ret != EXIT_SUCCESS) {
+          damgr_undo_module_task_queue(old_module);
           old_module->state_path = nullptr;
           damgr_log(ERROR,
                     "manual cleanup might be required for old module: %s!",
@@ -97,49 +99,12 @@ int damgr_merge() {
             }
           }
         } else {
-          // keep state_path for cleanup
-          config.active_host->state_path =
-              strdup(old_config.active_host->state_path);
-          // old host no longer relevant
-          old_config.active_host->state_path = nullptr;
-        }
-      }
-    }
-  } else { // no old config
-    damgr_get_module_task_queues_from_host(config.active_host);
-    for (size_t i = 0; i < config.active_host->modules.count; ++i) {
-      Damgr_Module *module = config.active_host->modules.ptrs[i];
-      if (module->path != nullptr) {
-        ret = damgr_do_module_task_queue(module, config.aur_helper);
-        if (ret != EXIT_SUCCESS) {
-          damgr_undo_module_task_queue(module);
-          module->path = nullptr;
-          damgr_log(ERROR,
-                    "manual cleanup might be required for new module: %s!",
-                    module->module_name);
-          for (size_t j = 0; j < module->task_queue.count; ++j) {
-            Damgr_Task *task = (Damgr_Task *)module->task_queue.ptrs[j];
-            if (task->status == FAILED) {
-              damgr_log(ERROR, "\tfailed task: %s!",
-                        task->payload.payload_name);
-            } else if (task->status == PENDING) {
-              damgr_log(ERROR, "\tpending task: %s!",
-                        task->payload.payload_name);
-            }
-          }
+          // cleanup orphaned modules
+          remove(old_module->state_path);
         }
       }
     }
   }
-
-  damgr_write_config(config);
-  // damgr_free_module(old_module);
-  // old_host->modules.ptrs[j] = nullptr;
-
-  // damgr_get_task_queues(&old_config, &config);
-  // ret = damgr_do_task_queues_for_config(&config);
-  // TODO: finish write/remove logic and verify the module queue transaction
-  // logic
 
   return ret;
 }

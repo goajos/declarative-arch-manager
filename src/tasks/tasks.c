@@ -216,12 +216,16 @@ static void get_task_queue_from_module(Damgr_Darray *queue,
 
 void damgr_get_module_task_queues_from_hosts_diff(Damgr_Host *old_host,
                                                   Damgr_Host *host) {
+  // bool *is_compared = calloc(host->modules.count, sizeof(bool));
+  // bool *is_orphan = calloc(old_host->modules.count, sizeof(bool));
+  // memset(is_orphan, true, old_host->modules.count * sizeof(bool));
+
   for (size_t i = 0; i < host->modules.count; ++i) {
     Damgr_Module *module = host->modules.ptrs[i];
     for (size_t j = 0; j < old_host->modules.count; ++j) {
       Damgr_Module *old_module = old_host->modules.ptrs[j];
       if (old_module->state_path == nullptr) {
-        continue; // next old module
+        continue;
       }
       // first check if the name lengths are equal, if so perform needle in
       // haystack search, else skip
@@ -229,51 +233,46 @@ void damgr_get_module_task_queues_from_hosts_diff(Damgr_Host *old_host,
           damgr_string_contains(old_module->module_name, module->module_name)) {
         damgr_get_task_queue_from_modules_diff(&module->task_queue, old_module,
                                                module);
+        // is_compared[i] = true;
+        // is_orphan[j] = false;
+        // flag old state module for cleanup
+        module->state_path = strdup(old_module->state_path);
+        old_module->state_path = nullptr;
         if (module->task_queue.count > 0) {
           damgr_log(
               INFO,
               "successfully got %zu tasks after comparison for module: %s",
               module->task_queue.count, module->module_name);
-          // keep state_path for cleanup
-          module->state_path = strdup(old_module->state_path);
-          // old module no longer relevant
-          old_module->state_path = nullptr;
-          break; // module->path and module->state_path are valid
-        } else {
-          break;
         }
+        break;
       }
     }
+    // if (!is_compared[i]) {
     if (module->state_path == nullptr) {
       // no old module matched, so the module is new
       get_task_queue_from_module(&module->task_queue, module);
       if (module->task_queue.count > 0) {
         damgr_log(INFO, "successfully got %zu tasks for new module: %s",
                   module->task_queue.count, module->module_name);
-        break; // module->path is valid
-      } else {
-        // no queue = module irrelevant, so free
-        module->path = nullptr;
-        continue; // next module
       }
     }
   }
+
   // old modules need cleanup
   for (size_t i = 0; i < old_host->modules.count; ++i) {
     Damgr_Module *old_module = old_host->modules.ptrs[i];
+    // if (is_orphan[i]) {
     if (old_module->state_path != nullptr) {
       get_task_queue_from_module(&old_module->task_queue, old_module);
       if (old_module->task_queue.count > 0) {
         damgr_log(INFO, "successfully got %zu tasks for old module: %s",
                   old_module->task_queue.count, old_module->module_name);
-        return; // module->path is valid
-      } else {
-        // old module no longer relevant
-        old_module->state_path = nullptr;
-        return;
       }
     }
   }
+
+  // free(is_compared);
+  // free(is_orphan);
 }
 
 void damgr_get_module_task_queues_from_host(Damgr_Host *host) {
@@ -283,10 +282,6 @@ void damgr_get_module_task_queues_from_host(Damgr_Host *host) {
     if (module->task_queue.count > 0) {
       damgr_log(INFO, "successfully got %zu tasks for module: %s",
                 module->task_queue.count, module->module_name);
-      return; // module->path is valid
-    } else {
-      module->path = nullptr;
-      return;
     }
   }
 }
