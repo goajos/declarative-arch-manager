@@ -33,11 +33,11 @@ int damgr_merge() {
   for (size_t i = 0; i < config.active_host->modules.count; ++i) {
     damgr_read_module(&config, i, false);
   }
+
   // DEBUG:
   // *(Damgr_Task_Queue *)config->active_host.task_queues.ptrs[0]
   // *(Damgr_Task *)(*(Damgr_Task_Queue *)config->
   //    active_host.task_queues.ptrs[0]).tasks.ptrs[1]
-
   if (old_config.active_host != nullptr) {
     ret = strcmp(old_config.active_host->host_name,
                  config.active_host->host_name);

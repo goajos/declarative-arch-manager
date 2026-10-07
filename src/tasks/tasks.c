@@ -9,7 +9,7 @@ char *damgr_task_type_map[] = {[PACKAGE] = "package",
 
 Damgr_Task *task_constructor(Damgr_Task_Payload payload, Damgr_Task_Type type,
                              bool is_positive) {
-  Damgr_Task *task = malloc(sizeof(*task));
+  Damgr_Task *task = calloc(1, sizeof(*task));
   task->payload = payload;
   task->type = type;
   task->status = PENDING;
