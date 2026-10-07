@@ -10,7 +10,9 @@ int damgr_merge() {
 
   int ret;
   char fidbuf[damgr_path_max];
+  Damgr_Config config = {};
   Damgr_Config old_config = {};
+
   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr", getenv("HOME"));
   ret = damgr_is_state_dir_empty(fidbuf);
   if (ret == EXIT_FAILURE) {
@@ -25,9 +27,9 @@ int damgr_merge() {
     for (size_t i = 0; i < old_config.active_host->modules.count; ++i) {
       damgr_read_module(&old_config, i, true);
     }
+    config.state_path = strdup(old_config.state_path);
   }
 
-  Damgr_Config config = {};
   damgr_read_config(&config, false);
   damgr_read_host(&config, false);
   for (size_t i = 0; i < config.active_host->modules.count; ++i) {
