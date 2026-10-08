@@ -11,38 +11,13 @@ typedef struct arena {
   size_t offset;
 } Damgr_Arena;
 
-static inline void arena_init(Damgr_Arena *arena) {
-  if (arena != nullptr)
-    arena->offset = 0;
-}
+void arena_init(Damgr_Arena *arena);
 
-static inline void *arena_alloc(Damgr_Arena *arena, size_t size) {
-  if (arena == nullptr || size == 0)
-    return nullptr;
+void *arena_alloc(Damgr_Arena *arena, size_t size);
 
-  size = (size + ALLOC_UNIT - 1) & ~(ALLOC_UNIT - 1);
-  if (arena->offset + size > BUFFER_SIZE) {
-    return nullptr; // out of memory
-  } else {
-    void *ptr = &arena->buffer[arena->offset];
-    arena->offset += size;
-    return ptr;
-  }
-}
+char *arena_strdup(Damgr_Arena *arena, const char *src);
 
-static inline char *arena_strdup(Damgr_Arena *arena, const char *src) {
-  if (arena == nullptr || src == nullptr)
-    return nullptr;
-
-  size_t len = strlen(src) + 1; // null terminator
-  char *dest = arena_alloc(arena, len);
-  if (dest != nullptr) {
-    memcpy(dest, src, len);
-  }
-
-  return dest;
-}
-
+// TODO: what to do with the (state_)path for modules?
 typedef struct module {
   char *module_name;
   char **packages;
@@ -52,14 +27,22 @@ typedef struct module {
   bool to_link;
 } Damgr_Module;
 
+// TODO: what to do with the (state_)path for hosts?
 typedef struct host {
   char *host_name;
   Damgr_Module *modules;
 } Damgr_Host;
 
+// TODO: what to do with the (state_)path for config?
 typedef struct config {
   char *aur_helper;
   Damgr_Host active_host;
 } Damgr_Config;
+
+void damgr_read_config(Damgr_Config *config, Damgr_Arena *arena,
+                       const char *fp);
+void damgr_read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fp);
+void damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
+                       const char *fp);
 
 #endif /* DAMGR_STATE_H */
