@@ -10,10 +10,7 @@ CFLAGS=-Wall -Wextra -Werror -pedantic -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)
 
 BUILDDIR=build
 CFILES=main.c \
-			 src/utils/log.c \
-			 src/utils/utils.c \
-			 src/state/state.c \
-			 src/tasks/tasks.c
+			 src/log.c 
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 
@@ -32,14 +29,5 @@ $(BUILDDIR)/%.o:%.c
 
 clean:
 	rm -rf $(BIN) $(BUILDDIR)
-
-test:
-	@echo "Building the test environment..."
-	docker build --no-cache --platform linux/amd64 -t damgr-test-env -f Dockerfile .
-	@echo "Running tests inside the test environment..."
-	docker run --platform linux/amd64 --rm \
-		-v $(PWD)/tests:/home/testuser/damgr/tests \
-		damgr-test-env \
-		bash -c "bash tests/init.sh && cp -r tests/.config/* /home/testuser/.config/ && bash tests/merge.sh && bash tests/update.sh"
 
 -include $(DEPFILES)

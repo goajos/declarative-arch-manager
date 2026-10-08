@@ -1,80 +1,65 @@
 #ifndef DAMGR_STATE_H
 #define DAMGR_STATE_H
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-typedef struct darray {
-  char **items;
-  size_t capacity;
-  size_t count;
-} Damgr_Darray;
-void damgr_free_darray(Damgr_Darray *darray);
-void damgr_darray_append(Damgr_Darray *darray, char *item);
+#define BUFFER_SIZE 1024 * 1024 // size of the arena
+#define ALLOC_UNIT 16           // minimal allocation unit
+
+typedef struct arena {
+  uint8_t buffer[BUFFER_SIZE];
+  size_t offset;
+} Damgr_Arena;
+
+static inline void arena_init(Damgr_Arena *arena) {
+  if (arena != nullptr)
+    arena->offset = 0;
+}
+
+static inline void *arena_alloc(Damgr_Arena *arena, size_t size) {
+  if (arena == nullptr || size == 0)
+    return nullptr;
+
+  size = (size + ALLOC_UNIT - 1) & ~(ALLOC_UNIT - 1);
+  if (arena->offset + size > BUFFER_SIZE) {
+    return nullptr; // out of memory
+  } else {
+    void *ptr = &arena->buffer[arena->offset];
+    arena->offset += size;
+    return ptr;
+  }
+}
+
+static inline char *arena_strdup(Damgr_Arena *arena, const char *src) {
+  if (arena == nullptr || src == nullptr)
+    return nullptr;
+
+  size_t len = strlen(src) + 1; // null terminator
+  char *dest = arena_alloc(arena, len);
+  if (dest != nullptr) {
+    memcpy(dest, src, len);
+  }
+
+  return dest;
+}
 
 typedef struct module {
-  Damgr_Darray pre_root_hooks;
-  Damgr_Darray pre_user_hooks;
-  Damgr_Darray packages;
-  Damgr_Darray aur_packages;
-  Damgr_Darray user_services;
-  Damgr_Darray post_root_hooks;
-  Damgr_Darray post_user_hooks;
-  char *name;
+  char *module_name;
+  char **packages;
+  char **aur_packages;
+  char **root_services;
+  char **user_services;
   bool to_link;
-  bool is_compared; // for new modules this should start on false
-  bool is_orphan;   // for old modules this should start on true
-  bool to_write;    // flags that a queue with this module ran successfully
 } Damgr_Module;
 
-typedef struct modules {
-  Damgr_Module *items;
-  size_t capacity;
-  size_t count;
-} Damgr_Modules;
-void damgr_modules_append(Damgr_Modules *modules, Damgr_Module module);
-
-typedef struct root_servives {
-  char **items;
-  size_t capacity;
-  size_t count;
-  bool to_write; // flags that a queue with these root services ran successfully
-} Damgr_Root_Services;
-void damgr_root_services_append(Damgr_Root_Services *services, char *service);
-
 typedef struct host {
-  Damgr_Modules modules;
-  Damgr_Root_Services root_services;
-  char *name;
-  bool is_orphan;
+  char *host_name;
+  Damgr_Module *modules;
 } Damgr_Host;
 
 typedef struct config {
-  Damgr_Host active_host;
   char *aur_helper;
+  Damgr_Host active_host;
 } Damgr_Config;
-
-typedef enum conf_key {
-  AUR_HELPER,
-  ACTIVE_HOST,
-  MODULES,
-  SERVICES,
-  DOTFILES,
-  PACKAGES,
-  AUR_PACKAGES,
-  PRE_HOOKS,
-  POST_HOOKS,
-  MAX_CONF_KEY,
-} Damgr_Conf_Key;
-
-extern const char *damgr_conf_keys[];
-
-void damgr_free_config(Damgr_Config *config);
-int damgr_read_config(char *user, Damgr_Config *config, bool is_state);
-int damgr_write_config(char *user, Damgr_Config config);
-int damgr_read_host(char *user, Damgr_Config *config, bool is_state);
-void damgr_remove_host(char *user, Damgr_Host host);
-int damgr_read_module(char *user, Damgr_Config *config, int module_idx,
-                      bool is_state);
-void damgr_remove_module(char *user, Damgr_Module module);
 
 #endif /* DAMGR_STATE_H */

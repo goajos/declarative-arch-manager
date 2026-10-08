@@ -8,8 +8,8 @@ void damgr_default_log_handler(enum damgr_log_level level, const char *fmt,
   case INFO:
     fprintf(stderr, "[INFO] ");
     break;
-  case WARNING:
-    fprintf(stderr, "[WARNING] ");
+  case DEBUG:
+    fprintf(stderr, "[DEBUG] ");
     break;
   case ERROR:
     fprintf(stderr, "[ERROR] ");
