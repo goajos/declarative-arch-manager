@@ -1,3 +1,4 @@
+#include "damgr/log.h"
 #include "damgr/state.h"
 #include <stdlib.h>
 
