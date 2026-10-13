@@ -12,7 +12,6 @@ typedef struct array_diff {
   bool *only_in_state;
   bool *only_in_active;
 } Damgr_Array_Diff;
-int damgr_get_diff_array(Damgr_Array_Diff *diff, Damgr_Arena *arena);
 
 typedef struct module_diff {
   Damgr_Diff_Type diff_type;
@@ -24,9 +23,6 @@ typedef struct module_diff {
   Damgr_Array_Diff user_services;
   bool to_link_diff;
 } Damgr_Module_Diff;
-int damgr_get_diff_module(Damgr_Module_Diff *module_diff,
-                          Damgr_Module *state_module,
-                          Damgr_Module *active_module, Damgr_Arena *arena);
 
 typedef struct host_diff {
   Damgr_Module_Diff *diffs;
@@ -35,5 +31,5 @@ typedef struct host_diff {
 } Damgr_Host_Diff;
 int damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
                         Damgr_Host *active_host, Damgr_Arena *arena);
-
+void damgr_print_host_diff(Damgr_Host_Diff *host_diff);
 #endif /* DAMGR_DIFF_H */

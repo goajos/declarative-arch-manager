@@ -31,7 +31,7 @@ static bool has_changed(Damgr_Array_Diff *array_diff) {
   return false;
 }
 
-int damgr_get_diff_array(Damgr_Array_Diff *diff, Damgr_Arena *arena) {
+static int damgr_get_diff_array(Damgr_Array_Diff *diff, Damgr_Arena *arena) {
   if (diff->active_cnt > 0) {
     diff->only_in_active = arena_alloc(arena, diff->active_cnt);
     if (diff->only_in_active == nullptr) {
@@ -57,9 +57,10 @@ int damgr_get_diff_array(Damgr_Array_Diff *diff, Damgr_Arena *arena) {
   return EXIT_SUCCESS;
 }
 
-int damgr_get_diff_module(Damgr_Module_Diff *module_diff,
-                          Damgr_Module *state_module,
-                          Damgr_Module *active_module, Damgr_Arena *arena) {
+static int damgr_get_diff_module(Damgr_Module_Diff *module_diff,
+                                 Damgr_Module *state_module,
+                                 Damgr_Module *active_module,
+                                 Damgr_Arena *arena) {
   int ret;
   module_diff->diff_type = CHANGE;
   module_diff->state_module = state_module;
@@ -132,9 +133,10 @@ int damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
   for (size_t i = 0; i < active_host->modules_cnt; ++i) {
     Damgr_Module *active_module = active_host->modules[i];
     Damgr_Module *state_module =
-        state_host ? find_module(state_host->modules, state_host->modules_cnt,
-                                 active_module->module_name)
-                   : nullptr;
+        (state_host && !host_diff->host_changed)
+            ? find_module(state_host->modules, state_host->modules_cnt,
+                          active_module->module_name)
+            : nullptr;
     Damgr_Module_Diff *module_diff = &host_diff->diffs[host_diff->diff_cnt++];
     if (state_module == nullptr) {
       module_diff->diff_type = ADD;
@@ -152,7 +154,8 @@ int damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
   if (state_host != nullptr) {
     for (size_t i = 0; i < state_host->modules_cnt; ++i) {
       Damgr_Module *state_module = state_host->modules[i];
-      if (find_module(active_host->modules, active_host->modules_cnt,
+      if (host_diff->host_changed ||
+          find_module(active_host->modules, active_host->modules_cnt,
                       state_module->module_name) == nullptr) {
         Damgr_Module_Diff *module_diff =
             &host_diff->diffs[host_diff->diff_cnt++];
@@ -164,4 +167,71 @@ int damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
   }
 
   return EXIT_SUCCESS;
+}
+
+static const char *damgr_diff_type_string(Damgr_Diff_Type type) {
+  switch (type) {
+  case ADD:
+    return "ADD";
+  case REMOVE:
+    return "REMOVE";
+  case CHANGE:
+    return "CHANGE";
+  case SKIP:
+    return "SKIP";
+  }
+  return "UNKNOWN";
+}
+
+static void damgr_print_array_diff(const char *label, Damgr_Array_Diff *diff) {
+  for (size_t i = 0; i < diff->active_cnt; ++i) {
+    if (diff->only_in_active[i])
+      damgr_log(INFO, "\t%s + %s", label, diff->active_array[i]);
+  }
+  for (size_t i = 0; i < diff->state_cnt; ++i) {
+    if (diff->only_in_state[i])
+      damgr_log(INFO, "\t%s - %s", label, diff->state_array[i]);
+  }
+}
+
+static void damgr_print_module_diff(Damgr_Module_Diff *module_diff) {
+  Damgr_Module *module = module_diff->active_module != nullptr
+                             ? module_diff->active_module
+                             : module_diff->state_module;
+  const char *sign = module_diff->diff_type == REMOVE ? "-" : "+";
+  damgr_log(INFO, "module: %s [%s]", module->module_name,
+            damgr_diff_type_string(module_diff->diff_type));
+
+  if (module_diff->diff_type == SKIP) {
+    return;
+  }
+
+  if (module_diff->diff_type == ADD || module_diff->diff_type == REMOVE) {
+    for (size_t i = 0; i < module->packages_cnt; ++i)
+      damgr_log(INFO, "\tpackage %s %s", sign, module->packages[i]);
+    for (size_t i = 0; i < module->aur_packages_cnt; ++i)
+      damgr_log(INFO, "\taur_package %s %s", sign, module->aur_packages[i]);
+    for (size_t i = 0; i < module->root_services_cnt; ++i)
+      damgr_log(INFO, "\troot_service %s %s", sign, module->root_services[i]);
+    for (size_t i = 0; i < module->user_services_cnt; ++i)
+      damgr_log(INFO, "\tuser_service %s %s", sign, module->user_services[i]);
+    if (module->to_link)
+      damgr_log(INFO, "\tdotfiles %s true", sign);
+    return;
+  }
+
+  damgr_print_array_diff("package", &module_diff->packages);
+  damgr_print_array_diff("aur_package", &module_diff->aur_packages);
+  damgr_print_array_diff("root_service", &module_diff->root_services);
+  damgr_print_array_diff("user_service", &module_diff->user_services);
+  if (module_diff->to_link_diff)
+    damgr_log(INFO, "\tdotfiles %s",
+              module_diff->active_module->to_link ? "+ true" : "- false");
+}
+
+void damgr_print_host_diff(Damgr_Host_Diff *host_diff) {
+  damgr_log(INFO, "host diff: %zu module(s) affected", host_diff->diff_cnt);
+  for (size_t i = 0; i < host_diff->diff_cnt; ++i) {
+    damgr_print_module_diff(&host_diff->diffs[i]);
+  }
 }

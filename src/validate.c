@@ -1,3 +1,4 @@
+#include "damgr/diff.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
 
@@ -20,7 +21,7 @@ int damgr_validate() {
   ret = damgr_count_state_dir(fidbuf);
   if (ret == EXIT_FAILURE) {
     goto cleanup;
-  } else if (ret == 2) { // only "." and ".." dirs found
+  } else if (ret == 0) { // no .conf files found
     damgr_log(INFO, "no state to parse, the state directory is empty: %s",
               fidbuf);
   } else {
@@ -32,19 +33,13 @@ int damgr_validate() {
   if (ret == EXIT_FAILURE)
     goto cleanup;
 
-  // for (size_t i = 0; i < config.active_host->modules_cnt; ++i) {
-  // find_module(config.active_host->modules, config.active_host->modules_cnt,
-  //             config.state_host->modules[0]->module_name);
-  if (config.state_host != nullptr) {
-    if (strcmp(config.state_host->host_name, config.active_host->host_name) ==
-        0) {
-      // active host and state host are the same
-    } else {
-      // active host and state host are different
-    }
-  } else {
-    // only active host
-  }
+  Damgr_Host_Diff host_diff = {};
+  ret = damgr_get_diff_host(&host_diff, config.state_host, config.active_host,
+                            arena);
+  if (ret == EXIT_FAILURE)
+    goto cleanup;
+
+  damgr_print_host_diff(&host_diff);
   ret = EXIT_SUCCESS;
 
 cleanup:
