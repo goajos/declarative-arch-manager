@@ -12,7 +12,7 @@ BUILDDIR=build
 CFILES=main.c \
 			 src/log.c \
 			 src/state.c \
-			 src/diff.c
+			 src/diff.c 
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 

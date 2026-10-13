@@ -1,4 +1,3 @@
-#include "damgr/diff.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
 
@@ -12,21 +11,26 @@ int damgr_validate() {
 
   int ret;
   char fidbuf[DAMGR_PATH_MAX];
+  if (getenv("HOME") == nullptr) {
+    damgr_log(ERROR, "getenv(\"HOME\") return a nullptr");
+    ret = EXIT_FAILURE;
+    goto cleanup;
+  }
   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr", getenv("HOME"));
   ret = damgr_count_state_dir(fidbuf);
   if (ret == EXIT_FAILURE) {
-    return ret;
+    goto cleanup;
   } else if (ret == 2) { // only "." and ".." dirs found
     damgr_log(INFO, "no state to parse, the state directory is empty: %s",
               fidbuf);
   } else {
     ret = damgr_read_state(&config, arena);
     if (ret == EXIT_FAILURE)
-      return ret;
+      goto cleanup;
   }
   ret = damgr_read_active(&config, arena);
   if (ret == EXIT_FAILURE)
-    return ret;
+    goto cleanup;
 
   // for (size_t i = 0; i < config.active_host->modules_cnt; ++i) {
   // find_module(config.active_host->modules, config.active_host->modules_cnt,
@@ -41,7 +45,9 @@ int damgr_validate() {
   } else {
     // only active host
   }
+  ret = EXIT_SUCCESS;
 
+cleanup:
   free(arena);
-  return EXIT_SUCCESS;
+  return ret;
 }

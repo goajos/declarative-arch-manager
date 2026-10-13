@@ -1,4 +1,5 @@
 #include "damgr/diff.h"
+#include "damgr/log.h"
 #include "damgr/state.h"
 
 static bool in_array(const char **array, size_t cnt, const char *item) {
@@ -30,9 +31,21 @@ static bool has_changed(Damgr_Array_Diff *array_diff) {
   return false;
 }
 
-void damgr_get_diff_array(Damgr_Array_Diff *diff, Damgr_Arena *arena) {
-  diff->only_in_active = arena_alloc(arena, diff->active_cnt);
-  diff->only_in_state = arena_alloc(arena, diff->state_cnt);
+int damgr_get_diff_array(Damgr_Array_Diff *diff, Damgr_Arena *arena) {
+  if (diff->active_cnt > 0) {
+    diff->only_in_active = arena_alloc(arena, diff->active_cnt);
+    if (diff->only_in_active == nullptr) {
+      damgr_log(ERROR, "arena alloc failed and returned nullptr");
+      return EXIT_FAILURE;
+    }
+  }
+  if (diff->state_cnt > 0) {
+    diff->only_in_state = arena_alloc(arena, diff->state_cnt);
+    if (diff->only_in_state == nullptr) {
+      damgr_log(ERROR, "arena alloc failed and returned nullptr");
+      return EXIT_FAILURE;
+    }
+  }
   for (size_t i = 0; i < diff->active_cnt; ++i) {
     diff->only_in_active[i] =
         !in_array(diff->state_array, diff->state_cnt, diff->active_array[i]);
@@ -41,11 +54,13 @@ void damgr_get_diff_array(Damgr_Array_Diff *diff, Damgr_Arena *arena) {
     diff->only_in_state[i] =
         !in_array(diff->active_array, diff->active_cnt, diff->state_array[i]);
   }
+  return EXIT_SUCCESS;
 }
 
-void damgr_get_diff_module(Damgr_Module_Diff *module_diff,
-                           Damgr_Module *state_module,
-                           Damgr_Module *active_module, Damgr_Arena *arena) {
+int damgr_get_diff_module(Damgr_Module_Diff *module_diff,
+                          Damgr_Module *state_module,
+                          Damgr_Module *active_module, Damgr_Arena *arena) {
+  int ret;
   module_diff->diff_type = CHANGE;
   module_diff->state_module = state_module;
   module_diff->active_module = active_module;
@@ -56,25 +71,33 @@ void damgr_get_diff_module(Damgr_Module_Diff *module_diff,
   module_diff->packages.state_cnt = state_module->packages_cnt;
   module_diff->packages.active_array = active_module->packages;
   module_diff->packages.active_cnt = active_module->packages_cnt;
-  damgr_get_diff_array(&module_diff->packages, arena);
+  ret = damgr_get_diff_array(&module_diff->packages, arena);
+  if (ret == EXIT_FAILURE)
+    return EXIT_FAILURE;
 
   module_diff->aur_packages.state_array = state_module->aur_packages;
   module_diff->aur_packages.state_cnt = state_module->aur_packages_cnt;
   module_diff->aur_packages.active_array = active_module->aur_packages;
   module_diff->aur_packages.active_cnt = active_module->aur_packages_cnt;
-  damgr_get_diff_array(&module_diff->aur_packages, arena);
+  ret = damgr_get_diff_array(&module_diff->aur_packages, arena);
+  if (ret == EXIT_FAILURE)
+    return EXIT_FAILURE;
 
   module_diff->root_services.state_array = state_module->root_services;
   module_diff->root_services.state_cnt = state_module->root_services_cnt;
   module_diff->root_services.active_array = active_module->root_services;
   module_diff->root_services.active_cnt = active_module->root_services_cnt;
-  damgr_get_diff_array(&module_diff->root_services, arena);
+  ret = damgr_get_diff_array(&module_diff->root_services, arena);
+  if (ret == EXIT_FAILURE)
+    return EXIT_FAILURE;
 
   module_diff->user_services.state_array = state_module->user_services;
   module_diff->user_services.state_cnt = state_module->user_services_cnt;
   module_diff->user_services.active_array = active_module->user_services;
   module_diff->user_services.active_cnt = active_module->user_services_cnt;
-  damgr_get_diff_array(&module_diff->user_services, arena);
+  ret = damgr_get_diff_array(&module_diff->user_services, arena);
+  if (ret == EXIT_FAILURE)
+    return EXIT_FAILURE;
 
   // downgrade type to SKIP if no changes
   bool any = module_diff->to_link_diff;
@@ -84,17 +107,25 @@ void damgr_get_diff_module(Damgr_Module_Diff *module_diff,
         has_changed(&module_diff->user_services);
   if (!any)
     module_diff->diff_type = SKIP;
+
+  return EXIT_SUCCESS;
 }
 
-void damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
-                         Damgr_Host *active_host, Damgr_Arena *arena) {
+int damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
+                        Damgr_Host *active_host, Damgr_Arena *arena) {
   host_diff->host_changed =
       state_host == nullptr ||
       strcmp(state_host->host_name, active_host->host_name) != 0;
 
   size_t max_cnt =
       active_host->modules_cnt + (state_host ? state_host->modules_cnt : 0);
-  host_diff->diffs = arena_alloc(arena, max_cnt * sizeof(Damgr_Module_Diff));
+  if (max_cnt > 0) {
+    host_diff->diffs = arena_alloc(arena, max_cnt * sizeof(Damgr_Module_Diff));
+    if (host_diff->diffs == nullptr) {
+      damgr_log(ERROR, "arena alloc failed and returned nullptr");
+      return EXIT_FAILURE;
+    }
+  }
   host_diff->diff_cnt = 0;
 
   // pass 1: walk active modules -> ADD or CHANGE or SKIP
@@ -110,7 +141,10 @@ void damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
       module_diff->state_module = nullptr;
       module_diff->active_module = active_module;
     } else {
-      damgr_get_diff_module(module_diff, state_module, active_module, arena);
+      int ret = damgr_get_diff_module(module_diff, state_module, active_module,
+                                      arena);
+      if (ret == EXIT_FAILURE)
+        return EXIT_FAILURE;
     }
   }
 
@@ -128,4 +162,6 @@ void damgr_get_diff_host(Damgr_Host_Diff *host_diff, Damgr_Host *state_host,
       }
     }
   }
+
+  return EXIT_SUCCESS;
 }

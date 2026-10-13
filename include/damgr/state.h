@@ -6,7 +6,7 @@
 #define DAMGR_BUFFER_SIZE 1024 * 1024 // size of the arena
 #define DAMGR_ALLOC_UNIT 16           // minimal allocation unit
 #define DAMGR_PATH_MAX 4096
-#define DAMGR_LIST_BUFFER 256
+#define DAMGR_LIST_BUFFER 512
 
 typedef struct arena {
   uint8_t buffer[DAMGR_BUFFER_SIZE];
