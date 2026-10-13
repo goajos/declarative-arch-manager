@@ -1,8 +1,6 @@
 #include "damgr/log.h"
 #include "src/merge.c"
 #include "src/validate.c"
-#include <stdlib.h>
-#include <string.h>
 
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");

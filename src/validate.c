@@ -1,8 +1,6 @@
+#include "damgr/diff.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 int damgr_validate() {
   Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
@@ -15,7 +13,7 @@ int damgr_validate() {
   int ret;
   char fidbuf[DAMGR_PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr", getenv("HOME"));
-  ret = damgr_is_state_dir_empty(fidbuf);
+  ret = damgr_count_state_dir(fidbuf);
   if (ret == EXIT_FAILURE) {
     return ret;
   } else if (ret == 2) { // only "." and ".." dirs found
@@ -26,9 +24,24 @@ int damgr_validate() {
     if (ret == EXIT_FAILURE)
       return ret;
   }
-  ret = damgr_read(&config, arena);
+  ret = damgr_read_active(&config, arena);
   if (ret == EXIT_FAILURE)
     return ret;
+
+  // for (size_t i = 0; i < config.active_host->modules_cnt; ++i) {
+  // find_module(config.active_host->modules, config.active_host->modules_cnt,
+  //             config.state_host->modules[0]->module_name);
+  if (config.state_host != nullptr) {
+    if (strcmp(config.state_host->host_name, config.active_host->host_name) ==
+        0) {
+      // active host and state host are the same
+    } else {
+      // active host and state host are different
+    }
+  } else {
+    // only active host
+  }
+
   free(arena);
   return EXIT_SUCCESS;
 }

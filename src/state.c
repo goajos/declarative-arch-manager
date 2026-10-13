@@ -44,7 +44,7 @@ char *arena_strdup(Damgr_Arena *arena, const char *src) {
 }
 
 static void damgr_trim_string_inplace(char *str) {
-  if (*str == '\0' || *str == '\n')
+  if (*str == '\0')
     return;
 
   char *start = str;
@@ -64,7 +64,7 @@ static void damgr_trim_string_inplace(char *str) {
   }
 }
 
-int damgr_is_state_dir_empty(const char *dir) {
+int damgr_count_state_dir(const char *dir) {
   DIR *open_dir = opendir(dir);
   if (open_dir == nullptr) {
     damgr_log(ERROR, "could not open directory %s: %s", dir, strerror(errno));
@@ -166,6 +166,8 @@ static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
 
       if (strcmp(key, "modules") == 0) {
         parsing = true;
+      } else {
+        parsing = false;
       }
       if (*val != '\0' && *val != '\n') {
         if (modules_cnt < DAMGR_LIST_BUFFER) {
@@ -308,6 +310,8 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
                   arena_strdup(arena, key2);
             }
           }
+        } else {
+          active_parsing = NONE;
         }
       }
     }
@@ -391,7 +395,7 @@ int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena) {
   return EXIT_SUCCESS;
 }
 
-int damgr_read(Damgr_Config *config, Damgr_Arena *arena) {
+int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena) {
   int ret;
   char fidbuf[DAMGR_PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "%s/.config/damgr/config.conf",

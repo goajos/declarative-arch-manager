@@ -22,13 +22,13 @@ char *arena_strdup(Damgr_Arena *arena, const char *src);
 // TODO: what to do with the (state_)path for modules?
 typedef struct module {
   char *module_name;
-  char **packages;
+  const char **packages;
   size_t packages_cnt;
-  char **aur_packages;
+  const char **aur_packages;
   size_t aur_packages_cnt;
-  char **root_services;
+  const char **root_services;
   size_t root_services_cnt;
-  char **user_services;
+  const char **user_services;
   size_t user_services_cnt;
   bool to_link;
 } Damgr_Module;
@@ -47,9 +47,9 @@ typedef struct config {
   Damgr_Host *state_host;
 } Damgr_Config;
 
-int damgr_is_state_dir_empty(const char *dir);
+int damgr_count_state_dir(const char *dir);
 
 int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena);
-int damgr_read(Damgr_Config *config, Damgr_Arena *arena);
+int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena);
 
 #endif /* DAMGR_STATE_H */
