@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "damgr/transaction.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
@@ -25,6 +26,7 @@ static const char *task_type_string(Damgr_Task_Type type) {
   case DOTFILE_UNLINK:
     return "DOTFILE_UNLINK";
   }
+  return "";
 }
 
 // queue owns its own memory

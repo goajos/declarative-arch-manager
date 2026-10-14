@@ -1,4 +1,5 @@
 CompileFlags:
   Add: [
-    -I/Users/jaspercremers/Projects/declarative-arch-manager-v3/include,
+    -D_DEFAULT_SOURCE,
+    -I/home/jappe/Projects/declarative-arch-manager-v3/include,
 ]

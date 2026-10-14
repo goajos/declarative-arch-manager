@@ -1,5 +1,6 @@
 #ifndef DAMGR_STATE_H
 #define DAMGR_STATE_H
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 

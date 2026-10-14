@@ -180,6 +180,7 @@ static const char *diff_type_string(Damgr_Diff_Type type) {
   case SKIP:
     return "SKIP";
   }
+  return "";
 }
 
 static void print_array_diff(const char *label, Damgr_Array_Diff *diff) {
