@@ -2,7 +2,7 @@
 #include "damgr/log.h"
 #include "damgr/state.h"
 
-static bool in_array(const char **array, size_t cnt, const char *item) {
+static bool in_array(char **array, size_t cnt, const char *item) {
   for (size_t i = 0; i < cnt; ++i) {
     if (strcmp(array[i], item) == 0) {
       return true;

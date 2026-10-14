@@ -5,9 +5,9 @@
 typedef enum diff_type { ADD, REMOVE, CHANGE, SKIP } Damgr_Diff_Type;
 
 typedef struct array_diff {
-  const char **state_array;
+  char **state_array;
   size_t state_cnt;
-  const char **active_array;
+  char **active_array;
   size_t active_cnt;
   bool *only_in_state;
   bool *only_in_active;

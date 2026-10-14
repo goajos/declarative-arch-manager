@@ -21,26 +21,26 @@ void *damgr_arena_alloc(Damgr_Arena *arena, size_t size);
 char *damgr_arena_strdup(Damgr_Arena *arena, const char *src);
 
 typedef struct module {
-  char *module_name;
-  const char **packages;
+  const char *module_name;
+  char **packages;
   size_t packages_cnt;
-  const char **aur_packages;
+  char **aur_packages;
   size_t aur_packages_cnt;
-  const char **root_services;
+  char **root_services;
   size_t root_services_cnt;
-  const char **user_services;
+  char **user_services;
   size_t user_services_cnt;
   bool to_link;
 } Damgr_Module;
 
 typedef struct host {
-  char *host_name;
+  const char *host_name;
   Damgr_Module **modules;
   size_t modules_cnt;
 } Damgr_Host;
 
 typedef struct config {
-  char *aur_helper;
+  const char *aur_helper;
   Damgr_Host *active_host;
   Damgr_Host *state_host;
 } Damgr_Config;

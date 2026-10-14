@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-enum damgr_log_level { INFO, DEBUG, ERROR };
+enum damgr_log_level { INFO, DEBUG, WARNING, ERROR };
 
 // function pointer
 typedef void(damgr_log_handler)(enum damgr_log_level level, const char *fmt,

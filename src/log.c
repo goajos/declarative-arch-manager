@@ -11,6 +11,9 @@ void damgr_default_log_handler(enum damgr_log_level level, const char *fmt,
   case DEBUG:
     fprintf(stderr, "[DEBUG] ");
     break;
+  case WARNING:
+    fprintf(stderr, "[WARNING] ");
+    break;
   case ERROR:
     fprintf(stderr, "[ERROR] ");
     break;

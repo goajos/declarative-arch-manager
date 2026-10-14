@@ -28,7 +28,7 @@ $(BIN): $(OBJECTS)
 # => how to make target from source
 $(BUILDDIR)/%.o:%.c
 	@mkdir -p -m 0755 $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $^
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
 	rm -rf $(BIN) $(BUILDDIR)

@@ -45,18 +45,30 @@ int damgr_merge() {
   Damgr_Task_Queue queue = {};
   ret = damgr_diff_to_queue(&host_diff, &queue, arena);
   if (ret == EXIT_FAILURE)
-    goto cleanup;
+    goto free_queue;
 
   if (queue.cnt == 0) {
     damgr_log(INFO, "no changes to apply, state is up to date");
     ret = EXIT_SUCCESS;
-    // goto free_queue;
+    goto free_queue;
   }
   damgr_print_queue(&queue);
 
+  ret = damgr_preflight_check(&config, &queue);
+  if (ret == EXIT_FAILURE)
+    goto free_queue;
+
+  // TODO: write journal?
+
+  ret = damgr_do_transaction(&config, &queue);
+  if (ret == EXIT_FAILURE)
+    goto free_queue;
+
+  // TODO: commit state
+
   ret = EXIT_SUCCESS;
-// free_queue:
-//   damgr_free_queue(&queue);
+free_queue:
+  damgr_free_queue(&queue);
 cleanup:
   free(arena);
   return ret;
