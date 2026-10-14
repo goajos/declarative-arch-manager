@@ -1,12 +1,13 @@
 #include "damgr/diff.h"
 #include "damgr/log.h"
 #include "damgr/state.h"
+#include "damgr/transaction.h"
 
 int damgr_merge() {
   Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
   if (arena == nullptr)
     return EXIT_FAILURE;
-  arena_init(arena);
+  damgr_arena_init(arena);
 
   Damgr_Config config = {};
 
@@ -39,7 +40,23 @@ int damgr_merge() {
   if (ret == EXIT_FAILURE)
     goto cleanup;
 
+  // TODO: check journal?
+
+  Damgr_Task_Queue queue = {};
+  ret = damgr_diff_to_queue(&host_diff, &queue, arena);
+  if (ret == EXIT_FAILURE)
+    goto cleanup;
+
+  if (queue.cnt == 0) {
+    damgr_log(INFO, "no changes to apply, state is up to date");
+    ret = EXIT_SUCCESS;
+    // goto free_queue;
+  }
+  damgr_print_queue(&queue);
+
   ret = EXIT_SUCCESS;
+// free_queue:
+//   damgr_free_queue(&queue);
 cleanup:
   free(arena);
   return ret;

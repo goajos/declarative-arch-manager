@@ -1,0 +1,48 @@
+#ifndef DAMGR_TRANSACTION_H
+#define DAMGR_TRANSACTION_H
+#include "damgr/diff.h"
+
+typedef enum task_type {
+  PACKAGE_INSTALL,
+  PACKAGE_REMOVE,
+  AUR_PACKAGE_INSTALL,
+  AUR_PACKAGE_REMOVE,
+  SERVICE_ENABLE,
+  SERVICE_DISABLE,
+  DOTFILE_LINK,
+  DOTFILE_UNLINK,
+} Damgr_Task_Type;
+
+typedef enum task_status {
+  PENDING,
+  SUCCEEDED,
+  FAILED,
+  ROLLED_BACK
+} Damgr_Task_Status;
+
+typedef struct task {
+  Damgr_Task_Type type;
+  // char *module_name;
+  // char *name;      // service/dotfile name, NULL for package tasks
+  // char **packages; // package names, NULL for service/dotfile tasks
+  const char *module_name;
+  const char *name;      // service/dotfile name, NULL for package tasks
+  const char **packages; // package names, NULL for service/dotfile tasks
+  size_t packages_cnt;
+  bool privileged; // root vs user
+  Damgr_Task_Status status;
+} Damgr_Task;
+
+typedef struct queue {
+  Damgr_Task *tasks;
+  size_t cnt;
+  size_t capacity;
+} Damgr_Task_Queue;
+
+// int damgr_diff_to_queue(Damgr_Host_Diff *host_diff, Damgr_Task_Queue *queue);
+int damgr_diff_to_queue(Damgr_Host_Diff *host_diff, Damgr_Task_Queue *queue,
+                        Damgr_Arena *arena);
+void damgr_print_queue(Damgr_Task_Queue *queue);
+// void damgr_free_queue(Damgr_Task_Queue *queue);
+
+#endif /* DAMGR_TRANSACTION_H */

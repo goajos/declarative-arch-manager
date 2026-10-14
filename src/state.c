@@ -10,12 +10,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-void arena_init(Damgr_Arena *arena) {
+void damgr_arena_init(Damgr_Arena *arena) {
   if (arena != nullptr)
     arena->offset = 0;
 }
 
-void *arena_alloc(Damgr_Arena *arena, size_t size) {
+void *damgr_arena_alloc(Damgr_Arena *arena, size_t size) {
   if (arena == nullptr || size == 0)
     return nullptr;
 
@@ -30,12 +30,12 @@ void *arena_alloc(Damgr_Arena *arena, size_t size) {
   }
 }
 
-char *arena_strdup(Damgr_Arena *arena, const char *src) {
+char *damgr_arena_strdup(Damgr_Arena *arena, const char *src) {
   if (arena == nullptr || src == nullptr)
     return nullptr;
 
   size_t len = strlen(src) + 1; // null terminator
-  char *dest = arena_alloc(arena, len);
+  char *dest = damgr_arena_alloc(arena, len);
   if (dest != nullptr) {
     memcpy(dest, src, len);
   }
@@ -43,7 +43,7 @@ char *arena_strdup(Damgr_Arena *arena, const char *src) {
   return dest;
 }
 
-static void damgr_trim_string_inplace(char *str) {
+static void trim_string_inplace(char *str) {
   if (*str == '\0')
     return;
 
@@ -64,7 +64,7 @@ static void damgr_trim_string_inplace(char *str) {
   }
 }
 
-static bool damgr_string_endswith(const char *str, const char *suffix) {
+static bool string_endswith(const char *str, const char *suffix) {
   size_t str_len = strlen(str);
   size_t suffix_len = strlen(suffix);
   if (str_len < suffix_len)
@@ -89,7 +89,7 @@ int damgr_count_state_dir(const char *dir) {
       closedir(open_dir);
       return EXIT_FAILURE;
     }
-    if (damgr_string_endswith(ent->d_name, ".conf")) {
+    if (string_endswith(ent->d_name, ".conf")) {
       ++count;
     }
   }
@@ -97,8 +97,8 @@ int damgr_count_state_dir(const char *dir) {
   return count;
 }
 
-static int damgr_read_config(Damgr_Config *config, Damgr_Arena *arena,
-                             const char *fidbuf, bool is_state) {
+static int read_config(Damgr_Config *config, Damgr_Arena *arena,
+                       const char *fidbuf, bool is_state) {
   FILE *config_fid = fopen(fidbuf, "r");
   if (config_fid == nullptr) {
     damgr_log(ERROR, "could not open config fid %s: %s", fidbuf,
@@ -118,33 +118,33 @@ static int damgr_read_config(Damgr_Config *config, Damgr_Arena *arena,
     *eq = '\0';
     char *key = line;
     char *val = eq + 1;
-    damgr_trim_string_inplace(key);
-    damgr_trim_string_inplace(val);
+    trim_string_inplace(key);
+    trim_string_inplace(val);
 
     if (strcmp(key, "aur_helper") == 0) {
-      config->aur_helper = arena_strdup(arena, val);
+      config->aur_helper = damgr_arena_strdup(arena, val);
     } else if (strcmp(key, "active_host") == 0) {
       if (is_state) {
-        config->state_host = arena_alloc(arena, sizeof(Damgr_Host));
+        config->state_host = damgr_arena_alloc(arena, sizeof(Damgr_Host));
         if (config->state_host == nullptr) {
           damgr_log(ERROR, "arena alloc failed and returned nullptr");
           fclose(config_fid);
           return EXIT_FAILURE;
         }
-        config->state_host->host_name = arena_strdup(arena, val);
+        config->state_host->host_name = damgr_arena_strdup(arena, val);
         if (config->state_host->host_name == nullptr) {
           damgr_log(ERROR, "arena strdup failed and returned nullptr");
           fclose(config_fid);
           return EXIT_FAILURE;
         }
       } else {
-        config->active_host = arena_alloc(arena, sizeof(Damgr_Host));
+        config->active_host = damgr_arena_alloc(arena, sizeof(Damgr_Host));
         if (config->active_host == nullptr) {
           damgr_log(ERROR, "arena alloc failed and returned nullptr");
           fclose(config_fid);
           return EXIT_FAILURE;
         }
-        config->active_host->host_name = arena_strdup(arena, val);
+        config->active_host->host_name = damgr_arena_strdup(arena, val);
         if (config->active_host->host_name == nullptr) {
           damgr_log(ERROR, "arena strdup failed and returned nullptr");
           fclose(config_fid);
@@ -158,8 +158,7 @@ static int damgr_read_config(Damgr_Config *config, Damgr_Arena *arena,
   return EXIT_SUCCESS;
 }
 
-static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
-                           const char *fidbuf) {
+static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
   FILE *host_fid = fopen(fidbuf, "r");
   if (host_fid == nullptr) {
     damgr_log(ERROR, "could not open host fid %s: %s", fidbuf, strerror(errno));
@@ -167,7 +166,7 @@ static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
   }
 
   char line[256];
-  char *stack_modules[DAMGR_LIST_BUFFER];
+  char *stack_modules[DAMGR_ARRAY_BUFFER];
   size_t modules_cnt = 0;
   bool parsing = false;
 
@@ -178,14 +177,14 @@ static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
     char *eq = strchr(line, '=');
     if (!eq) {
       bool is_indented = isspace((unsigned char)line[0]);
-      damgr_trim_string_inplace(line);
+      trim_string_inplace(line);
       if (line[0] == '\0')
         continue;
       if (line[0] == '#') // also skip comments
         continue;
 
-      if (is_indented && parsing && modules_cnt < DAMGR_LIST_BUFFER) {
-        stack_modules[modules_cnt++] = arena_strdup(arena, line);
+      if (is_indented && parsing && modules_cnt < DAMGR_ARRAY_BUFFER) {
+        stack_modules[modules_cnt++] = damgr_arena_strdup(arena, line);
         if (stack_modules[modules_cnt - 1] == nullptr) {
           damgr_log(ERROR, "arena strdup failed and returned nullptr");
           fclose(host_fid);
@@ -196,8 +195,8 @@ static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
       *eq = '\0';
       char *key = line;
       char *val = eq + 1;
-      damgr_trim_string_inplace(key);
-      damgr_trim_string_inplace(val);
+      trim_string_inplace(key);
+      trim_string_inplace(val);
 
       if (strcmp(key, "modules") == 0) {
         parsing = true;
@@ -205,8 +204,8 @@ static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
         parsing = false;
       }
       if (*val != '\0' && *val != '\n') {
-        if (modules_cnt < DAMGR_LIST_BUFFER) {
-          stack_modules[modules_cnt++] = arena_strdup(arena, val);
+        if (modules_cnt < DAMGR_ARRAY_BUFFER) {
+          stack_modules[modules_cnt++] = damgr_arena_strdup(arena, val);
           if (stack_modules[modules_cnt - 1] == nullptr) {
             damgr_log(ERROR, "arena strdup failed and returned nullptr");
             fclose(host_fid);
@@ -220,14 +219,15 @@ static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
   fclose(host_fid);
 
   if (modules_cnt > 0) {
-    host->modules = arena_alloc(arena, modules_cnt * sizeof(Damgr_Module *));
+    host->modules =
+        damgr_arena_alloc(arena, modules_cnt * sizeof(Damgr_Module *));
     if (host->modules == nullptr) {
       damgr_log(ERROR, "arena alloc failed and returned nullptr");
       return EXIT_FAILURE;
     }
     host->modules_cnt = modules_cnt;
     for (size_t i = 0; i < modules_cnt; ++i) {
-      host->modules[i] = arena_alloc(arena, sizeof(Damgr_Module));
+      host->modules[i] = damgr_arena_alloc(arena, sizeof(Damgr_Module));
       if (host->modules[i] == nullptr) {
         damgr_log(ERROR, "arena alloc failed and returned nullptr");
         return EXIT_FAILURE;
@@ -239,8 +239,8 @@ static int damgr_read_host(Damgr_Host *host, Damgr_Arena *arena,
   return EXIT_SUCCESS;
 }
 
-static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
-                             const char *fidbuf) {
+static int read_module(Damgr_Module *module, Damgr_Arena *arena,
+                       const char *fidbuf) {
   FILE *module_fid = fopen(fidbuf, "r");
   if (module_fid == nullptr) {
     damgr_log(ERROR, "could not open module fid %s: %s", fidbuf,
@@ -250,13 +250,13 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
 
   char line[256];
   enum { NONE, AUR, PKG, SERVICE } active_parsing = NONE;
-  char *stack_packages[DAMGR_LIST_BUFFER];
+  char *stack_packages[DAMGR_ARRAY_BUFFER];
   size_t packages_cnt = 0;
-  char *stack_aur_packages[DAMGR_LIST_BUFFER];
+  char *stack_aur_packages[DAMGR_ARRAY_BUFFER];
   size_t aur_packages_cnt = 0;
-  char *stack_root_services[DAMGR_LIST_BUFFER];
+  char *stack_root_services[DAMGR_ARRAY_BUFFER];
   size_t root_services_cnt = 0;
-  char *stack_user_services[DAMGR_LIST_BUFFER];
+  char *stack_user_services[DAMGR_ARRAY_BUFFER];
   size_t user_services_cnt = 0;
   bool to_link = false;
 
@@ -268,7 +268,7 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
     if (!eq) {
       // no = in line
       bool is_indented = isspace((unsigned char)line[0]);
-      damgr_trim_string_inplace(line);
+      trim_string_inplace(line);
       if (line[0] == '\0')
         continue;
       if (line[0] == '#') // also skip comments
@@ -279,16 +279,17 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
         if (!sep) {
           // indented line with no = and no :
           // right now only (aur_)packages
-          if (active_parsing == AUR && aur_packages_cnt < DAMGR_LIST_BUFFER) {
-            stack_aur_packages[aur_packages_cnt++] = arena_strdup(arena, line);
+          if (active_parsing == AUR && aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
+            stack_aur_packages[aur_packages_cnt++] =
+                damgr_arena_strdup(arena, line);
             if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
               return EXIT_FAILURE;
             }
           } else if (active_parsing == PKG &&
-                     packages_cnt < DAMGR_LIST_BUFFER) {
-            stack_packages[packages_cnt++] = arena_strdup(arena, line);
+                     packages_cnt < DAMGR_ARRAY_BUFFER) {
+            stack_packages[packages_cnt++] = damgr_arena_strdup(arena, line);
             if (stack_packages[packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
@@ -301,13 +302,13 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
           *sep = '\0';
           char *key = line;
           char *val = sep + 1;
-          damgr_trim_string_inplace(key);
-          damgr_trim_string_inplace(val);
+          trim_string_inplace(key);
+          trim_string_inplace(val);
           if (active_parsing == SERVICE) {
             if (strcmp(val, "true") == 0) {
-              if (root_services_cnt < DAMGR_LIST_BUFFER) {
+              if (root_services_cnt < DAMGR_ARRAY_BUFFER) {
                 stack_root_services[root_services_cnt++] =
-                    arena_strdup(arena, key);
+                    damgr_arena_strdup(arena, key);
                 if (stack_root_services[root_services_cnt - 1] == nullptr) {
                   damgr_log(ERROR, "arena strdup failed and returned nullptr");
                   fclose(module_fid);
@@ -315,9 +316,9 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
                 }
               }
             } else {
-              if (user_services_cnt < DAMGR_LIST_BUFFER) {
+              if (user_services_cnt < DAMGR_ARRAY_BUFFER) {
                 stack_user_services[user_services_cnt++] =
-                    arena_strdup(arena, key);
+                    damgr_arena_strdup(arena, key);
                 if (stack_user_services[user_services_cnt - 1] == nullptr) {
                   damgr_log(ERROR, "arena strdup failed and returned nullptr");
                   fclose(module_fid);
@@ -333,8 +334,8 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
       *eq = '\0';
       char *key1 = line;
       char *val1 = eq + 1;
-      damgr_trim_string_inplace(key1);
-      damgr_trim_string_inplace(val1);
+      trim_string_inplace(key1);
+      trim_string_inplace(val1);
       char *sep = strchr(val1, ':');
       if (!sep) {
         // line with = and no :
@@ -350,16 +351,17 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
         }
         // val can still be a (aur_)package
         if (*val1 != '\0' && *val1 != '\n') {
-          if (active_parsing == AUR && aur_packages_cnt < DAMGR_LIST_BUFFER) {
-            stack_aur_packages[aur_packages_cnt++] = arena_strdup(arena, val1);
+          if (active_parsing == AUR && aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
+            stack_aur_packages[aur_packages_cnt++] =
+                damgr_arena_strdup(arena, val1);
             if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
               return EXIT_FAILURE;
             }
           } else if (active_parsing == PKG &&
-                     packages_cnt < DAMGR_LIST_BUFFER) {
-            stack_packages[packages_cnt++] = arena_strdup(arena, val1);
+                     packages_cnt < DAMGR_ARRAY_BUFFER) {
+            stack_packages[packages_cnt++] = damgr_arena_strdup(arena, val1);
             if (stack_packages[packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
@@ -373,8 +375,8 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
         *sep = '\0';
         char *key2 = val1;
         char *val2 = sep + 1;
-        damgr_trim_string_inplace(key2);
-        damgr_trim_string_inplace(val2);
+        trim_string_inplace(key2);
+        trim_string_inplace(val2);
         if (strcmp(key1, "dotfiles") == 0) {
           if (strcmp(val2, "true") == 0) {
             to_link = true;
@@ -382,9 +384,9 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
         } else if (strcmp(key1, "services") == 0) {
           active_parsing = SERVICE;
           if (strcmp(val2, "true") == 0) {
-            if (root_services_cnt < DAMGR_LIST_BUFFER) {
+            if (root_services_cnt < DAMGR_ARRAY_BUFFER) {
               stack_root_services[root_services_cnt++] =
-                  arena_strdup(arena, key2);
+                  damgr_arena_strdup(arena, key2);
               if (stack_root_services[root_services_cnt - 1] == nullptr) {
                 damgr_log(ERROR, "arena strdup failed and returned nullptr");
                 fclose(module_fid);
@@ -392,9 +394,9 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
               }
             }
           } else {
-            if (user_services_cnt < DAMGR_LIST_BUFFER) {
+            if (user_services_cnt < DAMGR_ARRAY_BUFFER) {
               stack_user_services[user_services_cnt++] =
-                  arena_strdup(arena, key2);
+                  damgr_arena_strdup(arena, key2);
               if (stack_user_services[user_services_cnt - 1] == nullptr) {
                 damgr_log(ERROR, "arena strdup failed and returned nullptr");
                 fclose(module_fid);
@@ -411,7 +413,7 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
   fclose(module_fid);
 
   if (packages_cnt > 0) {
-    module->packages = arena_alloc(arena, packages_cnt * sizeof(char *));
+    module->packages = damgr_arena_alloc(arena, packages_cnt * sizeof(char *));
     if (module->packages == nullptr) {
       damgr_log(ERROR, "arena alloc failed and returned nullptr");
       return EXIT_FAILURE;
@@ -423,7 +425,7 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
   }
   if (aur_packages_cnt > 0) {
     module->aur_packages =
-        arena_alloc(arena, aur_packages_cnt * sizeof(char *));
+        damgr_arena_alloc(arena, aur_packages_cnt * sizeof(char *));
     if (module->aur_packages == nullptr) {
       damgr_log(ERROR, "arena alloc failed and returned nullptr");
       return EXIT_FAILURE;
@@ -435,7 +437,7 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
   }
   if (root_services_cnt > 0) {
     module->root_services =
-        arena_alloc(arena, root_services_cnt * sizeof(char *));
+        damgr_arena_alloc(arena, root_services_cnt * sizeof(char *));
     if (module->root_services == nullptr) {
       damgr_log(ERROR, "arena alloc failed and returned nullptr");
       return EXIT_FAILURE;
@@ -447,7 +449,7 @@ static int damgr_read_module(Damgr_Module *module, Damgr_Arena *arena,
   }
   if (user_services_cnt > 0) {
     module->user_services =
-        arena_alloc(arena, user_services_cnt * sizeof(char *));
+        damgr_arena_alloc(arena, user_services_cnt * sizeof(char *));
     if (module->user_services == nullptr) {
       damgr_log(ERROR, "arena alloc failed and returned nullptr");
       return EXIT_FAILURE;
@@ -469,7 +471,7 @@ int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena) {
   char fidbuf[DAMGR_PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/config_state.conf",
            getenv("HOME"));
-  ret = damgr_read_config(config, arena, fidbuf, true);
+  ret = read_config(config, arena, fidbuf, true);
   if (ret == EXIT_FAILURE)
     return ret;
 
@@ -482,7 +484,7 @@ int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena) {
 
   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
            getenv("HOME"), config->state_host->host_name);
-  ret = damgr_read_host(config->state_host, arena, fidbuf);
+  ret = read_host(config->state_host, arena, fidbuf);
   if (ret == EXIT_FAILURE)
     return ret;
 
@@ -495,7 +497,7 @@ int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena) {
   for (size_t i = 0; i < config->state_host->modules_cnt; ++i) {
     snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
              getenv("HOME"), config->state_host->modules[i]->module_name);
-    ret = damgr_read_module(config->state_host->modules[i], arena, fidbuf);
+    ret = read_module(config->state_host->modules[i], arena, fidbuf);
     if (ret == EXIT_FAILURE)
       return ret;
   }
@@ -508,7 +510,7 @@ int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena) {
   char fidbuf[DAMGR_PATH_MAX];
   snprintf(fidbuf, sizeof(fidbuf), "%s/.config/damgr/config.conf",
            getenv("HOME"));
-  ret = damgr_read_config(config, arena, fidbuf, false);
+  ret = read_config(config, arena, fidbuf, false);
   if (ret == EXIT_FAILURE)
     return ret;
 
@@ -520,7 +522,7 @@ int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena) {
 
   snprintf(fidbuf, sizeof(fidbuf), "%s/.config/damgr/hosts/%s.conf",
            getenv("HOME"), config->active_host->host_name);
-  ret = damgr_read_host(config->active_host, arena, fidbuf);
+  ret = read_host(config->active_host, arena, fidbuf);
   if (ret == EXIT_FAILURE)
     return ret;
 
@@ -533,7 +535,7 @@ int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena) {
   for (size_t i = 0; i < config->active_host->modules_cnt; ++i) {
     snprintf(fidbuf, sizeof(fidbuf), "%s/.config/damgr/modules/%s.conf",
              getenv("HOME"), config->active_host->modules[i]->module_name);
-    ret = damgr_read_module(config->active_host->modules[i], arena, fidbuf);
+    ret = read_module(config->active_host->modules[i], arena, fidbuf);
     if (ret == EXIT_FAILURE)
       return ret;
   }
