@@ -1,7 +1,7 @@
 CC=gcc
 BIN=bin/damgr
-# code can be found in . and lib
-CODEDIRS=. lib
+# code can be found in dir .
+CODEDIRS=.
 # include can be found in include
 INCDIRS=include
 # generate files that encode make rules for the user header deps (-MD includes system headers)

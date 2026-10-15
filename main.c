@@ -4,8 +4,13 @@
 
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
-  if (argc == 1 || argc > 2) {
+  if (argc == 1) {
     damgr_log(ERROR, "No damgr argument given, possible commands "
+                     "are:\n\tdamgr validate\n\tdamgr merge");
+    return EXIT_FAILURE;
+  }
+  if (argc > 2) {
+    damgr_log(ERROR, "Too many damgr arguments, possible commands "
                      "are:\n\tdamgr validate\n\tdamgr merge");
     return EXIT_FAILURE;
   }

@@ -230,7 +230,15 @@ static void print_module_diff(Damgr_Module_Diff *module_diff) {
 }
 
 void damgr_print_host_diff(Damgr_Host_Diff *host_diff) {
-  damgr_log(INFO, "host diff: %zu module(s) affected", host_diff->diff_cnt);
+  size_t affected_cnt = 0;
+  for (size_t i = 0; i < host_diff->diff_cnt; ++i) {
+    if (host_diff->diffs[i].diff_type == SKIP) {
+      continue;
+    }
+    affected_cnt++;
+  }
+
+  damgr_log(INFO, "host diff: %zu module(s) affected", affected_cnt);
   for (size_t i = 0; i < host_diff->diff_cnt; ++i) {
     print_module_diff(&host_diff->diffs[i]);
   }

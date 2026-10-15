@@ -380,17 +380,17 @@ static int execute_execv(const char *path, char *const argv[]) {
     }
     if (WIFEXITED(wstatus)) {
       if (WEXITSTATUS(wstatus) != EXIT_SUCCESS) {
-        damgr_log(ERROR, "command %s failed with exit code: %d", path,
+        damgr_log(ERROR, "child process for %s failed with exit code: %d", path,
                   WEXITSTATUS(wstatus));
         return EXIT_FAILURE;
       }
     } else if (WIFSIGNALED(wstatus)) {
-      damgr_log(ERROR, "command %s was terminated by signal: %d", path,
-                WTERMSIG(wstatus));
+      damgr_log(ERROR, "child process for %s was terminated by signal: %d",
+                path, WTERMSIG(wstatus));
       return EXIT_FAILURE;
     } else {
-      damgr_log(ERROR, "command %s ended in unexpected state: 0x%x", path,
-                wstatus);
+      damgr_log(ERROR, "child process for %s ended in unexpected state: 0x%x",
+                path, wstatus);
       return EXIT_FAILURE;
     }
   }

@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 void damgr_arena_init(Damgr_Arena *arena) {
@@ -74,9 +72,18 @@ static bool string_endswith(const char *str, const char *suffix) {
 }
 
 int damgr_count_state_dir(const char *dir) {
+  if (access(dir, F_OK) != 0) {
+    damgr_log(
+        ERROR,
+        "%s doesn't exist, please mkdir the directory before running damgr",
+        dir);
+    return EXIT_FAILURE;
+  }
+
   DIR *open_dir = opendir(dir);
   if (open_dir == nullptr) {
-    damgr_log(ERROR, ".local/state/damgr doesn't exist: %s", strerror(errno));
+    damgr_log(ERROR, "could not open state directory %s: %s", dir,
+              strerror(errno));
     return EXIT_FAILURE;
   }
 
@@ -85,7 +92,8 @@ int damgr_count_state_dir(const char *dir) {
   errno = 0;
   while ((ent = readdir(open_dir)) != nullptr) {
     if (errno != 0) {
-      damgr_log(ERROR, "could not read directory %s: %s", dir, strerror(errno));
+      damgr_log(ERROR, "could not read state directory %s: %s", dir,
+                strerror(errno));
       closedir(open_dir);
       return EXIT_FAILURE;
     }
@@ -95,7 +103,7 @@ int damgr_count_state_dir(const char *dir) {
   }
   closedir(open_dir);
   if (count == 0) {
-    return -1; // EXIT_FAILURE == 0?
+    return -1;
   } else {
     return count;
   }
@@ -413,11 +421,12 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
       char *sep = strchr(val1, ':');
       if (!sep) {
         // line with = and no :
-        // right now only (aur_)packages and dotfiles
         if (strcmp(key1, "aur_packages") == 0) {
           active_parsing = AUR;
         } else if (strcmp(key1, "packages") == 0) {
           active_parsing = PKG;
+        } else if (strcmp(key1, "services") == 0) {
+          active_parsing = SVC;
         } else if (strcmp(key1, "dotfiles") == 0) {
           active_parsing = NONE;
           // TODO: this implies the dotfile link will have the module name, do
@@ -474,6 +483,13 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
             fclose(module_fid);
             return EXIT_FAILURE;
           }
+        } else if (active_parsing == SVC) {
+          damgr_log(
+              ERROR,
+              "detected an invalid service line with no : for module  %s: %s",
+              module->module_name, val1);
+          fclose(module_fid);
+          return EXIT_FAILURE;
         } else {
           // not parsing (aur_)packages
           continue;
