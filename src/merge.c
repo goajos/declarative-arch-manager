@@ -9,7 +9,7 @@ int damgr_merge() {
     return EXIT_FAILURE;
   damgr_arena_init(arena);
 
-  Damgr_Config config = {};
+  Damgr_Config config = {0};
 
   int ret;
   char fidbuf[DAMGR_PATH_MAX];
@@ -34,7 +34,7 @@ int damgr_merge() {
   if (ret == EXIT_FAILURE)
     goto cleanup;
 
-  Damgr_Host_Diff host_diff = {};
+  Damgr_Host_Diff host_diff = {0};
   ret = damgr_get_diff_host(&host_diff, config.state_host, config.active_host,
                             arena);
   if (ret == EXIT_FAILURE)
@@ -42,7 +42,7 @@ int damgr_merge() {
 
   // TODO: check journal?
 
-  Damgr_Task_Queue queue = {};
+  Damgr_Task_Queue queue = {0};
   ret = damgr_diff_to_queue(&host_diff, &queue, arena);
   if (ret == EXIT_FAILURE)
     goto free_queue;

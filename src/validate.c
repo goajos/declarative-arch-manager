@@ -8,7 +8,7 @@ int damgr_validate() {
     return EXIT_FAILURE;
   damgr_arena_init(arena);
 
-  Damgr_Config config = {};
+  Damgr_Config config = {0};
 
   int ret;
   char fidbuf[DAMGR_PATH_MAX];
@@ -33,7 +33,7 @@ int damgr_validate() {
   if (ret == EXIT_FAILURE)
     goto cleanup;
 
-  Damgr_Host_Diff host_diff = {};
+  Damgr_Host_Diff host_diff = {0};
   ret = damgr_get_diff_host(&host_diff, config.state_host, config.active_host,
                             arena);
   if (ret == EXIT_FAILURE)

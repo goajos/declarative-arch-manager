@@ -106,11 +106,14 @@ static int read_config(Damgr_Config *config, Damgr_Arena *arena,
     return EXIT_FAILURE;
   }
 
-  char line[256];
+  char line[DAMGR_LINE_MAX];
   while (fgets(line, sizeof(line), config_fid)) {
+    if (line[0] == '\n') // also skip newlines
+      continue;
     if (line[0] == '#') // also skip comments
       continue;
 
+    // valid config lines are all x=y
     char *eq = strchr(line, '=');
     if (!eq)
       continue;
@@ -122,7 +125,12 @@ static int read_config(Damgr_Config *config, Damgr_Arena *arena,
     trim_string_inplace(val);
 
     if (strcmp(key, "aur_helper") == 0) {
-      config->aur_helper = damgr_arena_strdup(arena, val);
+      if (!is_state) {
+        // only use the active aur_helper
+        config->aur_helper = damgr_arena_strdup(arena, val);
+      } else {
+        config->aur_helper = nullptr;
+      }
     } else if (strcmp(key, "active_host") == 0) {
       if (is_state) {
         config->state_host = damgr_arena_alloc(arena, sizeof(Damgr_Host));
@@ -165,31 +173,49 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
     return EXIT_FAILURE;
   }
 
-  char line[256];
+  char line[DAMGR_LINE_MAX];
   char *stack_modules[DAMGR_ARRAY_BUFFER];
   size_t modules_cnt = 0;
   bool parsing = false;
 
   while (fgets(line, sizeof(line), host_fid)) {
+    if (line[0] == '\n') // also skip newlines
+      continue;
     if (line[0] == '#') // also skip comments
       continue;
 
     char *eq = strchr(line, '=');
     if (!eq) {
+      // non = lines should be indented
       bool is_indented = isspace((unsigned char)line[0]);
-      trim_string_inplace(line);
-      if (line[0] == '\0')
-        continue;
-      if (line[0] == '#') // also skip comments
-        continue;
+      if (is_indented && parsing) {
+        trim_string_inplace(line);
+        if (line[0] == '\0')
+          continue;
+        if (line[0] == '#') // also skip indented comments
+          continue;
 
-      if (is_indented && parsing && modules_cnt < DAMGR_ARRAY_BUFFER) {
-        stack_modules[modules_cnt++] = damgr_arena_strdup(arena, line);
-        if (stack_modules[modules_cnt - 1] == nullptr) {
-          damgr_log(ERROR, "arena strdup failed and returned nullptr");
+        if (modules_cnt < DAMGR_ARRAY_BUFFER) {
+          stack_modules[modules_cnt++] = damgr_arena_strdup(arena, line);
+          if (stack_modules[modules_cnt - 1] == nullptr) {
+            damgr_log(ERROR, "arena strdup failed and returned nullptr");
+            fclose(host_fid);
+            return EXIT_FAILURE;
+          }
+        } else {
+          damgr_log(ERROR, "buffer limit %d exceeded for modules count",
+                    DAMGR_ARRAY_BUFFER);
           fclose(host_fid);
           return EXIT_FAILURE;
         }
+      } else {
+        // non = line that is not indented
+        damgr_log(ERROR,
+                  "detected a not indented line while parsing modules for "
+                  "host %s:\n%s",
+                  host->host_name, line);
+        fclose(host_fid);
+        return EXIT_FAILURE;
       }
     } else {
       *eq = '\0';
@@ -201,7 +227,10 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
       if (strcmp(key, "modules") == 0) {
         parsing = true;
       } else {
-        parsing = false;
+        damgr_log(ERROR, "detected an invalid key while parsing host %s: %s",
+                  host->host_name, key);
+        fclose(host_fid);
+        return EXIT_FAILURE;
       }
       if (*val != '\0' && *val != '\n') {
         if (modules_cnt < DAMGR_ARRAY_BUFFER) {
@@ -211,6 +240,11 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
             fclose(host_fid);
             return EXIT_FAILURE;
           }
+        } else {
+          damgr_log(ERROR, "buffer limit %d exceeded for modules count",
+                    DAMGR_ARRAY_BUFFER);
+          fclose(host_fid);
+          return EXIT_FAILURE;
         }
       }
     }
@@ -248,8 +282,8 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
     return EXIT_FAILURE;
   }
 
-  char line[256];
-  enum { NONE, AUR, PKG, SERVICE } active_parsing = NONE;
+  char line[DAMGR_LINE_MAX];
+  enum { NONE, AUR, PKG, SVC } active_parsing = NONE;
   char *stack_packages[DAMGR_ARRAY_BUFFER];
   size_t packages_cnt = 0;
   char *stack_aur_packages[DAMGR_ARRAY_BUFFER];
@@ -261,40 +295,59 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
   bool to_link = false;
 
   while (fgets(line, sizeof(line), module_fid)) {
+    if (line[0] == '\n') // also skip newlines
+      continue;
     if (line[0] == '#') // also skip comments
       continue;
 
     char *eq = strchr(line, '=');
     if (!eq) {
-      // no = in line
+      // non = lines should be indented
       bool is_indented = isspace((unsigned char)line[0]);
-      trim_string_inplace(line);
-      if (line[0] == '\0')
-        continue;
-      if (line[0] == '#') // also skip comments
-        continue;
-
       if (is_indented) {
+        trim_string_inplace(line);
+        if (line[0] == '\0')
+          continue;
+        if (line[0] == '#') // also skip indented comments
+          continue;
+
         char *sep = strchr(line, ':');
         if (!sep) {
           // indented line with no = and no :
           // right now only (aur_)packages
-          if (active_parsing == AUR && aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
-            stack_aur_packages[aur_packages_cnt++] =
-                damgr_arena_strdup(arena, line);
-            if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
-              damgr_log(ERROR, "arena strdup failed and returned nullptr");
+          if (active_parsing == AUR) {
+            if (aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
+              stack_aur_packages[aur_packages_cnt++] =
+                  damgr_arena_strdup(arena, line);
+              if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
+                damgr_log(ERROR, "arena strdup failed and returned nullptr");
+                fclose(module_fid);
+                return EXIT_FAILURE;
+              }
+            } else {
+              damgr_log(ERROR,
+                        "buffer limit %d exceeded for aur packages count",
+                        DAMGR_ARRAY_BUFFER);
               fclose(module_fid);
               return EXIT_FAILURE;
             }
-          } else if (active_parsing == PKG &&
-                     packages_cnt < DAMGR_ARRAY_BUFFER) {
-            stack_packages[packages_cnt++] = damgr_arena_strdup(arena, line);
-            if (stack_packages[packages_cnt - 1] == nullptr) {
-              damgr_log(ERROR, "arena strdup failed and returned nullptr");
+          } else if (active_parsing == PKG) {
+            if (packages_cnt < DAMGR_ARRAY_BUFFER) {
+              stack_packages[packages_cnt++] = damgr_arena_strdup(arena, line);
+              if (stack_packages[packages_cnt - 1] == nullptr) {
+                damgr_log(ERROR, "arena strdup failed and returned nullptr");
+                fclose(module_fid);
+                return EXIT_FAILURE;
+              }
+            } else {
+              damgr_log(ERROR, "buffer limit %d exceeded for packages count",
+                        DAMGR_ARRAY_BUFFER);
               fclose(module_fid);
               return EXIT_FAILURE;
             }
+          } else {
+            // not parsing (aur_)packages
+            continue;
           }
         } else {
           // indented line with no = and :
@@ -304,7 +357,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
           char *val = sep + 1;
           trim_string_inplace(key);
           trim_string_inplace(val);
-          if (active_parsing == SERVICE) {
+          if (active_parsing == SVC) {
             if (strcmp(val, "true") == 0) {
               if (root_services_cnt < DAMGR_ARRAY_BUFFER) {
                 stack_root_services[root_services_cnt++] =
@@ -314,8 +367,15 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
                   fclose(module_fid);
                   return EXIT_FAILURE;
                 }
+              } else {
+                damgr_log(ERROR,
+                          "buffer limit %d exceeded for root services count",
+                          DAMGR_ARRAY_BUFFER);
+                fclose(module_fid);
+                return EXIT_FAILURE;
               }
             } else {
+              // val == false
               if (user_services_cnt < DAMGR_ARRAY_BUFFER) {
                 stack_user_services[user_services_cnt++] =
                     damgr_arena_strdup(arena, key);
@@ -324,8 +384,17 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
                   fclose(module_fid);
                   return EXIT_FAILURE;
                 }
+              } else {
+                damgr_log(ERROR,
+                          "buffer limit %d exceeded for user services count",
+                          DAMGR_ARRAY_BUFFER);
+                fclose(module_fid);
+                return EXIT_FAILURE;
               }
             }
+          } else {
+            // not parsing services
+            continue;
           }
         }
       }
@@ -336,76 +405,128 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
       char *val1 = eq + 1;
       trim_string_inplace(key1);
       trim_string_inplace(val1);
+
       char *sep = strchr(val1, ':');
       if (!sep) {
         // line with = and no :
-        // right now only (aur_)packages
+        // right now only (aur_)packages and dotfiles
         if (strcmp(key1, "aur_packages") == 0) {
           active_parsing = AUR;
         } else if (strcmp(key1, "packages") == 0) {
           active_parsing = PKG;
-        } else if (strcmp(key1, "services") == 0) {
-          active_parsing = SERVICE;
+        } else if (strcmp(key1, "dotfiles") == 0) {
+          active_parsing = NONE;
+          // TODO: this implies the dotfile link will have the module name, do
+          // we want that?
+          if (strcmp(val1, "true") == 0) {
+            to_link = true;
+          } else if (strcmp(val1, "false") == 0) {
+            to_link = false;
+          } else {
+            damgr_log(
+                ERROR,
+                "detected a non boolean value for dotfiles for module  %s: %s",
+                module->module_name, val1);
+            fclose(module_fid);
+            return EXIT_FAILURE;
+          }
         } else {
+          // reset active_parsing to NONE in all other cases
           active_parsing = NONE;
         }
-        // val can still be a (aur_)package
-        if (*val1 != '\0' && *val1 != '\n') {
-          if (active_parsing == AUR && aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
+
+        // val should still be parsed for (aur_)packages
+        if (val1[0] == '\n')
+          continue;
+        if (val1[0] == '\0')
+          continue;
+
+        if (active_parsing == AUR) {
+          if (aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
             stack_aur_packages[aur_packages_cnt++] =
-                damgr_arena_strdup(arena, val1);
+                damgr_arena_strdup(arena, line);
             if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
               return EXIT_FAILURE;
             }
-          } else if (active_parsing == PKG &&
-                     packages_cnt < DAMGR_ARRAY_BUFFER) {
-            stack_packages[packages_cnt++] = damgr_arena_strdup(arena, val1);
+          } else {
+            damgr_log(ERROR, "buffer limit %d exceeded for aur packages count",
+                      DAMGR_ARRAY_BUFFER);
+            fclose(module_fid);
+            return EXIT_FAILURE;
+          }
+        } else if (active_parsing == PKG) {
+          if (packages_cnt < DAMGR_ARRAY_BUFFER) {
+            stack_packages[packages_cnt++] = damgr_arena_strdup(arena, line);
             if (stack_packages[packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
               return EXIT_FAILURE;
             }
+          } else {
+            damgr_log(ERROR, "buffer limit %d exceeded for packages count",
+                      DAMGR_ARRAY_BUFFER);
+            fclose(module_fid);
+            return EXIT_FAILURE;
           }
+        } else {
+          // not parsing (aur_)packages
+          continue;
         }
+
       } else {
         // line with = and :
-        // right now services and dotfiles
+        // right now only services
         *sep = '\0';
         char *key2 = val1;
         char *val2 = sep + 1;
         trim_string_inplace(key2);
         trim_string_inplace(val2);
-        if (strcmp(key1, "dotfiles") == 0) {
-          if (strcmp(val2, "true") == 0) {
-            to_link = true;
-          }
-        } else if (strcmp(key1, "services") == 0) {
-          active_parsing = SERVICE;
-          if (strcmp(val2, "true") == 0) {
-            if (root_services_cnt < DAMGR_ARRAY_BUFFER) {
-              stack_root_services[root_services_cnt++] =
-                  damgr_arena_strdup(arena, key2);
-              if (stack_root_services[root_services_cnt - 1] == nullptr) {
-                damgr_log(ERROR, "arena strdup failed and returned nullptr");
-                fclose(module_fid);
-                return EXIT_FAILURE;
-              }
-            }
-          } else {
-            if (user_services_cnt < DAMGR_ARRAY_BUFFER) {
-              stack_user_services[user_services_cnt++] =
-                  damgr_arena_strdup(arena, key2);
-              if (stack_user_services[user_services_cnt - 1] == nullptr) {
-                damgr_log(ERROR, "arena strdup failed and returned nullptr");
-                fclose(module_fid);
-                return EXIT_FAILURE;
-              }
-            }
-          }
+
+        if (strcmp(key1, "services") == 0) {
+          active_parsing = SVC;
         } else {
           active_parsing = NONE;
+        }
+
+        if (strcmp(val2, "true") == 0) {
+          if (root_services_cnt < DAMGR_ARRAY_BUFFER) {
+            stack_root_services[root_services_cnt++] =
+                damgr_arena_strdup(arena, key2);
+            if (stack_root_services[root_services_cnt - 1] == nullptr) {
+              damgr_log(ERROR, "arena strdup failed and returned nullptr");
+              fclose(module_fid);
+              return EXIT_FAILURE;
+            }
+          } else {
+            damgr_log(ERROR, "buffer limit %d exceeded for root services count",
+                      DAMGR_ARRAY_BUFFER);
+            fclose(module_fid);
+            return EXIT_FAILURE;
+          }
+        } else if (strcmp(val2, "false") == 0) {
+          if (user_services_cnt < DAMGR_ARRAY_BUFFER) {
+            stack_user_services[user_services_cnt++] =
+                damgr_arena_strdup(arena, key2);
+            if (stack_user_services[user_services_cnt - 1] == nullptr) {
+              damgr_log(ERROR, "arena strdup failed and returned nullptr");
+              fclose(module_fid);
+              return EXIT_FAILURE;
+            }
+          } else {
+            damgr_log(ERROR, "buffer limit %d exceeded for user services count",
+                      DAMGR_ARRAY_BUFFER);
+            fclose(module_fid);
+            return EXIT_FAILURE;
+          }
+        } else {
+          damgr_log(
+              ERROR,
+              "detected a non boolean value for services for module  %s: %s",
+              module->module_name, val2);
+          fclose(module_fid);
+          return EXIT_FAILURE;
         }
       }
     }
@@ -516,7 +637,13 @@ int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena) {
 
   if (config->active_host == nullptr ||
       config->active_host->host_name == nullptr) {
-    damgr_log(ERROR, "failed to parse host from config: %s", fidbuf);
+    damgr_log(ERROR, "failed to parse host from active config: %s", fidbuf);
+    return EXIT_FAILURE;
+  }
+
+  if (config->aur_helper == nullptr) {
+    damgr_log(ERROR, "failed to parse aur_helper from active config: %s",
+              fidbuf);
     return EXIT_FAILURE;
   }
 
