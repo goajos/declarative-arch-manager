@@ -22,9 +22,6 @@ typedef enum task_status {
 
 typedef struct task {
   Damgr_Task_Type type;
-  // char *module_name;
-  // char *name;      // service/dotfile name, NULL for package tasks
-  // char **packages; // package names, NULL for service/dotfile tasks
   const char *module_name;
   const char *name; // service/dotfile name, NULL for package tasks
   char **packages;  // package names, NULL for service/dotfile tasks

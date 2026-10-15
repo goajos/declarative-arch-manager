@@ -85,7 +85,6 @@ static int add_package_tasks(Damgr_Array_Diff *array_diff,
 
   int ret = EXIT_SUCCESS;
   if (install_cnt > 0) {
-    // const char **to_install = calloc(install_cnt, sizeof(char *));
     char **to_install = damgr_arena_alloc(arena, install_cnt * sizeof(char *));
     if (to_install == nullptr) {
       damgr_log(ERROR, "package task calloc failed and returned nullptr");
@@ -97,12 +96,10 @@ static int add_package_tasks(Damgr_Array_Diff *array_diff,
         to_install[j++] = array_diff->active_array[i];
     ret = queue_push(queue, install_type, module_name, nullptr, to_install,
                      install_cnt, false);
-    // free(to_install);
     if (ret == EXIT_FAILURE)
       return EXIT_FAILURE;
   }
   if (remove_cnt > 0) {
-    // const char **to_remove = calloc(remove_cnt, sizeof(char *));
     char **to_remove = damgr_arena_alloc(arena, remove_cnt * sizeof(char *));
     if (to_remove == nullptr) {
       damgr_log(ERROR, "package task calloc failed and returned nullptr");
@@ -114,7 +111,6 @@ static int add_package_tasks(Damgr_Array_Diff *array_diff,
         to_remove[j++] = array_diff->state_array[i];
     ret = queue_push(queue, remove_type, module_name, nullptr, to_remove,
                      remove_cnt, false);
-    // free(to_remove);
     if (ret == EXIT_FAILURE)
       return EXIT_FAILURE;
   }
@@ -144,8 +140,6 @@ static int add_service_tasks(const Damgr_Array_Diff *array_diff,
   return ret;
 }
 
-// static int add_module_tasks(Damgr_Module_Diff *module_diff,
-//                             Damgr_Task_Queue *queue) {
 static int add_module_tasks(Damgr_Module_Diff *module_diff,
                             Damgr_Task_Queue *queue, Damgr_Arena *arena) {
   int ret = EXIT_SUCCESS;
@@ -251,8 +245,6 @@ static int add_module_tasks(Damgr_Module_Diff *module_diff,
   return ret;
 }
 
-// int damgr_diff_to_queue(Damgr_Host_Diff *host_diff, Damgr_Task_Queue *queue)
-// {
 int damgr_diff_to_queue(Damgr_Host_Diff *host_diff, Damgr_Task_Queue *queue,
                         Damgr_Arena *arena) {
   int ret = EXIT_SUCCESS;
@@ -359,7 +351,8 @@ int damgr_preflight_check(Damgr_Config *config, Damgr_Task_Queue *queue) {
         return EXIT_FAILURE;
       }
       if (!unit_file_exists(task->name, task->privileged)) {
-        damgr_log(WARNING, "systemd unit file not found for: %s", task->name);
+        damgr_log(ERROR, "systemd unit file not found for: %s", task->name);
+        return EXIT_FAILURE;
       }
       break;
     case UNLINK:
@@ -420,7 +413,8 @@ static int run_package_command(bool install, char *const *names, size_t cnt) {
       argv[4 + i] = names[i];
     argv[4 + cnt] = nullptr;
   } else {
-    argv[2] = "-Rns";
+    // argv[2] = "-Rns"; // also removes dependencies?
+    argv[2] = "-Rn";
     for (size_t i = 0; i < cnt; ++i)
       argv[3 + i] = names[i];
     argv[3 + cnt] = nullptr;
@@ -452,7 +446,7 @@ static int run_aur_install_command(const char *helper, char *const *names,
 
 static int run_service_command(bool privileged, bool to_enable,
                                const char *service) {
-  char **argv = malloc(5 * sizeof(char *));
+  char **argv = malloc(6 * sizeof(char *));
   if (argv == nullptr) {
     damgr_log(ERROR, "malloc failed for %s %s service command argv",
               to_enable ? "enable" : "disable", privileged ? "root" : "user");
@@ -461,15 +455,17 @@ static int run_service_command(bool privileged, bool to_enable,
   if (privileged) {
     argv[0] = "sudo";
     argv[1] = "systemctl";
-    argv[2] = to_enable ? "enable" : "disable";
-    argv[3] = (char *)service;
-    argv[4] = nullptr;
+    argv[2] = "--now";
+    argv[3] = to_enable ? "enable" : "disable";
+    argv[4] = (char *)service;
+    argv[5] = nullptr;
   } else {
     argv[0] = "systemctl";
     argv[1] = "--user";
-    argv[2] = to_enable ? "enable" : "disable";
-    argv[3] = (char *)service;
-    argv[4] = nullptr;
+    argv[2] = "--now";
+    argv[3] = to_enable ? "enable" : "disable";
+    argv[4] = (char *)service;
+    argv[5] = nullptr;
   }
   int ret =
       execute_execv(privileged ? "/usr/bin/sudo" : "/usr/bin/systemctl", argv);
