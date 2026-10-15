@@ -69,7 +69,8 @@ static int stage_module(const Damgr_Module *module, const char *fidbuf) {
 //   remove(stagingbuf);
 // }
 // staging results in a .staging folder with all active state present
-int damgr_stage(Damgr_Config *config) {
+int damgr_stage(const Damgr_Config *config) {
+  // TODO: clean the .staging folder before writing again?
   char stagingbuf[DAMGR_PATH_MAX];
   snprintf(stagingbuf, sizeof(stagingbuf), "%s/.local/state/damgr/.staging",
            getenv("HOME"));
@@ -83,29 +84,26 @@ int damgr_stage(Damgr_Config *config) {
   snprintf(fidbuf, sizeof(fidbuf),
            "%s/.local/state/damgr/.staging/config_state.conf", getenv("HOME"));
   ret = stage_config(config, fidbuf);
-  if (ret == EXIT_FAILURE) {
+  if (ret == EXIT_FAILURE)
     return EXIT_FAILURE;
-  }
 
   snprintf(fidbuf, sizeof(fidbuf),
            "%s/.local/state/damgr/.staging/%s_state.conf", getenv("HOME"),
            config->active_host->host_name);
   ret = stage_host(config->active_host, fidbuf);
-  if (ret == EXIT_FAILURE) {
+  if (ret == EXIT_FAILURE)
     return EXIT_FAILURE;
-  }
 
   for (size_t i = 0; i < config->active_host->modules_cnt; ++i) {
     snprintf(fidbuf, sizeof(fidbuf),
              "%s/.local/state/damgr/.staging/%s_state.conf", getenv("HOME"),
              config->active_host->modules[i]->module_name);
     ret = stage_module(config->active_host->modules[i], fidbuf);
-    if (ret == EXIT_FAILURE) {
+    if (ret == EXIT_FAILURE)
       return EXIT_FAILURE;
-    }
   }
 
   damgr_log(INFO, "staging finished: %zu module(s) written to %s",
             config->active_host->modules_cnt, stagingbuf);
-  return EXIT_SUCCESS;
+  return ret;
 }

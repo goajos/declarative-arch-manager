@@ -1,12 +1,12 @@
+#include "damgr/commit.h"
 #include "damgr/diff.h"
 #include "damgr/log.h"
 #include "damgr/stage.h"
-"
 #include "damgr/state.h"
 #include "damgr/transaction.h"
 
-    // TODO: warning if .staging and/or .backup folder exists?
-    int damgr_merge() {
+// TODO: warning if .staging and/or .backup folder exists?
+int damgr_merge() {
   Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
   if (arena == nullptr)
     return EXIT_FAILURE;
@@ -69,8 +69,19 @@
     goto free_queue;
 
   ret = damgr_stage(&config);
-  if (ret == EXIT_FAILURE)
+  if (ret == EXIT_FAILURE) {
+    damgr_log(ERROR,
+              "failed to stage active config:\ndo NOT rerun damgr merge or"
+              "change .conf files, manually run damgr stage and damgr commit!");
     goto free_queue;
+  }
+
+  ret = damgr_commit(&config);
+  if (ret == EXIT_FAILURE) {
+    damgr_log(ERROR, "failed to commit:\ndo NOT rerun damgr merge or"
+                     "change .conf files, manually run damgr commit!");
+    goto free_queue;
+  }
 
   ret = EXIT_SUCCESS;
 free_queue:

@@ -2,6 +2,6 @@
 #define DAMGR_STAGE_H
 #include "damgr/state.h"
 
-int damgr_stage(Damgr_Config *config);
+int damgr_stage(const Damgr_Config *config);
 
 #endif /* DAMGR_STAGE_H */
