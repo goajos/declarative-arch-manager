@@ -1,7 +1,10 @@
 #include "damgr/log.h"
-#include "src/merge.c"
-#include "src/validate.c"
+#include "damgr/merge.h"
+#include "damgr/validate.h"
+#include <stdlib.h>
+#include <string.h>
 
+// TODO: make everything const that is const?
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
   if (argc == 1) {

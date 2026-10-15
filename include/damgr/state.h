@@ -52,4 +52,6 @@ int damgr_count_state_dir(const char *dir);
 int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena);
 int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena);
 
+int damgr_write_state(Damgr_Config *config);
+
 #endif /* DAMGR_STATE_H */

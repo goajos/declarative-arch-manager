@@ -38,7 +38,10 @@ typedef struct queue {
 } Damgr_Task_Queue;
 void damgr_free_queue(Damgr_Task_Queue *queue);
 
-// int damgr_diff_to_queue(Damgr_Host_Diff *host_diff, Damgr_Task_Queue *queue);
+// TODO: atomic transaction => journal and damgr rollback to retry rolling back
+// after failure int damgr_diff_to_queue(Damgr_Host_Diff *host_diff,
+
+// Damgr_Task_Queue *queue);
 int damgr_diff_to_queue(Damgr_Host_Diff *host_diff, Damgr_Task_Queue *queue,
                         Damgr_Arena *arena);
 void damgr_print_queue(Damgr_Task_Queue *queue);

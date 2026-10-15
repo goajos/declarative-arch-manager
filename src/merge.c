@@ -1,9 +1,12 @@
 #include "damgr/diff.h"
 #include "damgr/log.h"
+#include "damgr/stage.h"
+"
 #include "damgr/state.h"
 #include "damgr/transaction.h"
 
-int damgr_merge() {
+    // TODO: warning if .staging and/or .backup folder exists?
+    int damgr_merge() {
   Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
   if (arena == nullptr)
     return EXIT_FAILURE;
@@ -65,7 +68,9 @@ int damgr_merge() {
   if (ret == EXIT_FAILURE)
     goto free_queue;
 
-  // TODO: commit state
+  ret = damgr_stage(&config);
+  if (ret == EXIT_FAILURE)
+    goto free_queue;
 
   ret = EXIT_SUCCESS;
 free_queue:
