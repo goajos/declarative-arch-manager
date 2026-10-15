@@ -64,7 +64,6 @@ static int get_diff_module(Damgr_Module_Diff *module_diff,
   module_diff->diff_type = CHANGE;
   module_diff->state_module = state_module;
   module_diff->active_module = active_module;
-  // TODO: does this cover all to_link cases?
   module_diff->to_link_diff = state_module->to_link != active_module->to_link;
 
   module_diff->packages.state_array = state_module->packages;
