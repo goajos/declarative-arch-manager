@@ -21,8 +21,9 @@ int damgr_merge() {
   snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr", getenv("HOME"));
   ret = damgr_count_state_dir(fidbuf);
   if (ret == EXIT_FAILURE) {
+    // no dir or unable to read dir
     goto cleanup;
-  } else if (ret == 0) { // no .conf files found
+  } else if (ret == -1) { // no .conf files found
     damgr_log(INFO, "no state to parse, the state directory is empty: %s",
               fidbuf);
   } else {

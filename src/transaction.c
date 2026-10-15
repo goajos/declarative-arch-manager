@@ -9,93 +9,25 @@
 
 static const char *task_type_string(Damgr_Task_Type type) {
   switch (type) {
-  case PACKAGE_INSTALL:
-    return "PACKAGE_INSTALL";
-  case PACKAGE_REMOVE:
-    return "PACKAGE_REMOVE";
-  case AUR_PACKAGE_INSTALL:
-    return "AUR_PACKAGE_INSTALL";
-  case AUR_PACKAGE_REMOVE:
-    return "AUR_PACKAGE_REMOVE";
-  case SERVICE_ENABLE:
-    return "SERVICE_ENABLE";
-  case SERVICE_DISABLE:
-    return "SERVICE_DISABLE";
-  case DOTFILE_LINK:
-    return "DOTFILE_LINK";
-  case DOTFILE_UNLINK:
-    return "DOTFILE_UNLINK";
+  case PKG_INSTALL:
+    return "PKG_INSTALL";
+  case PKG_REMOVE:
+    return "PKG_REMOVE";
+  case AUR_INSTALL:
+    return "AUR_INSTALL";
+  case AUR_REMOVE:
+    return "AUR_REMOVE";
+  case SVC_ENABLE:
+    return "SVC_ENABLE";
+  case SVC_DISABLE:
+    return "SVC_DISABLE";
+  case LINK:
+    return "LINK";
+  case UNLINK:
+    return "UNLINK";
   }
   return "";
 }
-
-// queue owns its own memory
-// static int queue_push(Damgr_Task_Queue *queue, Damgr_Task_Type type,
-//                       const char *module_name, const char *name,
-//                       const char **packages, size_t packages_cnt,
-//                       bool privileged) {
-//   // grow queue dynamically
-//   if (queue->cnt >= queue->capacity) {
-//     if (queue->capacity == 0) {
-//       queue->capacity = 32;
-//     } else {
-//       queue->capacity *= 2;
-//     }
-//     Damgr_Task *tasks =
-//         realloc(queue->tasks, queue->capacity * sizeof(Damgr_Task));
-//     if (tasks == nullptr) {
-//       damgr_log(ERROR, "queue realloc failed and returned nullptr");
-//       return EXIT_FAILURE;
-//     }
-//     queue->tasks = tasks;
-//   }
-//
-//   Damgr_Task task = {0}; // zero init for name and packages
-//   task.type = type;
-//   task.privileged = privileged;
-//   task.status = PENDING;
-//   task.module_name = module_name != nullptr ? strdup(module_name) : nullptr;
-//   if (module_name != nullptr && task.module_name == nullptr) {
-//     damgr_log(ERROR, "task strdup failed and returned nullptr");
-//     goto cleanup;
-//   }
-//   task.name = name != nullptr ? strdup(name) : nullptr;
-//   if (name != nullptr && task.name == nullptr) {
-//     damgr_log(ERROR, "task strdup failed and returned nullptr");
-//     goto cleanup;
-//   }
-//   if (packages_cnt > 0) {
-//     task.packages = calloc(packages_cnt, sizeof(char *));
-//     if (task.packages == nullptr) {
-//       damgr_log(ERROR, "task calloc failed and returned nullptr");
-//       goto cleanup;
-//     }
-//     for (size_t i = 0; i < packages_cnt; ++i) {
-//       task.packages[i] = strdup(packages[i]);
-//       if (task.packages[i] == nullptr) {
-//         damgr_log(ERROR, "task strdup failed and returned nullptr");
-//         goto cleanup;
-//       }
-//     }
-//     task.packages_cnt = packages_cnt;
-//   }
-//
-//   queue->tasks[queue->cnt++] = task;
-//   return EXIT_SUCCESS;
-//
-// cleanup:
-//   if (task.module_name != nullptr)
-//     free(task.module_name);
-//   if (task.name != nullptr)
-//     free(task.name);
-//   for (size_t i = 0; i < packages_cnt; ++i) {
-//     if (task.packages[i] != nullptr)
-//       free(task.packages[i]);
-//   }
-//   if (task.packages != nullptr)
-//     free(task.packages);
-//   return EXIT_FAILURE;
-// }
 
 void damgr_free_queue(Damgr_Task_Queue *queue) {
   free(queue->tasks);
@@ -195,7 +127,7 @@ static int add_service_tasks(const Damgr_Array_Diff *array_diff,
   int ret = EXIT_SUCCESS;
   for (size_t i = 0; i < array_diff->active_cnt; ++i) {
     if (array_diff->only_in_active[i]) {
-      ret = queue_push(queue, SERVICE_ENABLE, module_name,
+      ret = queue_push(queue, SVC_ENABLE, module_name,
                        array_diff->active_array[i], nullptr, 0, privileged);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
@@ -203,7 +135,7 @@ static int add_service_tasks(const Damgr_Array_Diff *array_diff,
   }
   for (size_t i = 0; i < array_diff->state_cnt; ++i) {
     if (array_diff->only_in_state[i]) {
-      ret = queue_push(queue, SERVICE_DISABLE, module_name,
+      ret = queue_push(queue, SVC_DISABLE, module_name,
                        array_diff->state_array[i], nullptr, 0, privileged);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
@@ -223,32 +155,32 @@ static int add_module_tasks(Damgr_Module_Diff *module_diff,
   case ADD: {
     const Damgr_Module *module = module_diff->active_module;
     if (module->packages_cnt > 0) {
-      ret = queue_push(queue, PACKAGE_INSTALL, module->module_name, nullptr,
+      ret = queue_push(queue, PKG_INSTALL, module->module_name, nullptr,
                        module->packages, module->packages_cnt, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     if (module->aur_packages_cnt > 0) {
-      ret = queue_push(queue, AUR_PACKAGE_INSTALL, module->module_name, nullptr,
+      ret = queue_push(queue, AUR_INSTALL, module->module_name, nullptr,
                        module->aur_packages, module->aur_packages_cnt, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     for (size_t i = 0; i < module->root_services_cnt; ++i) {
-      ret = queue_push(queue, SERVICE_ENABLE, module->module_name,
+      ret = queue_push(queue, SVC_ENABLE, module->module_name,
                        module->root_services[i], nullptr, 0, true);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     for (size_t i = 0; i < module->user_services_cnt; ++i) {
-      ret = queue_push(queue, SERVICE_ENABLE, module->module_name,
+      ret = queue_push(queue, SVC_ENABLE, module->module_name,
                        module->user_services[i], nullptr, 0, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     if (module->to_link) {
-      ret = queue_push(queue, DOTFILE_LINK, module->module_name,
-                       module->module_name, nullptr, 0, false);
+      ret = queue_push(queue, LINK, module->module_name, module->module_name,
+                       nullptr, 0, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
@@ -256,13 +188,12 @@ static int add_module_tasks(Damgr_Module_Diff *module_diff,
   }
   case CHANGE: {
     const Damgr_Module *module = module_diff->active_module;
-    ret = add_package_tasks(&module_diff->packages, PACKAGE_INSTALL,
-                            PACKAGE_REMOVE, module->module_name, queue, arena);
+    ret = add_package_tasks(&module_diff->packages, PKG_INSTALL, PKG_REMOVE,
+                            module->module_name, queue, arena);
     if (ret == EXIT_FAILURE)
       return EXIT_FAILURE;
-    ret = add_package_tasks(&module_diff->aur_packages, AUR_PACKAGE_INSTALL,
-                            AUR_PACKAGE_REMOVE, module->module_name, queue,
-                            arena);
+    ret = add_package_tasks(&module_diff->aur_packages, AUR_INSTALL, AUR_REMOVE,
+                            module->module_name, queue, arena);
     if (ret == EXIT_FAILURE)
       return EXIT_FAILURE;
     ret = add_service_tasks(&module_diff->root_services, module->module_name,
@@ -274,7 +205,7 @@ static int add_module_tasks(Damgr_Module_Diff *module_diff,
     if (ret == EXIT_FAILURE)
       return EXIT_FAILURE;
     if (module_diff->to_link_diff) {
-      ret = queue_push(queue, module->to_link ? DOTFILE_LINK : DOTFILE_UNLINK,
+      ret = queue_push(queue, module->to_link ? LINK : UNLINK,
                        module->module_name, module->module_name, nullptr, 0,
                        false);
       if (ret == EXIT_FAILURE)
@@ -285,32 +216,32 @@ static int add_module_tasks(Damgr_Module_Diff *module_diff,
   case REMOVE: {
     const Damgr_Module *module = module_diff->state_module;
     for (size_t i = 0; i < module->root_services_cnt; ++i) {
-      ret = queue_push(queue, SERVICE_DISABLE, module->module_name,
+      ret = queue_push(queue, SVC_DISABLE, module->module_name,
                        module->root_services[i], nullptr, 0, true);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     for (size_t i = 0; i < module->user_services_cnt; ++i) {
-      ret = queue_push(queue, SERVICE_DISABLE, module->module_name,
+      ret = queue_push(queue, SVC_DISABLE, module->module_name,
                        module->user_services[i], nullptr, 0, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     if (module->packages_cnt > 0) {
-      ret = queue_push(queue, PACKAGE_REMOVE, module->module_name, nullptr,
+      ret = queue_push(queue, PKG_REMOVE, module->module_name, nullptr,
                        module->packages, module->packages_cnt, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     if (module->aur_packages_cnt > 0) {
-      ret = queue_push(queue, AUR_PACKAGE_REMOVE, module->module_name, nullptr,
+      ret = queue_push(queue, AUR_REMOVE, module->module_name, nullptr,
                        module->aur_packages, module->aur_packages_cnt, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
     if (module->to_link) {
-      ret = queue_push(queue, DOTFILE_UNLINK, module->module_name,
-                       module->module_name, nullptr, 0, false);
+      ret = queue_push(queue, UNLINK, module->module_name, module->module_name,
+                       nullptr, 0, false);
       if (ret == EXIT_FAILURE)
         return EXIT_FAILURE;
     }
@@ -396,15 +327,15 @@ int damgr_preflight_check(Damgr_Config *config, Damgr_Task_Queue *queue) {
   for (size_t i = 0; i < queue->cnt; ++i) {
     const Damgr_Task *task = &queue->tasks[i];
     switch (task->type) {
-    case PACKAGE_INSTALL:
-    case PACKAGE_REMOVE:
-    case AUR_PACKAGE_REMOVE:
+    case PKG_INSTALL:
+    case PKG_REMOVE:
+    case AUR_REMOVE:
       if (access("/usr/bin/sudo", X_OK) != 0) {
         damgr_log(ERROR, "preflight failed: /usr/bin/sudo is not executable");
         return EXIT_FAILURE;
       }
       break;
-    case AUR_PACKAGE_INSTALL:
+    case AUR_INSTALL:
       snprintf(path, sizeof(path), "/usr/bin/%s", config->aur_helper);
       if (access(path, X_OK) != 0) {
         damgr_log(ERROR, "preflight failed: aur helper is not executable: %s",
@@ -412,7 +343,7 @@ int damgr_preflight_check(Damgr_Config *config, Damgr_Task_Queue *queue) {
         return EXIT_FAILURE;
       }
       break;
-    case DOTFILE_LINK:
+    case LINK:
       snprintf(path, sizeof(path), "%s/.config/damgr/dotfiles/%s",
                getenv("HOME"), task->name);
       if (access(path, F_OK) != 0) {
@@ -421,8 +352,8 @@ int damgr_preflight_check(Damgr_Config *config, Damgr_Task_Queue *queue) {
         return EXIT_FAILURE;
       }
       break;
-    case SERVICE_ENABLE:
-    case SERVICE_DISABLE:
+    case SVC_ENABLE:
+    case SVC_DISABLE:
       if (task->privileged && access("/usr/bin/sudo", X_OK) != 0) {
         damgr_log(ERROR, "preflight failed: /usr/bin/sudo is not executable");
         return EXIT_FAILURE;
@@ -431,7 +362,7 @@ int damgr_preflight_check(Damgr_Config *config, Damgr_Task_Queue *queue) {
         damgr_log(WARNING, "systemd unit file not found for: %s", task->name);
       }
       break;
-    case DOTFILE_UNLINK:
+    case UNLINK:
       break;
     }
   }
@@ -584,24 +515,24 @@ static int do_dotfile_unlink(const char *dotfile) {
 
 static int do_task(Damgr_Config *config, Damgr_Task *task) {
   switch (task->type) {
-  case PACKAGE_INSTALL:
+  case PKG_INSTALL:
     return run_package_command(true, task->packages, task->packages_cnt);
-  case AUR_PACKAGE_INSTALL:
+  case AUR_INSTALL:
     return run_aur_install_command(config->aur_helper, task->packages,
                                    task->packages_cnt);
 
-  case PACKAGE_REMOVE:
-  case AUR_PACKAGE_REMOVE:
+  case PKG_REMOVE:
+  case AUR_REMOVE:
     return run_package_command(false, task->packages, task->packages_cnt);
 
-  case SERVICE_ENABLE:
-  case SERVICE_DISABLE:
-    return run_service_command(task->privileged, task->type == SERVICE_ENABLE,
+  case SVC_ENABLE:
+  case SVC_DISABLE:
+    return run_service_command(task->privileged, task->type == SVC_ENABLE,
                                task->name);
-  case DOTFILE_LINK:
+  case LINK:
     return do_dotfile_link(task->name);
 
-  case DOTFILE_UNLINK:
+  case UNLINK:
     return do_dotfile_unlink(task->name);
   }
 
@@ -610,24 +541,24 @@ static int do_task(Damgr_Config *config, Damgr_Task *task) {
 
 static int undo_task(Damgr_Config *config, Damgr_Task *task) {
   switch (task->type) {
-  case PACKAGE_INSTALL:
-  case AUR_PACKAGE_INSTALL:
+  case PKG_INSTALL:
+  case AUR_INSTALL:
     return run_package_command(false, task->packages, task->packages_cnt);
 
-  case PACKAGE_REMOVE:
+  case PKG_REMOVE:
     return run_package_command(true, task->packages, task->packages_cnt);
-  case AUR_PACKAGE_REMOVE:
+  case AUR_REMOVE:
     return run_aur_install_command(config->aur_helper, task->packages,
                                    task->packages_cnt);
 
-  case SERVICE_ENABLE:
+  case SVC_ENABLE:
     return run_service_command(task->privileged, false, task->name);
-  case SERVICE_DISABLE:
+  case SVC_DISABLE:
     return run_service_command(task->privileged, true, task->name);
 
-  case DOTFILE_LINK:
+  case LINK:
     return do_dotfile_unlink(task->name);
-  case DOTFILE_UNLINK:
+  case UNLINK:
     return do_dotfile_link(task->name);
   }
 

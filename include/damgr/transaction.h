@@ -3,14 +3,14 @@
 #include "damgr/diff.h"
 
 typedef enum task_type {
-  PACKAGE_INSTALL,
-  PACKAGE_REMOVE,
-  AUR_PACKAGE_INSTALL,
-  AUR_PACKAGE_REMOVE,
-  SERVICE_ENABLE,
-  SERVICE_DISABLE,
-  DOTFILE_LINK,
-  DOTFILE_UNLINK,
+  PKG_INSTALL,
+  PKG_REMOVE,
+  AUR_INSTALL,
+  AUR_REMOVE,
+  SVC_ENABLE,
+  SVC_DISABLE,
+  LINK,
+  UNLINK,
 } Damgr_Task_Type;
 
 typedef enum task_status {

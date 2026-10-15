@@ -76,7 +76,7 @@ static bool string_endswith(const char *str, const char *suffix) {
 int damgr_count_state_dir(const char *dir) {
   DIR *open_dir = opendir(dir);
   if (open_dir == nullptr) {
-    damgr_log(ERROR, "could not open directory %s: %s", dir, strerror(errno));
+    damgr_log(ERROR, ".local/state/damgr doesn't exist: %s", strerror(errno));
     return EXIT_FAILURE;
   }
 
@@ -94,7 +94,11 @@ int damgr_count_state_dir(const char *dir) {
     }
   }
   closedir(open_dir);
-  return count;
+  if (count == 0) {
+    return -1; // EXIT_FAILURE == 0?
+  } else {
+    return count;
+  }
 }
 
 static int read_config(Damgr_Config *config, Damgr_Arena *arena,
