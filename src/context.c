@@ -1,125 +1,18 @@
-#include "damgr/state.h"
+#include "damgr/context.h"
 #include "damgr/log.h"
-#include <ctype.h>
-#include <dirent.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "damgr/utils.h"
 
-void damgr_arena_init(Damgr_Arena *arena) {
-  if (arena != nullptr)
-    arena->offset = 0;
-}
-
-void *damgr_arena_alloc(Damgr_Arena *arena, size_t size) {
-  if (arena == nullptr || size == 0)
-    return nullptr;
-
-  size = (size + DAMGR_ALLOC_UNIT - 1) & ~(DAMGR_ALLOC_UNIT - 1);
-  if (arena->offset + size > DAMGR_BUFFER_SIZE) {
-    return nullptr; // out of memory
-  } else {
-    void *ptr = &arena->buffer[arena->offset];
-    arena->offset += size;
-    memset(ptr, 0, size); // zero memory
-    return ptr;
-  }
-}
-
-char *damgr_arena_strdup(Damgr_Arena *arena, const char *src) {
-  if (arena == nullptr || src == nullptr)
-    return nullptr;
-
-  size_t len = strlen(src) + 1; // null terminator
-  char *dest = damgr_arena_alloc(arena, len);
-  if (dest != nullptr) {
-    memcpy(dest, src, len);
-  }
-
-  return dest;
-}
-
-static void trim_string_inplace(char *str) {
-  if (*str == '\0')
-    return;
-
-  char *start = str;
-  while (isspace((unsigned char)*start)) {
-    ++start;
-  }
-
-  char *end = str + strlen(str) - 1;
-  while (end > start && isspace((unsigned char)*end)) {
-    --end;
-  }
-
-  *(end + 1) = '\0'; // ensure proper null termination
-
-  if (start != str) {
-    memmove(str, start, end - start + 2); // +2 includes the null terminator
-  }
-}
-
-static bool string_endswith(const char *str, const char *suffix) {
-  size_t str_len = strlen(str);
-  size_t suffix_len = strlen(suffix);
-  if (str_len < suffix_len)
-    return false;
-
-  return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
-}
-
-int damgr_count_state_dir(const char *dir) {
-  if (access(dir, F_OK) != 0) {
-    damgr_log(
-        ERROR,
-        "%s doesn't exist, please mkdir the directory before running damgr",
-        dir);
-    return EXIT_FAILURE;
-  }
-
-  DIR *open_dir = opendir(dir);
-  if (open_dir == nullptr) {
-    damgr_log(ERROR, "could not open state directory %s: %s", dir,
-              strerror(errno));
-    return EXIT_FAILURE;
-  }
-
-  int count = 0;
-  struct dirent *ent;
-  errno = 0;
-  while ((ent = readdir(open_dir)) != nullptr) {
-    if (errno != 0) {
-      damgr_log(ERROR, "could not read state directory %s: %s", dir,
-                strerror(errno));
-      closedir(open_dir);
-      return EXIT_FAILURE;
-    }
-    if (string_endswith(ent->d_name, ".conf")) {
-      ++count;
-    }
-  }
-  closedir(open_dir);
-  if (count == 0) {
-    return -1;
-  } else {
-    return count;
-  }
-}
-
-static int read_config(Damgr_Config *config, Damgr_Arena *arena,
-                       const char *fidbuf, bool is_state) {
-  FILE *config_fid = fopen(fidbuf, "r");
-  if (config_fid == nullptr) {
+static int read_context(Damgr_Context *context, Damgr_Arena *arena,
+                        const char *fidbuf, bool is_state) {
+  FILE *context_fid = fopen(fidbuf, "r");
+  if (context_fid == nullptr) {
     damgr_log(ERROR, "could not open config fid %s: %s", fidbuf,
               strerror(errno));
     return EXIT_FAILURE;
   }
 
   char line[DAMGR_LINE_MAX];
-  while (fgets(line, sizeof(line), config_fid)) {
+  while (fgets(line, sizeof(line), context_fid)) {
     if (line[0] == '\n') // also skip newlines
       continue;
     if (line[0] == '#') // also skip comments
@@ -133,48 +26,48 @@ static int read_config(Damgr_Config *config, Damgr_Arena *arena,
     *eq = '\0';
     char *key = line;
     char *val = eq + 1;
-    trim_string_inplace(key);
-    trim_string_inplace(val);
+    damgr_trim_string_inplace(key);
+    damgr_trim_string_inplace(val);
 
     if (strcmp(key, "aur_helper") == 0) {
       if (!is_state) {
         // only use the active aur_helper
-        config->aur_helper = damgr_arena_strdup(arena, val);
+        context->aur_helper = damgr_arena_strdup(arena, val);
       } else {
-        config->aur_helper = nullptr;
+        context->aur_helper = nullptr;
       }
     } else if (strcmp(key, "active_host") == 0) {
       if (is_state) {
-        config->state_host = damgr_arena_alloc(arena, sizeof(Damgr_Host));
-        if (config->state_host == nullptr) {
+        context->state_host = damgr_arena_alloc(arena, sizeof(Damgr_Host));
+        if (context->state_host == nullptr) {
           damgr_log(ERROR, "arena alloc failed and returned nullptr");
-          fclose(config_fid);
+          fclose(context_fid);
           return EXIT_FAILURE;
         }
-        config->state_host->host_name = damgr_arena_strdup(arena, val);
-        if (config->state_host->host_name == nullptr) {
+        context->state_host->host_name = damgr_arena_strdup(arena, val);
+        if (context->state_host->host_name == nullptr) {
           damgr_log(ERROR, "arena strdup failed and returned nullptr");
-          fclose(config_fid);
+          fclose(context_fid);
           return EXIT_FAILURE;
         }
       } else {
-        config->active_host = damgr_arena_alloc(arena, sizeof(Damgr_Host));
-        if (config->active_host == nullptr) {
+        context->active_host = damgr_arena_alloc(arena, sizeof(Damgr_Host));
+        if (context->active_host == nullptr) {
           damgr_log(ERROR, "arena alloc failed and returned nullptr");
-          fclose(config_fid);
+          fclose(context_fid);
           return EXIT_FAILURE;
         }
-        config->active_host->host_name = damgr_arena_strdup(arena, val);
-        if (config->active_host->host_name == nullptr) {
+        context->active_host->host_name = damgr_arena_strdup(arena, val);
+        if (context->active_host->host_name == nullptr) {
           damgr_log(ERROR, "arena strdup failed and returned nullptr");
-          fclose(config_fid);
+          fclose(context_fid);
           return EXIT_FAILURE;
         }
       }
     }
   }
 
-  fclose(config_fid);
+  fclose(context_fid);
   return EXIT_SUCCESS;
 }
 
@@ -186,7 +79,7 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
   }
 
   char line[DAMGR_LINE_MAX];
-  char *stack_modules[DAMGR_ARRAY_BUFFER];
+  char *stack_modules[DAMGR_ARRAY_BUFFER_MAX];
   size_t modules_cnt = 0;
   bool parsing = false;
 
@@ -201,13 +94,13 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
       // non = lines should be indented
       bool is_indented = isspace((unsigned char)line[0]);
       if (is_indented && parsing) {
-        trim_string_inplace(line);
+        damgr_trim_string_inplace(line);
         if (line[0] == '\0')
           continue;
         if (line[0] == '#') // also skip indented comments
           continue;
 
-        if (modules_cnt < DAMGR_ARRAY_BUFFER) {
+        if (modules_cnt < DAMGR_ARRAY_BUFFER_MAX) {
           stack_modules[modules_cnt++] = damgr_arena_strdup(arena, line);
           if (stack_modules[modules_cnt - 1] == nullptr) {
             damgr_log(ERROR, "arena strdup failed and returned nullptr");
@@ -216,7 +109,7 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
           }
         } else {
           damgr_log(ERROR, "buffer limit %d exceeded for modules count",
-                    DAMGR_ARRAY_BUFFER);
+                    DAMGR_ARRAY_BUFFER_MAX);
           fclose(host_fid);
           return EXIT_FAILURE;
         }
@@ -233,8 +126,8 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
       *eq = '\0';
       char *key = line;
       char *val = eq + 1;
-      trim_string_inplace(key);
-      trim_string_inplace(val);
+      damgr_trim_string_inplace(key);
+      damgr_trim_string_inplace(val);
 
       if (strcmp(key, "modules") == 0) {
         parsing = true;
@@ -245,7 +138,7 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
         return EXIT_FAILURE;
       }
       if (*val != '\0' && *val != '\n') {
-        if (modules_cnt < DAMGR_ARRAY_BUFFER) {
+        if (modules_cnt < DAMGR_ARRAY_BUFFER_MAX) {
           stack_modules[modules_cnt++] = damgr_arena_strdup(arena, val);
           if (stack_modules[modules_cnt - 1] == nullptr) {
             damgr_log(ERROR, "arena strdup failed and returned nullptr");
@@ -254,7 +147,7 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
           }
         } else {
           damgr_log(ERROR, "buffer limit %d exceeded for modules count",
-                    DAMGR_ARRAY_BUFFER);
+                    DAMGR_ARRAY_BUFFER_MAX);
           fclose(host_fid);
           return EXIT_FAILURE;
         }
@@ -296,13 +189,13 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
 
   char line[DAMGR_LINE_MAX];
   enum { NONE, AUR, PKG, SVC } active_parsing = NONE;
-  char *stack_packages[DAMGR_ARRAY_BUFFER];
+  char *stack_packages[DAMGR_ARRAY_BUFFER_MAX];
   size_t packages_cnt = 0;
-  char *stack_aur_packages[DAMGR_ARRAY_BUFFER];
+  char *stack_aur_packages[DAMGR_ARRAY_BUFFER_MAX];
   size_t aur_packages_cnt = 0;
-  char *stack_root_services[DAMGR_ARRAY_BUFFER];
+  char *stack_root_services[DAMGR_ARRAY_BUFFER_MAX];
   size_t root_services_cnt = 0;
-  char *stack_user_services[DAMGR_ARRAY_BUFFER];
+  char *stack_user_services[DAMGR_ARRAY_BUFFER_MAX];
   size_t user_services_cnt = 0;
   bool to_link = false;
 
@@ -317,7 +210,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
       // non = lines should be indented
       bool is_indented = isspace((unsigned char)line[0]);
       if (is_indented) {
-        trim_string_inplace(line);
+        damgr_trim_string_inplace(line);
         if (line[0] == '\0')
           continue;
         if (line[0] == '#') // also skip indented comments
@@ -328,7 +221,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
           // indented line with no = and no :
           // right now only (aur_)packages
           if (active_parsing == AUR) {
-            if (aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
+            if (aur_packages_cnt < DAMGR_ARRAY_BUFFER_MAX) {
               stack_aur_packages[aur_packages_cnt++] =
                   damgr_arena_strdup(arena, line);
               if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
@@ -339,12 +232,12 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
             } else {
               damgr_log(ERROR,
                         "buffer limit %d exceeded for aur packages count",
-                        DAMGR_ARRAY_BUFFER);
+                        DAMGR_ARRAY_BUFFER_MAX);
               fclose(module_fid);
               return EXIT_FAILURE;
             }
           } else if (active_parsing == PKG) {
-            if (packages_cnt < DAMGR_ARRAY_BUFFER) {
+            if (packages_cnt < DAMGR_ARRAY_BUFFER_MAX) {
               stack_packages[packages_cnt++] = damgr_arena_strdup(arena, line);
               if (stack_packages[packages_cnt - 1] == nullptr) {
                 damgr_log(ERROR, "arena strdup failed and returned nullptr");
@@ -353,7 +246,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
               }
             } else {
               damgr_log(ERROR, "buffer limit %d exceeded for packages count",
-                        DAMGR_ARRAY_BUFFER);
+                        DAMGR_ARRAY_BUFFER_MAX);
               fclose(module_fid);
               return EXIT_FAILURE;
             }
@@ -367,11 +260,11 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
           *sep = '\0';
           char *key = line;
           char *val = sep + 1;
-          trim_string_inplace(key);
-          trim_string_inplace(val);
+          damgr_trim_string_inplace(key);
+          damgr_trim_string_inplace(val);
           if (active_parsing == SVC) {
             if (strcmp(val, "true") == 0) {
-              if (root_services_cnt < DAMGR_ARRAY_BUFFER) {
+              if (root_services_cnt < DAMGR_ARRAY_BUFFER_MAX) {
                 stack_root_services[root_services_cnt++] =
                     damgr_arena_strdup(arena, key);
                 if (stack_root_services[root_services_cnt - 1] == nullptr) {
@@ -382,13 +275,13 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
               } else {
                 damgr_log(ERROR,
                           "buffer limit %d exceeded for root services count",
-                          DAMGR_ARRAY_BUFFER);
+                          DAMGR_ARRAY_BUFFER_MAX);
                 fclose(module_fid);
                 return EXIT_FAILURE;
               }
             } else {
               // val == false
-              if (user_services_cnt < DAMGR_ARRAY_BUFFER) {
+              if (user_services_cnt < DAMGR_ARRAY_BUFFER_MAX) {
                 stack_user_services[user_services_cnt++] =
                     damgr_arena_strdup(arena, key);
                 if (stack_user_services[user_services_cnt - 1] == nullptr) {
@@ -399,7 +292,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
               } else {
                 damgr_log(ERROR,
                           "buffer limit %d exceeded for user services count",
-                          DAMGR_ARRAY_BUFFER);
+                          DAMGR_ARRAY_BUFFER_MAX);
                 fclose(module_fid);
                 return EXIT_FAILURE;
               }
@@ -415,8 +308,8 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
       *eq = '\0';
       char *key1 = line;
       char *val1 = eq + 1;
-      trim_string_inplace(key1);
-      trim_string_inplace(val1);
+      damgr_trim_string_inplace(key1);
+      damgr_trim_string_inplace(val1);
 
       char *sep = strchr(val1, ':');
       if (!sep) {
@@ -455,7 +348,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
           continue;
 
         if (active_parsing == AUR) {
-          if (aur_packages_cnt < DAMGR_ARRAY_BUFFER) {
+          if (aur_packages_cnt < DAMGR_ARRAY_BUFFER_MAX) {
             stack_aur_packages[aur_packages_cnt++] =
                 damgr_arena_strdup(arena, line);
             if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
@@ -465,12 +358,12 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
             }
           } else {
             damgr_log(ERROR, "buffer limit %d exceeded for aur packages count",
-                      DAMGR_ARRAY_BUFFER);
+                      DAMGR_ARRAY_BUFFER_MAX);
             fclose(module_fid);
             return EXIT_FAILURE;
           }
         } else if (active_parsing == PKG) {
-          if (packages_cnt < DAMGR_ARRAY_BUFFER) {
+          if (packages_cnt < DAMGR_ARRAY_BUFFER_MAX) {
             stack_packages[packages_cnt++] = damgr_arena_strdup(arena, line);
             if (stack_packages[packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
@@ -479,7 +372,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
             }
           } else {
             damgr_log(ERROR, "buffer limit %d exceeded for packages count",
-                      DAMGR_ARRAY_BUFFER);
+                      DAMGR_ARRAY_BUFFER_MAX);
             fclose(module_fid);
             return EXIT_FAILURE;
           }
@@ -501,8 +394,8 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
         *sep = '\0';
         char *key2 = val1;
         char *val2 = sep + 1;
-        trim_string_inplace(key2);
-        trim_string_inplace(val2);
+        damgr_trim_string_inplace(key2);
+        damgr_trim_string_inplace(val2);
 
         if (strcmp(key1, "services") == 0) {
           active_parsing = SVC;
@@ -511,7 +404,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
         }
 
         if (strcmp(val2, "true") == 0) {
-          if (root_services_cnt < DAMGR_ARRAY_BUFFER) {
+          if (root_services_cnt < DAMGR_ARRAY_BUFFER_MAX) {
             stack_root_services[root_services_cnt++] =
                 damgr_arena_strdup(arena, key2);
             if (stack_root_services[root_services_cnt - 1] == nullptr) {
@@ -521,12 +414,12 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
             }
           } else {
             damgr_log(ERROR, "buffer limit %d exceeded for root services count",
-                      DAMGR_ARRAY_BUFFER);
+                      DAMGR_ARRAY_BUFFER_MAX);
             fclose(module_fid);
             return EXIT_FAILURE;
           }
         } else if (strcmp(val2, "false") == 0) {
-          if (user_services_cnt < DAMGR_ARRAY_BUFFER) {
+          if (user_services_cnt < DAMGR_ARRAY_BUFFER_MAX) {
             stack_user_services[user_services_cnt++] =
                 damgr_arena_strdup(arena, key2);
             if (stack_user_services[user_services_cnt - 1] == nullptr) {
@@ -536,7 +429,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
             }
           } else {
             damgr_log(ERROR, "buffer limit %d exceeded for user services count",
-                      DAMGR_ARRAY_BUFFER);
+                      DAMGR_ARRAY_BUFFER_MAX);
             fclose(module_fid);
             return EXIT_FAILURE;
           }
@@ -607,38 +500,37 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
   return EXIT_SUCCESS;
 }
 
-int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena) {
+int damgr_read_state_context(Damgr_Context *context, Damgr_Arena *arena) {
   int ret;
-  char fidbuf[DAMGR_PATH_MAX];
-  snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/config_state.conf",
-           getenv("HOME"));
-  ret = read_config(config, arena, fidbuf, true);
+  char fidbuf[DAMGR_FIDBUF_MAX];
+  damgr_format_fidbuf(fidbuf, "config", true, NO_ACTIVE_DIR, STATE);
+  ret = read_context(context, arena, fidbuf, true);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  if (config->state_host == nullptr ||
-      config->state_host->host_name == nullptr) {
+  if (context->state_host == nullptr ||
+      context->state_host->host_name == nullptr) {
     damgr_log(ERROR, "failed to parse state host from state config: %s",
               fidbuf);
     return EXIT_FAILURE;
   }
 
-  snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
-           getenv("HOME"), config->state_host->host_name);
-  ret = read_host(config->state_host, arena, fidbuf);
+  damgr_format_fidbuf(fidbuf, context->state_host->host_name, true,
+                      NO_ACTIVE_DIR, STATE);
+  ret = read_host(context->state_host, arena, fidbuf);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  if (config->state_host->modules_cnt == 0) {
+  if (context->state_host->modules_cnt == 0) {
     damgr_log(ERROR, "failed to parse any state modules from state host: %s",
               fidbuf);
     return EXIT_FAILURE;
   }
 
-  for (size_t i = 0; i < config->state_host->modules_cnt; ++i) {
-    snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/%s_state.conf",
-             getenv("HOME"), config->state_host->modules[i]->module_name);
-    ret = read_module(config->state_host->modules[i], arena, fidbuf);
+  for (size_t i = 0; i < context->state_host->modules_cnt; ++i) {
+    damgr_format_fidbuf(fidbuf, context->state_host->modules[i]->module_name,
+                        true, NO_ACTIVE_DIR, STATE);
+    ret = read_module(context->state_host->modules[i], arena, fidbuf);
     if (ret == EXIT_FAILURE)
       return ret;
   }
@@ -646,43 +538,44 @@ int damgr_read_state(Damgr_Config *config, Damgr_Arena *arena) {
   return EXIT_SUCCESS;
 }
 
-int damgr_read_active(Damgr_Config *config, Damgr_Arena *arena) {
+int damgr_read_active(Damgr_Context *context, Damgr_Arena *arena) {
   int ret;
-  char fidbuf[DAMGR_PATH_MAX];
-  snprintf(fidbuf, sizeof(fidbuf), "%s/.config/damgr/config.conf",
-           getenv("HOME"));
-  ret = read_config(config, arena, fidbuf, false);
+  char fidbuf[DAMGR_FIDBUF_MAX];
+  damgr_format_fidbuf(fidbuf, "config", false, CONTEXT, NO_STATE_DIR);
+  ret = read_context(context, arena, fidbuf, false);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  if (config->active_host == nullptr ||
-      config->active_host->host_name == nullptr) {
+  if (context->active_host == nullptr ||
+      context->active_host->host_name == nullptr) {
     damgr_log(ERROR, "failed to parse host from active config: %s", fidbuf);
     return EXIT_FAILURE;
   }
 
-  if (config->aur_helper == nullptr) {
+  if (context->aur_helper == nullptr) {
     damgr_log(ERROR, "failed to parse aur_helper from active config: %s",
               fidbuf);
     return EXIT_FAILURE;
   }
 
-  snprintf(fidbuf, sizeof(fidbuf), "%s/.config/damgr/hosts/%s.conf",
-           getenv("HOME"), config->active_host->host_name);
-  ret = read_host(config->active_host, arena, fidbuf);
+  damgr_format_fidbuf(fidbuf, context->active_host->host_name, false, HOST,
+                      NO_STATE_DIR);
+  ret = read_host(context->active_host, arena, fidbuf);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  if (config->active_host->modules_cnt == 0) {
+  if (context->active_host->modules_cnt == 0) {
     damgr_log(ERROR, "failed to parse any modules from active host: %s",
               fidbuf);
     return EXIT_FAILURE;
   }
 
-  for (size_t i = 0; i < config->active_host->modules_cnt; ++i) {
-    snprintf(fidbuf, sizeof(fidbuf), "%s/.config/damgr/modules/%s.conf",
-             getenv("HOME"), config->active_host->modules[i]->module_name);
-    ret = read_module(config->active_host->modules[i], arena, fidbuf);
+  for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
+    snprintf(fidbuf, sizeof(fidbuf), "%s/.context/damgr/modules/%s.conf",
+             getenv("HOME"), context->active_host->modules[i]->module_name);
+    damgr_format_fidbuf(fidbuf, context->active_host->modules[i]->module_name,
+                        false, MODULE, NO_STATE_DIR);
+    ret = read_module(context->active_host->modules[i], arena, fidbuf);
     if (ret == EXIT_FAILURE)
       return ret;
   }

@@ -1,8 +1,4 @@
-#include "damgr/commit.h"
 #include "damgr/log.h"
-#include "damgr/merge.h"
-#include "damgr/stage.h"
-#include "damgr/validate.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -45,19 +41,23 @@ int main(int argc, char *argv[]) {
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr validate!");
-    ret = damgr_validate();
+    // ret = damgr_validate();
+    ret = 1;
     break;
   case 1:
     damgr_log(INFO, "starting damgr merge!");
-    ret = damgr_merge();
+    // ret = damgr_merge();
+    ret = 1;
     break;
   case 2:
     damgr_log(INFO, "starting damgr stage!");
-    ret = damgr_stage();
+    // ret = damgr_stage();
+    ret = 1;
     break;
   case 3:
     damgr_log(INFO, "starting damgr commit!");
-    ret = damgr_commit();
+    // ret = damgr_commit();
+    ret = 1;
     break;
   }
 

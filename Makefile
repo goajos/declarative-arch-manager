@@ -11,13 +11,8 @@ CFLAGS=-Wall -Wextra -Werror -pedantic -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)
 BUILDDIR=build
 CFILES=main.c \
 			 src/log.c \
-			 src/validate.c \
-			 src/state.c \
-			 src/diff.c  \
-			 src/transaction.c \
-			 src/stage.c \
-			 src/commit.c \
-			 src/merge.c \
+			 src/arena.c \
+			 src/context.c \
 			 src/utils.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
