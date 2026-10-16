@@ -66,15 +66,15 @@ static int stage_module(const Damgr_Module *module, const char *fidbuf) {
 }
 
 int damgr_stage_with_context(const Damgr_Context *context) {
+  // snprintf(fid_buf, sizeof(fid_buf), "%s/.local/state/damgr/.staging",
+  //          getenv("HOME"));
+  // // TODO: do we also want to clear the dir here?
+  // ret = damgr_make_dir(fid_buf);
+  // if (ret == EXIT_FAILURE)
+  //   return ret;
+
   int ret;
   char fid_buf[DAMGR_FID_BUF_MAX];
-  snprintf(fid_buf, sizeof(fid_buf), "%s/.local/state/damgr/.staging",
-           getenv("HOME"));
-  // TODO: do we also want to clear the dir here?
-  ret = damgr_make_dir(fid_buf);
-  if (ret == EXIT_FAILURE)
-    return ret;
-
   damgr_format_fid_buf(fid_buf, "config", true, NO_ACTIVE_DIR, STAGING);
   ret = stage_context(context, fid_buf);
   if (ret == EXIT_FAILURE)
@@ -98,8 +98,15 @@ int damgr_stage_with_context(const Damgr_Context *context) {
 }
 
 int damgr_stage(Damgr_Arena *arena) {
-  int ret;
+  char fid_buf[DAMGR_FID_BUF_MAX];
+  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(STAGING));
+  if (damgr_make_dir(fid_buf) && !damgr_is_dir_empty(fid_buf)) {
+    damgr_log(ERROR, "trying to stage with a non-empty .staging folder");
+    return EXIT_FAILURE;
+  }
 
+  int ret;
   Damgr_Context context = {0};
   ret = damgr_read_active_context(&context, arena);
   if (ret == EXIT_FAILURE)

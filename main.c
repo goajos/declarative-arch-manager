@@ -63,8 +63,7 @@ int main(int argc, char *argv[]) {
     break;
   case 3:
     damgr_log(INFO, "starting damgr commit!");
-    ret = damgr_commit(arena);
-    ret = 1;
+    ret = damgr_commit();
     break;
   }
 

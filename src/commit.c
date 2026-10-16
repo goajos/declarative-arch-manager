@@ -34,16 +34,62 @@ static int copy_file(const char *src_buf, const char *dst_buf) {
 }
 
 static int backup_state() {
-  int ret;
+  char state_buf[DAMGR_FID_BUF_MAX];
+  char backup_buf[DAMGR_FID_BUF_MAX];
+  snprintf(state_buf, sizeof(state_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(STATE));
+  snprintf(backup_buf, sizeof(backup_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(BACKUP));
+
+  DIR *state_dir = opendir(state_buf);
+  if (state_dir == nullptr) {
+    damgr_log(ERROR, "could not open state dir %s: %s", state_buf,
+              strerror(errno));
+    return EXIT_FAILURE;
+  }
+
+  struct dirent *ent;
+  int ret = EXIT_SUCCESS;
+  while ((ent = readdir(state_dir)) != nullptr) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+      continue;
+
+    char src_path[DAMGR_FID_BUF_MAX];
+    char dst_path[DAMGR_FID_BUF_MAX];
+    snprintf(src_path, sizeof(src_path), "%s/%s", state_buf, ent->d_name);
+    snprintf(dst_path, sizeof(dst_path), "%s/%s", backup_buf, ent->d_name);
+
+    struct stat st;
+    if (lstat(src_path, &st) != 0 || !S_ISREG(st.st_mode))
+      continue;
+
+    ret = copy_file(src_path, dst_path);
+    if (ret == EXIT_FAILURE)
+      break;
+  }
+
+  closedir(state_dir);
+  return ret;
 
   return EXIT_SUCCESS;
 }
 
-int damgr_commit(Damgr_Arena *arena) {
-  int ret;
+int damgr_commit() {
   char fid_buf[DAMGR_FID_BUF_MAX];
-  snprintf(fid_buf, sizeof(fid_buf), "%s/.local/state/damgr/.backup",
-           getenv("HOME"));
+  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(STAGING));
+  if (!damgr_dir_exists(fid_buf)) {
+    damgr_log(ERROR, "trying to commit without a .staging folder");
+    return EXIT_FAILURE;
+  }
+  if (damgr_is_dir_empty(fid_buf)) {
+    damgr_log(ERROR, "trying to commit with an empty .staging folder");
+    return EXIT_FAILURE;
+  }
+
+  int ret;
+  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(BACKUP));
   // TODO: do we also want to clear the dir here?
   ret = damgr_make_dir(fid_buf);
   if (ret == EXIT_FAILURE)

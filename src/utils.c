@@ -16,7 +16,7 @@ static const char *active_dir_type_string(Damgr_Active_Dir_Type type) {
   return "";
 }
 
-static const char *state_dir_type_string(Damgr_State_Dir_Type type) {
+const char *state_dir_type_string(Damgr_State_Dir_Type type) {
   switch (type) {
   case STATE:
     return ".local/state/damgr";
@@ -68,43 +68,62 @@ void damgr_trim_string_inplace(char *str) {
   }
 }
 
-int damgr_make_dir(const char *fid_buf) {
+bool damgr_make_dir(const char *fid_buf) {
   struct stat st;
   if (lstat(fid_buf, &st) != 0) {
     if (errno == ENOENT) {
       if (mkdir(fid_buf, DAMGR_DIR_PERM) != 0) {
         damgr_log(ERROR, "could not create %s dir: %s", fid_buf,
                   strerror(errno));
-        return EXIT_FAILURE;
+        return false;
       }
       damgr_log(INFO, "created %s dir", fid_buf);
-      return EXIT_SUCCESS;
+      return true;
     }
     damgr_log(ERROR, "could not stat %s: %s", fid_buf, strerror(errno));
-    return EXIT_FAILURE;
+    return false;
   }
 
   if (S_ISDIR(st.st_mode)) {
     damgr_log(INFO, "%s dir already exists", fid_buf);
-    return EXIT_SUCCESS;
+    return true;
   }
 
   damgr_log(ERROR, "%s already exists but is not a dir", fid_buf);
-  return EXIT_FAILURE;
+  return false;
 }
 
-// bool damgr_is_dir(const char *fid_buf) {
-//   struct stat st;
-//   lstat(fid_buf, &st);
-//   return S_ISDIR(st.st_mode);
-// }
-// bool damgr_is_file(const char *fid_buf) {
-//   struct stat st;
-//   lstat(fid_buf, &st);
-//   return S_ISREG(st.st_mode);
-// }
-// bool damgr_is_dotfile(const char *fid_buf) {
-//   struct stat st;
-//   lstat(fid_buf, &st);
-//   return S_ISLNK(st.st_mode);
-// }
+bool damgr_dir_exists(const char *fid_buf) {
+  struct stat st;
+
+  if (lstat(fid_buf, &st) != 0) {
+    if (errno == ENOENT) {
+      damgr_log(ERROR, "dir %s does not exist: %s", fid_buf, strerror(errno));
+      return false;
+    }
+    damgr_log(ERROR, "could not stat %s: %s", fid_buf, strerror(errno));
+    return false;
+  }
+
+  return S_ISDIR(st.st_mode);
+}
+
+bool damgr_is_dir_empty(const char *fid_buf) {
+  DIR *dir = opendir(fid_buf);
+  if (dir == nullptr) {
+    damgr_log(ERROR, "could not open dir %s: %s", fid_buf, strerror(errno));
+    return false;
+  }
+
+  int count = 0;
+  struct dirent *ent;
+  while ((ent = readdir(dir)) != nullptr) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+      continue;
+
+    count++;
+  }
+
+  closedir(dir);
+  return count == 0;
+}
