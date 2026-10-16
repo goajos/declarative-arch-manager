@@ -2,11 +2,11 @@
 #define DAMGR_ARENA_H
 #include <stdlib.h>
 
-#define DAMGR_BUFFER_SIZE 1024 * 1024 // size of the arena
-#define DAMGR_ALLOC_UNIT 16           // minimal allocation unit
+#define DAMGR_ARENA_BUF_SIZE 1024 * 1024 // size of the arena
+#define DAMGR_ALLOC_UNIT 16              // minimal allocation unit
 
 typedef struct arena {
-  uint8_t buffer[DAMGR_BUFFER_SIZE];
+  uint8_t arena_buf[DAMGR_ARENA_BUF_SIZE];
   size_t offset;
 } Damgr_Arena;
 

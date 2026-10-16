@@ -67,29 +67,29 @@ static int stage_module(const Damgr_Module *module, const char *fidbuf) {
 
 int damgr_stage_with_context(const Damgr_Context *context) {
   int ret;
-  char fidbuf[DAMGR_FIDBUF_MAX];
-  snprintf(fidbuf, sizeof(fidbuf), "%s/.local/state/damgr/.staging",
+  char fid_buf[DAMGR_FID_BUF_MAX];
+  snprintf(fid_buf, sizeof(fid_buf), "%s/.local/state/damgr/.staging",
            getenv("HOME"));
   // TODO: do we also want to clear the dir here?
-  ret = damgr_make_dir(fidbuf);
+  ret = damgr_make_dir(fid_buf);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  damgr_format_fidbuf(fidbuf, "config", true, NO_ACTIVE_DIR, STAGING);
-  ret = stage_context(context, fidbuf);
+  damgr_format_fid_buf(fid_buf, "config", true, NO_ACTIVE_DIR, STAGING);
+  ret = stage_context(context, fid_buf);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  damgr_format_fidbuf(fidbuf, context->active_host->host_name, true,
-                      NO_ACTIVE_DIR, STAGING);
-  ret = stage_host(context->active_host, fidbuf);
+  damgr_format_fid_buf(fid_buf, context->active_host->host_name, true,
+                       NO_ACTIVE_DIR, STAGING);
+  ret = stage_host(context->active_host, fid_buf);
   if (ret == EXIT_FAILURE)
     return ret;
 
   for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
-    damgr_format_fidbuf(fidbuf, context->active_host->modules[i]->module_name,
-                        true, NO_ACTIVE_DIR, STAGING);
-    ret = stage_module(context->active_host->modules[i], fidbuf);
+    damgr_format_fid_buf(fid_buf, context->active_host->modules[i]->module_name,
+                         true, NO_ACTIVE_DIR, STAGING);
+    ret = stage_module(context->active_host->modules[i], fid_buf);
     if (ret == EXIT_FAILURE)
       return ret;
   }

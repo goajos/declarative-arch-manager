@@ -30,19 +30,19 @@ static const char *state_dir_type_string(Damgr_State_Dir_Type type) {
   return "";
 }
 
-void damgr_format_fidbuf(char *fidbuf, const char *name, const bool is_state,
-                         const Damgr_Active_Dir_Type active_dir_type,
-                         const Damgr_State_Dir_Type state_dir_type) {
+void damgr_format_fid_buf(char *fid_buf, const char *name, const bool is_state,
+                          const Damgr_Active_Dir_Type active_dir_type,
+                          const Damgr_State_Dir_Type state_dir_type) {
   if (is_state) {
     if (state_dir_type == STAGING || state_dir_type == BACKUP) {
-      snprintf(fidbuf, DAMGR_FIDBUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
+      snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
                state_dir_type_string(state_dir_type), name);
     } else {
-      snprintf(fidbuf, DAMGR_FIDBUF_MAX, "%s/%s/%s_state.conf", getenv("HOME"),
-               state_dir_type_string(state_dir_type), name);
+      snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s_state.conf",
+               getenv("HOME"), state_dir_type_string(state_dir_type), name);
     }
   } else {
-    snprintf(fidbuf, DAMGR_FIDBUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
+    snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
              active_dir_type_string(active_dir_type), name);
   }
 }
@@ -68,43 +68,43 @@ void damgr_trim_string_inplace(char *str) {
   }
 }
 
-int damgr_make_dir(const char *fidbuf) {
+int damgr_make_dir(const char *fid_buf) {
   struct stat st;
-  if (lstat(fidbuf, &st) != 0) {
+  if (lstat(fid_buf, &st) != 0) {
     if (errno == ENOENT) {
-      if (mkdir(fidbuf, DAMGR_DIR_PERM) != 0) {
-        damgr_log(ERROR, "could not create %s dir: %s", fidbuf,
+      if (mkdir(fid_buf, DAMGR_DIR_PERM) != 0) {
+        damgr_log(ERROR, "could not create %s dir: %s", fid_buf,
                   strerror(errno));
         return EXIT_FAILURE;
       }
-      damgr_log(INFO, "created %s dir", fidbuf);
+      damgr_log(INFO, "created %s dir", fid_buf);
       return EXIT_SUCCESS;
     }
-    damgr_log(ERROR, "could not stat %s: %s", fidbuf, strerror(errno));
+    damgr_log(ERROR, "could not stat %s: %s", fid_buf, strerror(errno));
     return EXIT_FAILURE;
   }
 
   if (S_ISDIR(st.st_mode)) {
-    damgr_log(INFO, "%s dir already exists", fidbuf);
+    damgr_log(INFO, "%s dir already exists", fid_buf);
     return EXIT_SUCCESS;
   }
 
-  damgr_log(ERROR, "%s already exists but is not a dir", fidbuf);
+  damgr_log(ERROR, "%s already exists but is not a dir", fid_buf);
   return EXIT_FAILURE;
 }
 
-// bool damgr_is_dir(const char *fidbuf) {
+// bool damgr_is_dir(const char *fid_buf) {
 //   struct stat st;
-//   lstat(fidbuf, &st);
+//   lstat(fid_buf, &st);
 //   return S_ISDIR(st.st_mode);
 // }
-// bool damgr_is_file(const char *fidbuf) {
+// bool damgr_is_file(const char *fid_buf) {
 //   struct stat st;
-//   lstat(fidbuf, &st);
+//   lstat(fid_buf, &st);
 //   return S_ISREG(st.st_mode);
 // }
-// bool damgr_is_dotfile(const char *fidbuf) {
+// bool damgr_is_dotfile(const char *fid_buf) {
 //   struct stat st;
-//   lstat(fidbuf, &st);
+//   lstat(fid_buf, &st);
 //   return S_ISLNK(st.st_mode);
 // }

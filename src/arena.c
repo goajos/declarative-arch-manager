@@ -11,10 +11,10 @@ void *damgr_arena_alloc(Damgr_Arena *arena, size_t size) {
     return nullptr;
 
   size = (size + DAMGR_ALLOC_UNIT - 1) & ~(DAMGR_ALLOC_UNIT - 1);
-  if (arena->offset + size > DAMGR_BUFFER_SIZE) {
+  if (arena->offset + size > DAMGR_ARENA_BUF_SIZE) {
     return nullptr; // out of memory
   } else {
-    void *ptr = &arena->buffer[arena->offset];
+    void *ptr = &arena->arena_buf[arena->offset];
     arena->offset += size;
     memset(ptr, 0, size); // zero memory
     return ptr;

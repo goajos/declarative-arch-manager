@@ -3,10 +3,10 @@
 #include "damgr/utils.h"
 
 static int read_context(Damgr_Context *context, Damgr_Arena *arena,
-                        const char *fidbuf, bool is_state) {
-  FILE *context_fid = fopen(fidbuf, "r");
+                        const char *fid_buf, bool is_state) {
+  FILE *context_fid = fopen(fid_buf, "r");
   if (context_fid == nullptr) {
-    damgr_log(ERROR, "could not open config fid %s: %s", fidbuf,
+    damgr_log(ERROR, "could not open config fid %s: %s", fid_buf,
               strerror(errno));
     return EXIT_FAILURE;
   }
@@ -71,10 +71,12 @@ static int read_context(Damgr_Context *context, Damgr_Arena *arena,
   return EXIT_SUCCESS;
 }
 
-static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
-  FILE *host_fid = fopen(fidbuf, "r");
+static int read_host(Damgr_Host *host, Damgr_Arena *arena,
+                     const char *fid_buf) {
+  FILE *host_fid = fopen(fid_buf, "r");
   if (host_fid == nullptr) {
-    damgr_log(ERROR, "could not open host fid %s: %s", fidbuf, strerror(errno));
+    damgr_log(ERROR, "could not open host fid %s: %s", fid_buf,
+              strerror(errno));
     return EXIT_FAILURE;
   }
 
@@ -179,10 +181,10 @@ static int read_host(Damgr_Host *host, Damgr_Arena *arena, const char *fidbuf) {
 }
 
 static int read_module(Damgr_Module *module, Damgr_Arena *arena,
-                       const char *fidbuf) {
-  FILE *module_fid = fopen(fidbuf, "r");
+                       const char *fid_buf) {
+  FILE *module_fid = fopen(fid_buf, "r");
   if (module_fid == nullptr) {
-    damgr_log(ERROR, "could not open module fid %s: %s", fidbuf,
+    damgr_log(ERROR, "could not open module fid %s: %s", fid_buf,
               strerror(errno));
     return EXIT_FAILURE;
   }
@@ -502,35 +504,35 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
 
 int damgr_read_state_context(Damgr_Context *context, Damgr_Arena *arena) {
   int ret;
-  char fidbuf[DAMGR_FIDBUF_MAX];
-  damgr_format_fidbuf(fidbuf, "config", true, NO_ACTIVE_DIR, STATE);
-  ret = read_context(context, arena, fidbuf, true);
+  char fid_buf[DAMGR_FID_BUF_MAX];
+  damgr_format_fid_buf(fid_buf, "config", true, NO_ACTIVE_DIR, STATE);
+  ret = read_context(context, arena, fid_buf, true);
   if (ret == EXIT_FAILURE)
     return ret;
 
   if (context->state_host == nullptr ||
       context->state_host->host_name == nullptr) {
     damgr_log(ERROR, "failed to parse state host from state config: %s",
-              fidbuf);
+              fid_buf);
     return EXIT_FAILURE;
   }
 
-  damgr_format_fidbuf(fidbuf, context->state_host->host_name, true,
-                      NO_ACTIVE_DIR, STATE);
-  ret = read_host(context->state_host, arena, fidbuf);
+  damgr_format_fid_buf(fid_buf, context->state_host->host_name, true,
+                       NO_ACTIVE_DIR, STATE);
+  ret = read_host(context->state_host, arena, fid_buf);
   if (ret == EXIT_FAILURE)
     return ret;
 
   if (context->state_host->modules_cnt == 0) {
     damgr_log(ERROR, "failed to parse any state modules from state host: %s",
-              fidbuf);
+              fid_buf);
     return EXIT_FAILURE;
   }
 
   for (size_t i = 0; i < context->state_host->modules_cnt; ++i) {
-    damgr_format_fidbuf(fidbuf, context->state_host->modules[i]->module_name,
-                        true, NO_ACTIVE_DIR, STATE);
-    ret = read_module(context->state_host->modules[i], arena, fidbuf);
+    damgr_format_fid_buf(fid_buf, context->state_host->modules[i]->module_name,
+                         true, NO_ACTIVE_DIR, STATE);
+    ret = read_module(context->state_host->modules[i], arena, fid_buf);
     if (ret == EXIT_FAILURE)
       return ret;
   }
@@ -540,42 +542,42 @@ int damgr_read_state_context(Damgr_Context *context, Damgr_Arena *arena) {
 
 int damgr_read_active_context(Damgr_Context *context, Damgr_Arena *arena) {
   int ret;
-  char fidbuf[DAMGR_FIDBUF_MAX];
-  damgr_format_fidbuf(fidbuf, "config", false, CONTEXT, NO_STATE_DIR);
-  ret = read_context(context, arena, fidbuf, false);
+  char fid_buf[DAMGR_FID_BUF_MAX];
+  damgr_format_fid_buf(fid_buf, "config", false, CONTEXT, NO_STATE_DIR);
+  ret = read_context(context, arena, fid_buf, false);
   if (ret == EXIT_FAILURE)
     return ret;
 
   if (context->active_host == nullptr ||
       context->active_host->host_name == nullptr) {
-    damgr_log(ERROR, "failed to parse host from active config: %s", fidbuf);
+    damgr_log(ERROR, "failed to parse host from active config: %s", fid_buf);
     return EXIT_FAILURE;
   }
 
   if (context->aur_helper == nullptr) {
     damgr_log(ERROR, "failed to parse aur_helper from active config: %s",
-              fidbuf);
+              fid_buf);
     return EXIT_FAILURE;
   }
 
-  damgr_format_fidbuf(fidbuf, context->active_host->host_name, false, HOST,
-                      NO_STATE_DIR);
-  ret = read_host(context->active_host, arena, fidbuf);
+  damgr_format_fid_buf(fid_buf, context->active_host->host_name, false, HOST,
+                       NO_STATE_DIR);
+  ret = read_host(context->active_host, arena, fid_buf);
   if (ret == EXIT_FAILURE)
     return ret;
 
   if (context->active_host->modules_cnt == 0) {
     damgr_log(ERROR, "failed to parse any modules from active host: %s",
-              fidbuf);
+              fid_buf);
     return EXIT_FAILURE;
   }
 
   for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
-    snprintf(fidbuf, sizeof(fidbuf), "%s/.context/damgr/modules/%s.conf",
+    snprintf(fid_buf, sizeof(fid_buf), "%s/.context/damgr/modules/%s.conf",
              getenv("HOME"), context->active_host->modules[i]->module_name);
-    damgr_format_fidbuf(fidbuf, context->active_host->modules[i]->module_name,
-                        false, MODULE, NO_STATE_DIR);
-    ret = read_module(context->active_host->modules[i], arena, fidbuf);
+    damgr_format_fid_buf(fid_buf, context->active_host->modules[i]->module_name,
+                         false, MODULE, NO_STATE_DIR);
+    ret = read_module(context->active_host->modules[i], arena, fid_buf);
     if (ret == EXIT_FAILURE)
       return ret;
   }

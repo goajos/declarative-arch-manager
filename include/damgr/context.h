@@ -14,8 +14,6 @@
 
 typedef struct module {
   const char *module_name;
-  // const char *active_module_fidbuf;
-  // const char *state_module_fidbuf;
   char **packages;
   size_t packages_cnt;
   char **aur_packages;
@@ -34,12 +32,9 @@ typedef struct host {
 } Damgr_Host;
 
 typedef struct context {
-  // const char *context_fidbuf;
   const char *aur_helper;
   Damgr_Host *active_host;
-  // const char *active_host_fidbuf;
   Damgr_Host *state_host;
-  // const char *state_host_fidbuf;
 } Damgr_Context;
 
 // TODO: should this be here or in utils?
