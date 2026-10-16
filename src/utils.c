@@ -34,7 +34,7 @@ void damgr_format_fid_buf(char *fid_buf, const char *name, const bool is_state,
                           const Damgr_Active_Dir_Type active_dir_type,
                           const Damgr_State_Dir_Type state_dir_type) {
   if (is_state) {
-    if (state_dir_type == STAGING || state_dir_type == BACKUP) {
+    if (state_dir_type == STAGING) {
       snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
                state_dir_type_string(state_dir_type), name);
     } else {

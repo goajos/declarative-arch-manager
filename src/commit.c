@@ -12,6 +12,7 @@ static int copy_file(const char *src_buf, const char *dst_buf) {
   if (dst_fid == nullptr) {
     damgr_log(ERROR, "could not open dstfid %s for copying: %s", dst_buf,
               strerror(errno));
+    fclose(src_fid);
     return EXIT_FAILURE;
   }
 
@@ -70,8 +71,6 @@ static int backup_state() {
 
   closedir(state_dir);
   return ret;
-
-  return EXIT_SUCCESS;
 }
 
 int damgr_commit() {
