@@ -34,8 +34,13 @@ void damgr_format_fidbuf(char *fidbuf, const char *name, const bool is_state,
                          const Damgr_Active_Dir_Type active_dir_type,
                          const Damgr_State_Dir_Type state_dir_type) {
   if (is_state) {
-    snprintf(fidbuf, DAMGR_FIDBUF_MAX, "%s/%s/%s_state.conf", getenv("HOME"),
-             state_dir_type_string(state_dir_type), name);
+    if (state_dir_type == STAGING || state_dir_type == BACKUP) {
+      snprintf(fidbuf, DAMGR_FIDBUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
+               state_dir_type_string(state_dir_type), name);
+    } else {
+      snprintf(fidbuf, DAMGR_FIDBUF_MAX, "%s/%s/%s_state.conf", getenv("HOME"),
+               state_dir_type_string(state_dir_type), name);
+    }
   } else {
     snprintf(fidbuf, DAMGR_FIDBUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
              active_dir_type_string(active_dir_type), name);
@@ -62,3 +67,44 @@ void damgr_trim_string_inplace(char *str) {
     memmove(str, start, end - start + 2); // +2 includes the null terminator
   }
 }
+
+int damgr_make_dir(const char *fidbuf) {
+  struct stat st;
+  if (lstat(fidbuf, &st) != 0) {
+    if (errno == ENOENT) {
+      if (mkdir(fidbuf, DAMGR_DIR_PERM) != 0) {
+        damgr_log(ERROR, "could not create %s dir: %s", fidbuf,
+                  strerror(errno));
+        return EXIT_FAILURE;
+      }
+      damgr_log(INFO, "created %s dir", fidbuf);
+      return EXIT_SUCCESS;
+    }
+    damgr_log(ERROR, "could not stat %s: %s", fidbuf, strerror(errno));
+    return EXIT_FAILURE;
+  }
+
+  if (S_ISDIR(st.st_mode)) {
+    damgr_log(INFO, "%s dir already exists", fidbuf);
+    return EXIT_SUCCESS;
+  }
+
+  damgr_log(ERROR, "%s already exists but is not a dir", fidbuf);
+  return EXIT_FAILURE;
+}
+
+// bool damgr_is_dir(const char *fidbuf) {
+//   struct stat st;
+//   lstat(fidbuf, &st);
+//   return S_ISDIR(st.st_mode);
+// }
+// bool damgr_is_file(const char *fidbuf) {
+//   struct stat st;
+//   lstat(fidbuf, &st);
+//   return S_ISREG(st.st_mode);
+// }
+// bool damgr_is_dotfile(const char *fidbuf) {
+//   struct stat st;
+//   lstat(fidbuf, &st);
+//   return S_ISLNK(st.st_mode);
+// }

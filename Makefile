@@ -13,7 +13,9 @@ CFILES=main.c \
 			 src/log.c \
 			 src/arena.c \
 			 src/context.c \
-			 src/utils.c
+			 src/utils.c \
+			 src/stage.c \
+			 src/commit.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 

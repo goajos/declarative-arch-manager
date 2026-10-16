@@ -538,7 +538,7 @@ int damgr_read_state_context(Damgr_Context *context, Damgr_Arena *arena) {
   return EXIT_SUCCESS;
 }
 
-int damgr_read_active(Damgr_Context *context, Damgr_Arena *arena) {
+int damgr_read_active_context(Damgr_Context *context, Damgr_Arena *arena) {
   int ret;
   char fidbuf[DAMGR_FIDBUF_MAX];
   damgr_format_fidbuf(fidbuf, "config", false, CONTEXT, NO_STATE_DIR);

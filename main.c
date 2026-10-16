@@ -1,4 +1,7 @@
+#include "damgr/arena.h"
+#include "damgr/commit.h"
 #include "damgr/log.h"
+#include "damgr/stage.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,6 +41,11 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
+  if (arena == nullptr)
+    return EXIT_FAILURE;
+  damgr_arena_init(arena);
+
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr validate!");
@@ -51,16 +59,16 @@ int main(int argc, char *argv[]) {
     break;
   case 2:
     damgr_log(INFO, "starting damgr stage!");
-    // ret = damgr_stage();
-    ret = 1;
+    ret = damgr_stage(arena);
     break;
   case 3:
     damgr_log(INFO, "starting damgr commit!");
-    // ret = damgr_commit();
+    ret = damgr_commit(arena);
     ret = 1;
     break;
   }
 
+  free(arena);
   if (ret != EXIT_SUCCESS) {
     damgr_log(ERROR, "damgr %s failed...", argv[1]);
   } else {
