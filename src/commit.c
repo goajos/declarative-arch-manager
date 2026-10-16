@@ -76,11 +76,26 @@ static int backup_state() {
 int damgr_commit() {
   char fid_buf[DAMGR_FID_BUF_MAX];
   snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(STATE));
+  // state folder should exist before commit
+  if (!damgr_dir_exists(fid_buf)) {
+    damgr_log(ERROR, "trying to commit without a state folder");
+    return EXIT_FAILURE;
+  }
+  // state folder shouldn't be empty before commit
+  if (damgr_is_dir_empty(fid_buf)) {
+    damgr_log(ERROR, "trying to commit with an empty state folder");
+    return EXIT_FAILURE;
+  }
+
+  // staging folder should exist before commit
+  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STAGING));
   if (!damgr_dir_exists(fid_buf)) {
     damgr_log(ERROR, "trying to commit without a .staging folder");
     return EXIT_FAILURE;
   }
+  // staging folder shouldn't be empty before commit
   if (damgr_is_dir_empty(fid_buf)) {
     damgr_log(ERROR, "trying to commit with an empty .staging folder");
     return EXIT_FAILURE;

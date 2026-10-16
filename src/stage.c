@@ -94,9 +94,13 @@ int damgr_stage(Damgr_Arena *arena) {
   char fid_buf[DAMGR_FID_BUF_MAX];
   snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STAGING));
-  if (!damgr_dir_exists(fid_buf)) {
+  // staging folder should be created before stage
+  if (!damgr_make_dir(fid_buf)) {
     return EXIT_FAILURE;
-  } else if (!damgr_is_dir_empty(fid_buf)) {
+  }
+
+  // staging folder should be empty before stage
+  if (!damgr_is_dir_empty(fid_buf)) {
     damgr_log(ERROR, "trying to stage with a non-empty .staging folder");
     return EXIT_FAILURE;
   }

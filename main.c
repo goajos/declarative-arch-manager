@@ -21,7 +21,6 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  int ret;
   int command_idx;
   if (strcmp(argv[1], "validate") == 0) {
     command_idx = 0;
@@ -39,11 +38,18 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // ensure that getenv("HOME") is available for every command
+  if (getenv("HOME") == nullptr) {
+    damgr_log(ERROR, "getenv(\"HOME\") returns a nullptr");
+    return EXIT_FAILURE;
+  }
+
   Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
   if (arena == nullptr)
     return EXIT_FAILURE;
   damgr_arena_init(arena);
 
+  int ret;
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr validate!");

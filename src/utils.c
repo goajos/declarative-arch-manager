@@ -85,7 +85,7 @@ bool damgr_make_dir(const char *fid_buf) {
   }
 
   if (S_ISDIR(st.st_mode)) {
-    damgr_log(INFO, "%s dir already exists", fid_buf);
+    // damgr_log(INFO, "%s dir already exists", fid_buf);
     return true;
   }
 
@@ -98,7 +98,8 @@ bool damgr_dir_exists(const char *fid_buf) {
 
   if (lstat(fid_buf, &st) != 0) {
     if (errno == ENOENT) {
-      damgr_log(ERROR, "dir %s does not exist: %s", fid_buf, strerror(errno));
+      // damgr_log(ERROR, "dir %s does not exist: %s", fid_buf,
+      // strerror(errno));
       return false;
     }
     damgr_log(ERROR, "could not stat %s: %s", fid_buf, strerror(errno));
@@ -121,7 +122,8 @@ bool damgr_is_dir_empty(const char *fid_buf) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
       continue;
 
-    count++;
+    if (ent->d_type == DT_REG)
+      count++;
   }
 
   closedir(dir);
