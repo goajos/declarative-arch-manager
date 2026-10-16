@@ -14,7 +14,7 @@ int damgr_merge(Damgr_Arena *arena) {
 
   snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STAGING));
-  // staging folder shouldn't exist before commit
+  // staging folder shouldn't exist before merge
   if (damgr_dir_exists(fid_buf)) {
     damgr_log(ERROR, "trying to merge with a .staging folder");
     return EXIT_FAILURE;
@@ -22,9 +22,9 @@ int damgr_merge(Damgr_Arena *arena) {
 
   snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(BACKUP));
-  // backup folder shouldn't exist before commit
+  // backup folder shouldn't exist before merge
   if (damgr_dir_exists(fid_buf)) {
-    damgr_log(ERROR, "trying to commit with a backup folder");
+    damgr_log(ERROR, "trying to merge with a backup folder");
     return EXIT_FAILURE;
   }
 
