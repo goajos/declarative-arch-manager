@@ -1,7 +1,9 @@
 #include "damgr/log.h"
 #include "damgr/state.h"
+#include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 static int copy_file(const char *srcbuf, const char *dstbuf) {
   FILE *src_fid = fopen(srcbuf, "rb");
@@ -35,6 +37,14 @@ static int copy_file(const char *srcbuf, const char *dstbuf) {
   return EXIT_SUCCESS;
 }
 
+static int backup_state_file(const char *srcbuf, const char *dstbuf) {
+  if (access(srcbuf, F_OK) != 0) {
+    damgr_log(INFO, "skipping backup of non-existent file: %s", srcbuf);
+    return EXIT_SUCCESS;
+  }
+  return copy_file(srcbuf, dstbuf);
+}
+
 static int backup_state(const Damgr_Config *config) {
   int ret;
   char srcbuf[DAMGR_PATH_MAX];
@@ -43,26 +53,26 @@ static int backup_state(const Damgr_Config *config) {
            getenv("HOME"));
   snprintf(dstbuf, sizeof(dstbuf),
            "%s/.local/state/damgr/.backup/config_state.conf", getenv("HOME"));
-  ret = copy_file(srcbuf, dstbuf);
+  ret = backup_state_file(srcbuf, dstbuf);
   if (ret == EXIT_FAILURE)
     return EXIT_FAILURE;
 
   snprintf(srcbuf, sizeof(srcbuf), "%s/.local/state/damgr/%s_state.conf",
            getenv("HOME"), config->active_host->host_name);
-  snprintf(srcbuf, sizeof(srcbuf),
+  snprintf(dstbuf, sizeof(dstbuf),
            "%s/.local/state/damgr/.backup/%s_state.conf", getenv("HOME"),
            config->active_host->host_name);
-  ret = copy_file(srcbuf, dstbuf);
+  ret = backup_state_file(srcbuf, dstbuf);
   if (ret == EXIT_FAILURE)
     return EXIT_FAILURE;
 
-  for (size_t i = 0; i < config->active_host->modules_cnt; ++i) {
+  for (size_t i = 0; i < config->state_host->modules_cnt; ++i) {
     snprintf(srcbuf, sizeof(srcbuf), "%s/.local/state/damgr/%s_state.conf",
              getenv("HOME"), config->active_host->modules[i]->module_name);
     snprintf(dstbuf, sizeof(dstbuf),
              "%s/.local/state/damgr/.backup/%s_state.conf", getenv("HOME"),
              config->active_host->modules[i]->module_name);
-    ret = copy_file(srcbuf, dstbuf);
+    ret = backup_state_file(srcbuf, dstbuf);
     if (ret == EXIT_FAILURE)
       return EXIT_FAILURE;
   }
@@ -88,7 +98,7 @@ static int rename_staging(const Damgr_Config *config) {
   snprintf(srcbuf, sizeof(srcbuf),
            "%s/.local/state/damgr/.staging/%s_state.conf", getenv("HOME"),
            config->active_host->host_name);
-  snprintf(srcbuf, sizeof(srcbuf), "%s/.local/state/damgr/%s_state.conf",
+  snprintf(dstbuf, sizeof(dstbuf), "%s/.local/state/damgr/%s_state.conf",
            getenv("HOME"), config->active_host->host_name);
   ret = rename(srcbuf, dstbuf);
   if (ret == EXIT_FAILURE) {
@@ -114,11 +124,54 @@ static int rename_staging(const Damgr_Config *config) {
   return ret;
 }
 
-// commit fills a .backup folder with the current state present
-// then tries to rename .staging into current state
-// on success clear both .staging and .backup
+static int rmdir_recursive(const char *fidbuf) {
+  struct stat st;
+  if (lstat(fidbuf, &st) != 0) {
+    if (errno == ENOENT)
+      return EXIT_SUCCESS;
+    damgr_log(ERROR, "could not stat %s: %s", fidbuf, strerror(errno));
+    return EXIT_FAILURE;
+  }
+  // unlink files
+  if (!S_ISDIR(st.st_mode)) {
+    if (unlink(fidbuf) != 0) {
+      damgr_log(ERROR, "could not remove file %s: %s", fidbuf, strerror(errno));
+      return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+  }
+
+  DIR *open_dir = opendir(fidbuf);
+  if (open_dir == nullptr) {
+    damgr_log(ERROR, "could not open directory %s: %s", fidbuf,
+              strerror(errno));
+    return EXIT_FAILURE;
+  }
+
+  // recursively search dirs
+  struct dirent *ent;
+  int ret = EXIT_SUCCESS;
+  while ((ent = readdir(open_dir)) != nullptr) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+      continue;
+    char childbuf[DAMGR_PATH_MAX];
+    snprintf(childbuf, sizeof(childbuf), "%s/%s", fidbuf, ent->d_name);
+    if (rmdir_recursive(childbuf) != EXIT_SUCCESS) {
+      closedir(open_dir);
+      return EXIT_FAILURE;
+    }
+  }
+  closedir(open_dir);
+
+  if (rmdir(fidbuf) != 0) {
+    damgr_log(ERROR, "could not remove directory %s: %s", fidbuf,
+              strerror(errno));
+    return EXIT_FAILURE;
+  }
+  return ret;
+}
+
 int damgr_commit(const Damgr_Config *config) {
-  // TODO: clean the .backup folder before writing again?
   char backupbuf[DAMGR_PATH_MAX];
   snprintf(backupbuf, sizeof(backupbuf), "%s/.local/state/damgr/.backup",
            getenv("HOME"));
@@ -136,7 +189,17 @@ int damgr_commit(const Damgr_Config *config) {
   if (ret == EXIT_FAILURE)
     return EXIT_FAILURE;
 
-  // TODO: on success clear the .backup and .staging folders recursively
+  // clear both tmp folders on success
+  char stagingbuf[DAMGR_PATH_MAX];
+  snprintf(stagingbuf, sizeof(stagingbuf), "%s/.local/state/damgr/.staging",
+           getenv("HOME"));
+  ret = rmdir_recursive(stagingbuf);
+  if (ret == EXIT_FAILURE)
+    return EXIT_FAILURE;
+
+  ret = rmdir_recursive(backupbuf);
+  if (ret == EXIT_FAILURE)
+    return EXIT_FAILURE;
 
   damgr_log(INFO, "commit finished");
   return ret;

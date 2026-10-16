@@ -64,11 +64,6 @@ static int stage_module(const Damgr_Module *module, const char *fidbuf) {
   return EXIT_SUCCESS;
 }
 
-// TODO: clear .staging before mkdir?
-// if (errno == EEXIST) {
-//   remove(stagingbuf);
-// }
-// staging results in a .staging folder with all active state present
 int damgr_stage(const Damgr_Config *config) {
   // TODO: clean the .staging folder before writing again?
   char stagingbuf[DAMGR_PATH_MAX];

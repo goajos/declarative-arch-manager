@@ -68,7 +68,7 @@ int damgr_merge() {
   if (ret == EXIT_FAILURE)
     goto free_queue;
 
-  ret = damgr_stage(&config);
+  ret = damgr_stage_with_config(&config);
   if (ret == EXIT_FAILURE) {
     damgr_log(ERROR,
               "failed to stage active config:\ndo NOT rerun damgr merge or"
@@ -76,11 +76,13 @@ int damgr_merge() {
     goto free_queue;
   }
 
-  ret = damgr_commit(&config);
-  if (ret == EXIT_FAILURE) {
-    damgr_log(ERROR, "failed to commit:\ndo NOT rerun damgr merge or"
-                     "change .conf files, manually run damgr commit!");
-    goto free_queue;
+  if (config.state_host != nullptr) {
+    ret = damgr_commit_with_config(&config);
+    if (ret == EXIT_FAILURE) {
+      damgr_log(ERROR, "failed to commit:\ndo NOT rerun damgr merge or"
+                       "change .conf files, manually run damgr commit!");
+      goto free_queue;
+    }
   }
 
   ret = EXIT_SUCCESS;

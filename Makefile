@@ -12,12 +12,13 @@ BUILDDIR=build
 CFILES=main.c \
 			 src/log.c \
 			 src/validate.c \
-			 src/merge.c \
 			 src/state.c \
 			 src/diff.c  \
 			 src/transaction.c \
 			 src/stage.c \
-			 src/commit.c
+			 src/commit.c \
+			 src/merge.c \
+			 src/utils.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 
