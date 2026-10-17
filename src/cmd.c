@@ -114,37 +114,72 @@ int run_service_command(const bool privileged, const bool to_enable,
 
 // TODO: can we use the format function here?
 int do_dotfile_link(const char *dotfile) {
-  char src[DAMGR_FID_BUF_MAX];
-  char dst[DAMGR_FID_BUF_MAX];
-  snprintf(src, sizeof(src), "%s/.config/damgr/dotfiles/%s", getenv("HOME"),
-           dotfile);
-  snprintf(dst, sizeof(dst), "%s/.config/%s", getenv("HOME"), dotfile);
+  char src_buf[DAMGR_FID_BUF_MAX];
+  char dst_buf[DAMGR_FID_BUF_MAX];
+  snprintf(src_buf, sizeof(src_buf), "%s/.config/damgr/dotfiles/%s",
+           getenv("HOME"), dotfile);
+  snprintf(dst_buf, sizeof(dst_buf), "%s/.config/%s", getenv("HOME"), dotfile);
 
   struct stat st;
-  if (lstat(dst, &st) == 0) {
-    if (S_ISLNK(st.st_mode)) {
-      return EXIT_SUCCESS; // already linked, idempotent
+  if (lstat(dst_buf, &st) == 0) {
+    if (!S_ISLNK(st.st_mode)) {
+      damgr_log(ERROR,
+                "dotfile destination exists and is not a symlink, refusing to "
+                "overwrite: %s",
+                dst_buf);
+      return EXIT_FAILURE;
+    } else {
+      char link_buf[DAMGR_FID_BUF_MAX];
+      ssize_t len = readlink(dst_buf, link_buf, sizeof(link_buf) - 1);
+      if (len < 0) {
+        damgr_log(ERROR, "could not read link of %s: %s", dst_buf,
+                  strerror(errno));
+        return EXIT_FAILURE;
+      }
+      link_buf[len] = '\0';
+      if (strcmp(link_buf, src_buf) != 0) {
+        damgr_log(ERROR,
+                  "dotfile dst is symlink to %s instead of %s, refusing to "
+                  "overwrite: %s",
+                  link_buf, src_buf, dst_buf);
+        return EXIT_FAILURE;
+      } else {
+        return EXIT_SUCCESS; // already linked
+      }
     }
-    damgr_log(ERROR,
-              "dotfile destination exists and is not a symlink, refusing to "
-              "overwrite: %s",
-              dst);
+    damgr_log(ERROR, "could not stat dotfile %s: %s", dst_buf, strerror(errno));
     return EXIT_FAILURE;
-  }
-  if (symlink(src, dst) != 0) {
-    damgr_log(ERROR, "could not symlink dotfile %s -> %s: %s", src, dst,
-              strerror(errno));
-    return EXIT_FAILURE;
+  } else {
+    if (symlink(src_buf, dst_buf) != 0) {
+      damgr_log(ERROR, "could not symlink dotfile %s -> %s: %s", src_buf,
+                dst_buf, strerror(errno));
+      return EXIT_FAILURE;
+    }
   }
   return EXIT_SUCCESS;
 }
 
 // TODO: can we use the format function here?
 int do_dotfile_unlink(const char *dotfile) {
-  char dst[DAMGR_FID_BUF_MAX];
-  snprintf(dst, sizeof(dst), "%s/.config/%s", getenv("HOME"), dotfile);
-  if (unlink(dst) != 0 && errno != ENOENT) {
-    damgr_log(ERROR, "could not unlink dotfile %s: %s", dst, strerror(errno));
+  char dst_buf[DAMGR_FID_BUF_MAX];
+  snprintf(dst_buf, sizeof(dst_buf), "%s/.config/%s", getenv("HOME"), dotfile);
+  struct stat st;
+  if (lstat(dst_buf, &st) != 0) {
+    if (errno == ENOENT)
+      return EXIT_SUCCESS; // nothing to unlink
+    damgr_log(ERROR, "could not stat dotfile %s: %s", dst_buf, strerror(errno));
+    return EXIT_FAILURE;
+  }
+  if (!S_ISLNK(st.st_mode)) {
+    damgr_log(ERROR,
+              "dotfile destination exists and is not a symlink, refusing to "
+              "remove: %s",
+              dst_buf);
+    return EXIT_FAILURE;
+  }
+  if (unlink(dst_buf) != 0 && errno != ENOENT) {
+    damgr_log(ERROR, "could not unlink dotfile %s: %s", dst_buf,
+              strerror(errno));
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

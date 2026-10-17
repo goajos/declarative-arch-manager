@@ -92,5 +92,6 @@ int damgr_merge(Damgr_Arena *arena) {
   }
 
   damgr_free_queue(&queue);
+  damgr_log(INFO, "finished damgr merge");
   return EXIT_SUCCESS;
 }

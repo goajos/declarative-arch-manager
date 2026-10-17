@@ -35,6 +35,7 @@ static bool unit_file_exists(const char *unit, const bool privileged) {
   return false;
 }
 
+// TODO: check if services that should be enabled are enabled?
 int damgr_transaction_preflight(const Damgr_Context *context,
                                 const Damgr_Task_Queue *queue) {
   damgr_log(INFO, "running preflight checks");
@@ -99,10 +100,9 @@ static void transaction_rollback(const char *aur_helper,
                 task_type_string(task->type), task->module_name);
     } else {
       task->status = ROLLBACK_FAILED;
-      damgr_log(
-          ERROR,
-          "failed to rollback %s module=%s - manual fixing might be required",
-          task_type_string(task->type), task->module_name);
+      damgr_log(ERROR,
+                "failed to rollback %s module=%s - manual cleanup required!",
+                task_type_string(task->type), task->module_name);
     }
   }
 }

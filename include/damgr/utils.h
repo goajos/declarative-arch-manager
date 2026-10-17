@@ -41,7 +41,6 @@ void damgr_trim_string_inplace(char *str);
 bool damgr_make_dir(const char *fid_buf);
 bool damgr_dir_exists(const char *fid_buf);
 bool damgr_is_dir_empty(const char *fid_buf);
-int damgr_check_dir(const char *fid_buf, const char *cmd, const char *type);
 int damgr_copy_file(const char *src_buf, const char *dst_buf);
 int damgr_copy_dir(const char *src_buf, const char *dst_buf, const bool rename);
 int damgr_clean_dir(const char *fid_buf, const bool state);

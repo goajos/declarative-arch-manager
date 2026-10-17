@@ -134,13 +134,13 @@ bool damgr_is_dir_empty(const char *fid_buf) {
 int damgr_copy_file(const char *src_buf, const char *dst_buf) {
   FILE *src_fid = fopen(src_buf, "rb");
   if (src_fid == nullptr) {
-    damgr_log(ERROR, "could not open srcfid %s for copying: %s", src_buf,
+    damgr_log(ERROR, "could not open src fid %s for copying: %s", src_buf,
               strerror(errno));
     return EXIT_FAILURE;
   }
   FILE *dst_fid = fopen(dst_buf, "wb");
   if (dst_fid == nullptr) {
-    damgr_log(ERROR, "could not open dstfid %s for copying: %s", dst_buf,
+    damgr_log(ERROR, "could not open dst fid %s for copying: %s", dst_buf,
               strerror(errno));
     fclose(src_fid);
     return EXIT_FAILURE;

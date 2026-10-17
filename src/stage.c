@@ -92,6 +92,7 @@ int damgr_stage_with_context(const Damgr_Context *context) {
     ret = stage_module(context->active_host->modules[i], fid_buf);
   }
 
+  damgr_log(INFO, "finished damgr stage");
   return ret;
 }
 

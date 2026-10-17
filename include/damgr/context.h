@@ -35,9 +35,6 @@ typedef struct context {
   Damgr_Host *state_host;
 } Damgr_Context;
 
-// TODO: should this be here or in utils?
-// int damgr_count_state_dir(const char *dir);
-
 int damgr_read_state_context(Damgr_Context *context, Damgr_Arena *arena);
 int damgr_read_active_context(Damgr_Context *context, Damgr_Arena *arena);
 
