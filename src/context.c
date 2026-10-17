@@ -344,15 +344,13 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
         }
 
         // val should still be parsed for (aur_)packages
-        if (val1[0] == '\n')
-          continue;
         if (val1[0] == '\0')
           continue;
 
         if (active_parsing == AUR) {
           if (aur_packages_cnt < DAMGR_ARRAY_BUFFER_MAX) {
             stack_aur_packages[aur_packages_cnt++] =
-                damgr_arena_strdup(arena, line);
+                damgr_arena_strdup(arena, val1);
             if (stack_aur_packages[aur_packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
@@ -366,7 +364,7 @@ static int read_module(Damgr_Module *module, Damgr_Arena *arena,
           }
         } else if (active_parsing == PKG) {
           if (packages_cnt < DAMGR_ARRAY_BUFFER_MAX) {
-            stack_packages[packages_cnt++] = damgr_arena_strdup(arena, line);
+            stack_packages[packages_cnt++] = damgr_arena_strdup(arena, val1);
             if (stack_packages[packages_cnt - 1] == nullptr) {
               damgr_log(ERROR, "arena strdup failed and returned nullptr");
               fclose(module_fid);
@@ -573,8 +571,6 @@ int damgr_read_active_context(Damgr_Context *context, Damgr_Arena *arena) {
 
   for (size_t i = 0;
        i < context->active_host->modules_cnt && ret == EXIT_SUCCESS; ++i) {
-    snprintf(fid_buf, sizeof(fid_buf), "%s/.context/damgr/modules/%s.conf",
-             getenv("HOME"), context->active_host->modules[i]->module_name);
     damgr_format_fid_buf(fid_buf, context->active_host->modules[i]->module_name,
                          false, MODULE, NO_STATE_DIR);
     ret = read_module(context->active_host->modules[i], arena, fid_buf);

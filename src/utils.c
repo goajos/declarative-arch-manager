@@ -180,7 +180,7 @@ int damgr_copy_dir(const char *src_buf, const char *dst_buf,
 
     char src_file_buf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
     size_t dst_file_buf_size =
-        rename ? DAMGR_FID_BUF_MAX + sizeof(ent->d_name) + sizeof("_state")
+        rename ? DAMGR_FID_BUF_MAX + sizeof(ent->d_name) + sizeof("state_")
                : DAMGR_FID_BUF_MAX + sizeof(ent->d_name);
     char dst_file_buf[dst_file_buf_size];
     snprintf(src_file_buf, sizeof(src_file_buf), "%s/%s", src_buf, ent->d_name);
@@ -205,24 +205,7 @@ int damgr_copy_dir(const char *src_buf, const char *dst_buf,
   return ret;
 }
 
-int damgr_remove_dir_recursive(const char *fid_buf) {
-  struct stat st;
-  if (lstat(fid_buf, &st) != 0) {
-    if (errno == ENOENT)
-      return EXIT_SUCCESS;
-    damgr_log(ERROR, "could not stat %s: %s", fid_buf, strerror(errno));
-    return EXIT_FAILURE;
-  }
-  // unlink files
-  if (!S_ISDIR(st.st_mode)) {
-    if (unlink(fid_buf) != 0) {
-      damgr_log(ERROR, "could not remove file %s: %s", fid_buf,
-                strerror(errno));
-      return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
-  }
-
+int damgr_clean_dir(const char *fid_buf, const bool state) {
   DIR *open_dir = opendir(fid_buf);
   if (open_dir == nullptr) {
     damgr_log(ERROR, "could not open directory %s: %s", fid_buf,
@@ -230,25 +213,34 @@ int damgr_remove_dir_recursive(const char *fid_buf) {
     return EXIT_FAILURE;
   }
 
-  // recursively search dirs
+  struct stat st;
   struct dirent *ent;
-  int ret = EXIT_SUCCESS;
   while ((ent = readdir(open_dir)) != nullptr) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
       continue;
-    char childbuf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
-    snprintf(childbuf, sizeof(childbuf), "%s/%s", fid_buf, ent->d_name);
-    if (damgr_remove_dir_recursive(childbuf) != EXIT_SUCCESS) {
-      closedir(open_dir);
+    char child_buf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
+    snprintf(child_buf, sizeof(child_buf), "%s/%s", fid_buf, ent->d_name);
+    if (lstat(child_buf, &st) != 0) {
+      damgr_log(ERROR, "could not stat %s: %s", child_buf, strerror(errno));
       return EXIT_FAILURE;
+    }
+    // unlink files
+    if (S_ISREG(st.st_mode)) {
+      if (unlink(child_buf) != 0) {
+        damgr_log(ERROR, "could not remove file %s: %s", child_buf,
+                  strerror(errno));
+        return EXIT_FAILURE;
+      }
     }
   }
   closedir(open_dir);
 
-  if (rmdir(fid_buf) != 0) {
-    damgr_log(ERROR, "could not remove directory %s: %s", fid_buf,
-              strerror(errno));
-    return EXIT_FAILURE;
+  if (!state) {
+    if (rmdir(fid_buf) != 0) {
+      damgr_log(ERROR, "could not remove directory %s: %s", fid_buf,
+                strerror(errno));
+      return EXIT_FAILURE;
+    }
   }
-  return ret;
+  return EXIT_SUCCESS;
 }

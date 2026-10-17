@@ -4,9 +4,9 @@
 
 static int backup_state() {
   char state_buf[DAMGR_FID_BUF_MAX];
-  char backup_buf[DAMGR_FID_BUF_MAX];
   snprintf(state_buf, sizeof(state_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STATE));
+  char backup_buf[DAMGR_FID_BUF_MAX];
   snprintf(backup_buf, sizeof(backup_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(BACKUP));
 
@@ -15,9 +15,9 @@ static int backup_state() {
 
 static int rename_staging() {
   char staging_buf[DAMGR_FID_BUF_MAX];
-  char state_buf[DAMGR_FID_BUF_MAX];
-  snprintf(staging_buf, sizeof(state_buf), "%s/%s", getenv("HOME"),
+  snprintf(staging_buf, sizeof(staging_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STAGING));
+  char state_buf[DAMGR_FID_BUF_MAX];
   snprintf(state_buf, sizeof(state_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STATE));
 
@@ -50,24 +50,30 @@ int damgr_commit() {
 
   // state folder can be empty before commit with no state merge
   char backup_buf[DAMGR_FID_BUF_MAX];
+  snprintf(backup_buf, sizeof(backup_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(BACKUP));
   if (!damgr_is_dir_empty(state_buf)) {
-    snprintf(backup_buf, sizeof(backup_buf), "%s/%s", getenv("HOME"),
-             state_dir_type_string(BACKUP));
     // TODO: do we also want to clear the dir here?
-    if (damgr_make_dir(backup_buf) == EXIT_FAILURE)
+    if (!damgr_make_dir(backup_buf))
       return EXIT_FAILURE;
 
     if (backup_state() == EXIT_FAILURE)
       return EXIT_FAILURE;
   }
 
-  if (rename_staging() == EXIT_FAILURE)
+  if (damgr_clean_dir(state_buf, true) == EXIT_FAILURE)
     return EXIT_FAILURE;
 
-  if (damgr_remove_dir_recursive(staging_buf) == EXIT_FAILURE)
+  if (rename_staging() == EXIT_FAILURE) {
+    // TODO: how to use the backup folder to restore state?
+    return EXIT_FAILURE;
+  }
+
+  if (damgr_clean_dir(staging_buf, false) == EXIT_FAILURE)
     return EXIT_FAILURE;
 
-  if (damgr_remove_dir_recursive(backup_buf) == EXIT_FAILURE)
+  if (damgr_dir_exists(backup_buf) &&
+      damgr_clean_dir(backup_buf, false) == EXIT_FAILURE)
     return EXIT_FAILURE;
 
   return EXIT_SUCCESS;

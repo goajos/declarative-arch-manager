@@ -91,5 +91,6 @@ int damgr_merge(Damgr_Arena *arena) {
     return ret;
   }
 
+  damgr_free_queue(&queue);
   return EXIT_SUCCESS;
 }
