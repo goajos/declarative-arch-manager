@@ -237,3 +237,10 @@ int damgr_fill_queue(Damgr_Task_Queue *queue, const Damgr_Host_Diff *host_diff,
     damgr_log(INFO, "built transaction queue with %zu task(s)", queue->cnt);
   return ret;
 }
+
+void damgr_free_queue(Damgr_Task_Queue *queue) {
+  free(queue->tasks);
+  queue->tasks = nullptr;
+  queue->cnt = 0;
+  queue->capacity = 0;
+}

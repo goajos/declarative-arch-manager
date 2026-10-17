@@ -1,6 +1,7 @@
 #include "damgr/merge.h"
 #include "damgr/diff.h"
 #include "damgr/task.h"
+#include "damgr/transaction.h"
 #include "damgr/utils.h"
 
 int damgr_merge(Damgr_Arena *arena) {
@@ -53,8 +54,22 @@ int damgr_merge(Damgr_Arena *arena) {
 
   Damgr_Task_Queue queue = {nullptr};
   ret = damgr_fill_queue(&queue, &host_diff, arena);
-  if (ret == EXIT_FAILURE)
+  if (ret == EXIT_FAILURE) {
+    damgr_free_queue(&queue);
     return ret;
+  }
+
+  if (queue.cnt == 0) {
+    damgr_log(INFO, "no changes to apply, state is up to date");
+    damgr_free_queue(&queue);
+    return ret;
+  }
+
+  ret = damgr_preflight_check(&context, &queue);
+  if (ret == EXIT_FAILURE) {
+    damgr_free_queue(&queue);
+    return ret;
+  }
 
   return EXIT_SUCCESS;
 }

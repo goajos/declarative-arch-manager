@@ -9,8 +9,6 @@
 
 #define DAMGR_ARRAY_BUFFER_MAX 512
 #define DAMGR_LINE_MAX 512
-// #define DAMGR_PRINT_MAX 1024
-// #define DAMGR_BUFFER_MAX 4096
 
 typedef struct module {
   const char *module_name;
