@@ -1,6 +1,28 @@
 #include "damgr/task.h"
 #include "damgr/log.h"
 
+const char *task_type_string(Damgr_Task_Type type) {
+  switch (type) {
+  case PKG_INSTALL:
+    return "PKG_INSTALL";
+  case PKG_REMOVE:
+    return "PKG_REMOVE";
+  case AUR_INSTALL:
+    return "AUR_INSTALL";
+  case AUR_REMOVE:
+    return "AUR_REMOVE";
+  case SVC_ENABLE:
+    return "SVC_ENABLE";
+  case SVC_DISABLE:
+    return "SVC_DISABLE";
+  case LINK:
+    return "LINK";
+  case UNLINK:
+    return "UNLINK";
+  }
+  return "";
+}
+
 // queue borrows its memory from the arena
 static int push_queue(Damgr_Task_Queue *queue, const Damgr_Task_Type type,
                       const char *module_name, const char *name,

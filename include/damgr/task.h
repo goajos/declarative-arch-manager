@@ -12,6 +12,7 @@ typedef enum task_type {
   LINK,
   UNLINK,
 } Damgr_Task_Type;
+const char *task_type_string(Damgr_Task_Type type);
 
 typedef enum task_status {
   PENDING,

@@ -35,8 +35,8 @@ static bool unit_file_exists(const char *unit, const bool privileged) {
   return false;
 }
 
-int damgr_preflight_check(const Damgr_Context *context,
-                          const Damgr_Task_Queue *queue) {
+int damgr_preflight_transaction(const Damgr_Context *context,
+                                const Damgr_Task_Queue *queue) {
   damgr_log(INFO, "running preflight checks");
   char fid_buf[DAMGR_FID_BUF_MAX];
   for (size_t i = 0; i < queue->cnt; ++i) {
@@ -83,5 +83,29 @@ int damgr_preflight_check(const Damgr_Context *context,
     }
   }
   damgr_log(INFO, "preflight checks passed");
+  return EXIT_SUCCESS;
+}
+
+int damgr_transaction([[maybe_unused]] const Damgr_Context *context,
+                      const Damgr_Task_Queue *queue) {
+  damgr_log(INFO, "starting transaction: %zu task(s)", queue->cnt);
+  size_t succeeded_cnt = 0;
+  for (; succeeded_cnt < queue->cnt; ++succeeded_cnt) {
+    Damgr_Task *task = &queue->tasks[succeeded_cnt];
+    damgr_log(INFO, "running [%zu/%zu] %s module=%s", succeeded_cnt + 1,
+              queue->cnt, task_type_string(task->type), task->module_name);
+    // if (do_task(config, task) == EXIT_SUCCESS) {
+    //   task->status = SUCCEEDED;
+    // } else {
+    //   task->status = FAILED;
+    //   damgr_log(ERROR, "transaction failed at task %zu: %s module=%s",
+    //             succeeded_cnt + 1, task_type_string(task->type),
+    //             task->module_name);
+    //   rollback(config, queue, succeeded_cnt);
+    //   // TODO: report residual (failed and pending tasks after rollback?)
+    //   return EXIT_FAILURE;
+    // }
+  }
+  damgr_log(INFO, "transaction succeeded: %zu task(s) done", queue->cnt);
   return EXIT_SUCCESS;
 }

@@ -6,7 +6,10 @@
 #include "damgr/utils.h"
 #include <unistd.h>
 
-int damgr_preflight_check(const Damgr_Context *context,
-                          const Damgr_Task_Queue *queue);
+int damgr_preflight_transaction(const Damgr_Context *context,
+                                const Damgr_Task_Queue *queue);
+
+int damgr_transaction(const Damgr_Context *context,
+                      const Damgr_Task_Queue *queue);
 
 #endif /* DAMGR_TRANSACTION_H */
