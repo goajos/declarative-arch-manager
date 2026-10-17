@@ -1,30 +1,34 @@
 #include "damgr/log.h"
 
-static damgr_log_handler *damgr__log_handler = &damgr_default_log_handler;
-
-void damgr_default_log_handler(enum damgr_log_level level, const char *fmt,
-                               va_list args) {
+static const char *level_string(enum damgr_log_level level) {
   switch (level) {
   case INFO:
-    fprintf(stderr, "[INFO] ");
-    break;
+    return "INFO";
   case DEBUG:
-    fprintf(stderr, "[DEBUG] ");
-    break;
+    return "DEBUG";
   case WARNING:
-    fprintf(stderr, "[WARNING] ");
-    break;
+    return "WARNING";
   case ERROR:
-    fprintf(stderr, "[ERROR] ");
-    break;
+    return "ERROR";
   }
+  return "?";
+}
+
+static void print_prefix(enum damgr_log_level level, const char *func) {
+  fprintf(stderr, "[%s][%s] ", level_string(level), func);
+}
+
+void damgr_default_log_handler(enum damgr_log_level level, const char *func,
+                               const char *fmt, va_list args) {
+  print_prefix(level, func);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
 }
 
-void damgr_log(enum damgr_log_level level, const char *fmt, ...) {
+void damgr_log_at(enum damgr_log_level level, const char *func, const char *fmt,
+                  ...) {
   va_list args;
   va_start(args, fmt);
-  damgr__log_handler(level, fmt, args);
+  damgr_default_log_handler(level, func, fmt, args);
   va_end(args);
 }
