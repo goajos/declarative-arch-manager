@@ -1,5 +1,6 @@
 #ifndef DAMGR_TASK_H
 #define DAMGR_TASK_H
+#include "damgr/cmd.h"
 #include "damgr/diff.h"
 
 typedef enum task_type {
@@ -18,7 +19,8 @@ typedef enum task_status {
   PENDING,
   SUCCEEDED,
   FAILED,
-  ROLLBACK
+  ROLLBACK_SUCCEEDED,
+  ROLLBACK_FAILED
 } Damgr_Task_Status;
 
 typedef struct task {
@@ -42,5 +44,8 @@ void damgr_free_queue(Damgr_Task_Queue *queue);
 
 int damgr_fill_queue(Damgr_Task_Queue *queue, const Damgr_Host_Diff *host_diff,
                      Damgr_Arena *arena);
+
+int do_task(const Damgr_Context *context, const Damgr_Task *task);
+int undo_task(const Damgr_Context *context, const Damgr_Task *task);
 
 #endif /* DAMGR_TASK_H */

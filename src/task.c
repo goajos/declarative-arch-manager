@@ -266,3 +266,55 @@ void damgr_free_queue(Damgr_Task_Queue *queue) {
   queue->cnt = 0;
   queue->capacity = 0;
 }
+
+int do_task(const Damgr_Context *context, const Damgr_Task *task) {
+  switch (task->type) {
+  case PKG_INSTALL:
+    return run_package_command(true, task->packages, task->packages_cnt);
+  case AUR_INSTALL:
+    return run_aur_install_command(context->aur_helper, task->packages,
+                                   task->packages_cnt);
+
+  case PKG_REMOVE:
+  case AUR_REMOVE:
+    return run_package_command(false, task->packages, task->packages_cnt);
+
+  case SVC_ENABLE:
+  case SVC_DISABLE:
+    return run_service_command(task->privileged, task->type == SVC_ENABLE,
+                               task->name);
+  case LINK:
+    return do_dotfile_link(task->name);
+
+  case UNLINK:
+    return do_dotfile_unlink(task->name);
+  }
+
+  return EXIT_FAILURE;
+}
+
+int undo_task(const Damgr_Context *context, const Damgr_Task *task) {
+  switch (task->type) {
+  case PKG_INSTALL:
+  case AUR_INSTALL:
+    return run_package_command(false, task->packages, task->packages_cnt);
+
+  case PKG_REMOVE:
+    return run_package_command(true, task->packages, task->packages_cnt);
+  case AUR_REMOVE:
+    return run_aur_install_command(context->aur_helper, task->packages,
+                                   task->packages_cnt);
+
+  case SVC_ENABLE:
+    return run_service_command(task->privileged, false, task->name);
+  case SVC_DISABLE:
+    return run_service_command(task->privileged, true, task->name);
+
+  case LINK:
+    return do_dotfile_unlink(task->name);
+  case UNLINK:
+    return do_dotfile_link(task->name);
+  }
+
+  return EXIT_FAILURE;
+}

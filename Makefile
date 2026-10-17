@@ -19,7 +19,8 @@ CFILES=main.c \
 			 src/merge.c \
 			 src/diff.c \
 			 src/task.c \
-			 src/transaction.c
+			 src/transaction.c \
+			 src/cmd.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 

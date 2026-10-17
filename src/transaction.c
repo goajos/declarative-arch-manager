@@ -86,25 +86,45 @@ int damgr_preflight_transaction(const Damgr_Context *context,
   return EXIT_SUCCESS;
 }
 
-int damgr_transaction([[maybe_unused]] const Damgr_Context *context,
-                      const Damgr_Task_Queue *queue) {
+static void transaction_rollback(const Damgr_Context *context,
+                                 const size_t succeeded_cnt,
+                                 Damgr_Task_Queue *queue) {
+  damgr_log(INFO, "rolling back %zu succeeded task(s) in reverse order",
+            succeeded_cnt);
+  for (size_t i = succeeded_cnt; i-- > 0;) {
+    Damgr_Task *task = &queue->tasks[i];
+    if (undo_task(context, task) == EXIT_SUCCESS) {
+      task->status = ROLLBACK_SUCCEEDED;
+      damgr_log(INFO, "successful rollback %s module=%s",
+                task_type_string(task->type), task->module_name);
+    } else {
+      task->status = ROLLBACK_FAILED;
+      damgr_log(
+          ERROR,
+          "failed to rollback %s module=%s - manual fixing might be required",
+          task_type_string(task->type), task->module_name);
+    }
+  }
+}
+
+int damgr_transaction(const Damgr_Context *context, Damgr_Task_Queue *queue) {
   damgr_log(INFO, "starting transaction: %zu task(s)", queue->cnt);
   size_t succeeded_cnt = 0;
   for (; succeeded_cnt < queue->cnt; ++succeeded_cnt) {
     Damgr_Task *task = &queue->tasks[succeeded_cnt];
     damgr_log(INFO, "running [%zu/%zu] %s module=%s", succeeded_cnt + 1,
               queue->cnt, task_type_string(task->type), task->module_name);
-    // if (do_task(config, task) == EXIT_SUCCESS) {
-    //   task->status = SUCCEEDED;
-    // } else {
-    //   task->status = FAILED;
-    //   damgr_log(ERROR, "transaction failed at task %zu: %s module=%s",
-    //             succeeded_cnt + 1, task_type_string(task->type),
-    //             task->module_name);
-    //   rollback(config, queue, succeeded_cnt);
-    //   // TODO: report residual (failed and pending tasks after rollback?)
-    //   return EXIT_FAILURE;
-    // }
+    if (do_task(context, task) == EXIT_SUCCESS) {
+      task->status = SUCCEEDED;
+    } else {
+      task->status = FAILED;
+      damgr_log(ERROR, "transaction failed at task %zu: %s module=%s",
+                succeeded_cnt + 1, task_type_string(task->type),
+                task->module_name);
+      transaction_rollback(context, succeeded_cnt, queue);
+      // TODO: report residual (failed and pending tasks after rollback?)
+      return EXIT_FAILURE;
+    }
   }
   damgr_log(INFO, "transaction succeeded: %zu task(s) done", queue->cnt);
   return EXIT_SUCCESS;
