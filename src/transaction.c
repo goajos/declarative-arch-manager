@@ -35,7 +35,7 @@ static bool unit_file_exists(const char *unit, const bool privileged) {
   return false;
 }
 
-int damgr_preflight_transaction(const Damgr_Context *context,
+int damgr_transaction_preflight(const Damgr_Context *context,
                                 const Damgr_Task_Queue *queue) {
   damgr_log(INFO, "running preflight checks");
   char fid_buf[DAMGR_FID_BUF_MAX];

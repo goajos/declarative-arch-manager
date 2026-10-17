@@ -39,7 +39,7 @@ void damgr_format_fid_buf(char *fid_buf, const char *name, const bool is_state,
       snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
                state_dir_type_string(state_dir_type), name);
     } else {
-      snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s_state.conf",
+      snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/state_%s.conf",
                getenv("HOME"), state_dir_type_string(state_dir_type), name);
     }
   } else {
@@ -129,4 +129,126 @@ bool damgr_is_dir_empty(const char *fid_buf) {
 
   closedir(dir);
   return count == 0;
+}
+
+int damgr_copy_file(const char *src_buf, const char *dst_buf) {
+  FILE *src_fid = fopen(src_buf, "rb");
+  if (src_fid == nullptr) {
+    damgr_log(ERROR, "could not open srcfid %s for copying: %s", src_buf,
+              strerror(errno));
+    return EXIT_FAILURE;
+  }
+  FILE *dst_fid = fopen(dst_buf, "wb");
+  if (dst_fid == nullptr) {
+    damgr_log(ERROR, "could not open dstfid %s for copying: %s", dst_buf,
+              strerror(errno));
+    fclose(src_fid);
+    return EXIT_FAILURE;
+  }
+
+  unsigned char bytes_buf[DAMGR_BYTES_BUF_MAX];
+  size_t bytes_read;
+  while ((bytes_read = fread(bytes_buf, 1, sizeof(bytes_buf), src_fid)) > 0) {
+    size_t bytes_written = fwrite(bytes_buf, 1, bytes_read, dst_fid);
+    if (bytes_written != bytes_read) {
+      damgr_log(ERROR, "could not copy bytes from  %s into %s", src_buf,
+                dst_buf);
+      fclose(src_fid);
+      fclose(dst_fid);
+      return EXIT_FAILURE;
+    }
+  }
+
+  fclose(src_fid);
+  fclose(dst_fid);
+  return EXIT_SUCCESS;
+}
+
+int damgr_copy_dir(const char *src_buf, const char *dst_buf,
+                   const bool rename) {
+  DIR *src_dir = opendir(src_buf);
+  if (src_dir == nullptr) {
+    damgr_log(ERROR, "could not open src dir %s: %s", src_buf, strerror(errno));
+    return EXIT_FAILURE;
+  }
+
+  struct dirent *ent;
+  int ret = EXIT_SUCCESS;
+  while ((ent = readdir(src_dir)) != nullptr) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+      continue;
+
+    char src_file_buf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
+    size_t dst_file_buf_size =
+        rename ? DAMGR_FID_BUF_MAX + sizeof(ent->d_name) + sizeof("_state")
+               : DAMGR_FID_BUF_MAX + sizeof(ent->d_name);
+    char dst_file_buf[dst_file_buf_size];
+    snprintf(src_file_buf, sizeof(src_file_buf), "%s/%s", src_buf, ent->d_name);
+    if (rename) {
+      snprintf(dst_file_buf, sizeof(dst_file_buf), "%s/%s%s", dst_buf, "state_",
+               ent->d_name);
+    } else {
+      snprintf(dst_file_buf, sizeof(dst_file_buf), "%s/%s", dst_buf,
+               ent->d_name);
+    }
+
+    struct stat st;
+    if (lstat(src_file_buf, &st) != 0 || !S_ISREG(st.st_mode))
+      continue;
+
+    ret = damgr_copy_file(src_file_buf, dst_file_buf);
+    if (ret == EXIT_FAILURE)
+      break;
+  }
+
+  closedir(src_dir);
+  return ret;
+}
+
+int damgr_remove_dir_recursive(const char *fid_buf) {
+  struct stat st;
+  if (lstat(fid_buf, &st) != 0) {
+    if (errno == ENOENT)
+      return EXIT_SUCCESS;
+    damgr_log(ERROR, "could not stat %s: %s", fid_buf, strerror(errno));
+    return EXIT_FAILURE;
+  }
+  // unlink files
+  if (!S_ISDIR(st.st_mode)) {
+    if (unlink(fid_buf) != 0) {
+      damgr_log(ERROR, "could not remove file %s: %s", fid_buf,
+                strerror(errno));
+      return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+  }
+
+  DIR *open_dir = opendir(fid_buf);
+  if (open_dir == nullptr) {
+    damgr_log(ERROR, "could not open directory %s: %s", fid_buf,
+              strerror(errno));
+    return EXIT_FAILURE;
+  }
+
+  // recursively search dirs
+  struct dirent *ent;
+  int ret = EXIT_SUCCESS;
+  while ((ent = readdir(open_dir)) != nullptr) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+      continue;
+    char childbuf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
+    snprintf(childbuf, sizeof(childbuf), "%s/%s", fid_buf, ent->d_name);
+    if (damgr_remove_dir_recursive(childbuf) != EXIT_SUCCESS) {
+      closedir(open_dir);
+      return EXIT_FAILURE;
+    }
+  }
+  closedir(open_dir);
+
+  if (rmdir(fid_buf) != 0) {
+    damgr_log(ERROR, "could not remove directory %s: %s", fid_buf,
+              strerror(errno));
+    return EXIT_FAILURE;
+  }
+  return ret;
 }

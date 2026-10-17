@@ -68,6 +68,12 @@ static int stage_module(const Damgr_Module *module, const char *fidbuf) {
 int damgr_stage_with_context(const Damgr_Context *context) {
   int ret;
   char fid_buf[DAMGR_FID_BUF_MAX];
+  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+           state_dir_type_string(STAGING));
+  if (!damgr_make_dir(fid_buf)) {
+    return EXIT_FAILURE;
+  }
+
   damgr_format_fid_buf(fid_buf, "config", true, NO_ACTIVE_DIR, STAGING);
   ret = stage_context(context, fid_buf);
   if (ret == EXIT_FAILURE)

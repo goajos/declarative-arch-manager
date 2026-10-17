@@ -1,5 +1,7 @@
 #include "damgr/merge.h"
+#include "damgr/commit.h"
 #include "damgr/diff.h"
+#include "damgr/stage.h"
 #include "damgr/task.h"
 #include "damgr/transaction.h"
 #include "damgr/utils.h"
@@ -65,13 +67,25 @@ int damgr_merge(Damgr_Arena *arena) {
     return ret;
   }
 
-  ret = damgr_preflight_transaction(&context, &queue);
+  ret = damgr_transaction_preflight(&context, &queue);
   if (ret == EXIT_FAILURE) {
     damgr_free_queue(&queue);
     return ret;
   }
 
   ret = damgr_transaction(context.aur_helper, &queue);
+  if (ret == EXIT_FAILURE) {
+    damgr_free_queue(&queue);
+    return ret;
+  }
+
+  ret = damgr_stage_with_context(&context);
+  if (ret == EXIT_FAILURE) {
+    damgr_free_queue(&queue);
+    return ret;
+  }
+
+  ret = damgr_commit();
   if (ret == EXIT_FAILURE) {
     damgr_free_queue(&queue);
     return ret;
