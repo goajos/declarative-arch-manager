@@ -106,7 +106,7 @@ int damgr_stage(Damgr_Arena *arena) {
   }
 
   int ret;
-  Damgr_Context context = {0};
+  Damgr_Context context = {nullptr};
   ret = damgr_read_active_context(&context, arena);
   if (ret == EXIT_FAILURE)
     return ret;

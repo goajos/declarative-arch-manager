@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include "damgr/utils.h"
 
 static const char *active_dir_type_string(Damgr_Active_Dir_Type type) {

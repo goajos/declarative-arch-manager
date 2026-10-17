@@ -1,4 +1,6 @@
 #include "damgr/merge.h"
+#include "damgr/diff.h"
+#include "damgr/task.h"
 #include "damgr/utils.h"
 
 int damgr_merge(Damgr_Arena *arena) {
@@ -28,7 +30,7 @@ int damgr_merge(Damgr_Arena *arena) {
     return EXIT_FAILURE;
   }
 
-  Damgr_Context context = {0};
+  Damgr_Context context = {nullptr};
   snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STATE));
   if (damgr_is_dir_empty(fid_buf)) {
@@ -40,6 +42,17 @@ int damgr_merge(Damgr_Arena *arena) {
       return ret;
   }
   ret = damgr_read_active_context(&context, arena);
+  if (ret == EXIT_FAILURE)
+    return ret;
+
+  Damgr_Host_Diff host_diff = {nullptr};
+  ret = damgr_diff_host(&host_diff, context.state_host, context.active_host,
+                        arena);
+  if (ret == EXIT_FAILURE)
+    return ret;
+
+  Damgr_Task_Queue queue = {nullptr};
+  ret = damgr_fill_queue(&queue, &host_diff, arena);
   if (ret == EXIT_FAILURE)
     return ret;
 

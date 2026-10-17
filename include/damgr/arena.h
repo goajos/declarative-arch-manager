@@ -1,5 +1,6 @@
 #ifndef DAMGR_ARENA_H
 #define DAMGR_ARENA_H
+#include <stdint.h>
 #include <stdlib.h>
 
 #define DAMGR_ARENA_BUF_SIZE 1024 * 1024 // size of the arena

@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include "damgr/commit.h"
 #include "damgr/utils.h"
 
@@ -55,8 +56,8 @@ static int backup_state() {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
       continue;
 
-    char src_path[DAMGR_FID_BUF_MAX];
-    char dst_path[DAMGR_FID_BUF_MAX];
+    char src_path[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
+    char dst_path[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
     snprintf(src_path, sizeof(src_path), "%s/%s", state_buf, ent->d_name);
     snprintf(dst_path, sizeof(dst_path), "%s/%s", backup_buf, ent->d_name);
 
