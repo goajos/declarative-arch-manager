@@ -55,14 +55,15 @@ static int push_package_tasks(Damgr_Task_Queue *queue,
       return EXIT_FAILURE;
     }
     size_t j = 0;
-    for (size_t i = 0; i < array_diff->active_cnt; ++i)
+    for (size_t i = 0; i < array_diff->active_cnt && ret == EXIT_SUCCESS; ++i)
       if (array_diff->only_in_active[i])
         to_install[j++] = array_diff->active_array[i];
     ret = push_queue(queue, install_type, module_name, nullptr, to_install,
                      install_cnt, false);
-    if (ret == EXIT_FAILURE)
-      return EXIT_FAILURE;
   }
+  if (ret == EXIT_FAILURE)
+    return ret;
+
   if (remove_cnt > 0) {
     char **to_remove = damgr_arena_alloc(arena, remove_cnt * sizeof(char *));
     if (to_remove == nullptr) {
@@ -70,13 +71,11 @@ static int push_package_tasks(Damgr_Task_Queue *queue,
       return EXIT_FAILURE;
     }
     size_t j = 0;
-    for (size_t i = 0; i < array_diff->state_cnt; ++i)
+    for (size_t i = 0; i < array_diff->state_cnt && ret == EXIT_SUCCESS; ++i)
       if (array_diff->only_in_state[i])
         to_remove[j++] = array_diff->state_array[i];
     ret = push_queue(queue, remove_type, module_name, nullptr, to_remove,
                      remove_cnt, false);
-    if (ret == EXIT_FAILURE)
-      return EXIT_FAILURE;
   }
   return ret;
 }
@@ -85,20 +84,19 @@ static int push_service_tasks(Damgr_Task_Queue *queue,
                               const Damgr_Array_Diff *array_diff,
                               const char *module_name, bool privileged) {
   int ret = EXIT_SUCCESS;
-  for (size_t i = 0; i < array_diff->active_cnt; ++i) {
+  for (size_t i = 0; i < array_diff->active_cnt && ret == EXIT_SUCCESS; ++i) {
     if (array_diff->only_in_active[i]) {
       ret = push_queue(queue, SVC_ENABLE, module_name,
                        array_diff->active_array[i], nullptr, 0, privileged);
-      if (ret == EXIT_FAILURE)
-        return EXIT_FAILURE;
     }
   }
-  for (size_t i = 0; i < array_diff->state_cnt; ++i) {
+  if (ret == EXIT_FAILURE)
+    return ret;
+
+  for (size_t i = 0; i < array_diff->state_cnt && ret == EXIT_SUCCESS; ++i) {
     if (array_diff->only_in_state[i]) {
       ret = push_queue(queue, SVC_DISABLE, module_name,
                        array_diff->state_array[i], nullptr, 0, privileged);
-      if (ret == EXIT_FAILURE)
-        return EXIT_FAILURE;
     }
   }
   return ret;
@@ -209,17 +207,32 @@ static int push_module_tasks(Damgr_Task_Queue *queue,
   }
   return ret;
 }
+
 int damgr_fill_queue(Damgr_Task_Queue *queue, const Damgr_Host_Diff *host_diff,
                      Damgr_Arena *arena) {
   int ret = EXIT_SUCCESS;
   // task ordering: remove first, then change, then add
-  static constexpr Damgr_Diff_Type order[] = {REMOVE, CHANGE, ADD};
-  for (size_t pass = 0; pass < 3 && ret == EXIT_SUCCESS; ++pass) {
-    for (size_t i = 0; i < host_diff->diff_cnt && ret == EXIT_SUCCESS; ++i) {
-      if (host_diff->diffs[i].diff_type == order[pass])
-        ret = push_module_tasks(queue, &host_diff->diffs[i], arena);
-    }
+  for (size_t i = 0; i < host_diff->diff_cnt && ret == EXIT_SUCCESS; ++i) {
+    if (host_diff->diffs[i].diff_type == REMOVE)
+      ret = push_module_tasks(queue, &host_diff->diffs[i], arena);
   }
+  if (ret == EXIT_FAILURE)
+    return ret;
+
+  for (size_t i = 0; i < host_diff->diff_cnt && ret == EXIT_SUCCESS; ++i) {
+    if (host_diff->diffs[i].diff_type == CHANGE)
+      ret = push_module_tasks(queue, &host_diff->diffs[i], arena);
+  }
+  if (ret == EXIT_FAILURE)
+    return ret;
+
+  for (size_t i = 0; i < host_diff->diff_cnt && ret == EXIT_SUCCESS; ++i) {
+    if (host_diff->diffs[i].diff_type == ADD)
+      ret = push_module_tasks(queue, &host_diff->diffs[i], arena);
+  }
+  if (ret == EXIT_FAILURE)
+    return ret;
+
   if (ret == EXIT_SUCCESS)
     damgr_log(INFO, "built transaction queue with %zu task(s)", queue->cnt);
   return ret;

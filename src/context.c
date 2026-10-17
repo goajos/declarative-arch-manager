@@ -529,15 +529,14 @@ int damgr_read_state_context(Damgr_Context *context, Damgr_Arena *arena) {
     return EXIT_FAILURE;
   }
 
-  for (size_t i = 0; i < context->state_host->modules_cnt; ++i) {
+  for (size_t i = 0;
+       i < context->state_host->modules_cnt && ret == EXIT_SUCCESS; ++i) {
     damgr_format_fid_buf(fid_buf, context->state_host->modules[i]->module_name,
                          true, NO_ACTIVE_DIR, STATE);
     ret = read_module(context->state_host->modules[i], arena, fid_buf);
-    if (ret == EXIT_FAILURE)
-      return ret;
   }
 
-  return EXIT_SUCCESS;
+  return ret;
 }
 
 int damgr_read_active_context(Damgr_Context *context, Damgr_Arena *arena) {
@@ -572,15 +571,14 @@ int damgr_read_active_context(Damgr_Context *context, Damgr_Arena *arena) {
     return EXIT_FAILURE;
   }
 
-  for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
+  for (size_t i = 0;
+       i < context->active_host->modules_cnt && ret == EXIT_SUCCESS; ++i) {
     snprintf(fid_buf, sizeof(fid_buf), "%s/.context/damgr/modules/%s.conf",
              getenv("HOME"), context->active_host->modules[i]->module_name);
     damgr_format_fid_buf(fid_buf, context->active_host->modules[i]->module_name,
                          false, MODULE, NO_STATE_DIR);
     ret = read_module(context->active_host->modules[i], arena, fid_buf);
-    if (ret == EXIT_FAILURE)
-      return ret;
   }
 
-  return EXIT_SUCCESS;
+  return ret;
 }

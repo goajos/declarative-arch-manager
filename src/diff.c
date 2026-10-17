@@ -128,7 +128,8 @@ int damgr_diff_host(Damgr_Host_Diff *host_diff, const Damgr_Host *state_host,
   host_diff->diff_cnt = 0;
 
   // pass 1: walk active modules -> ADD or CHANGE or SKIP
-  for (size_t i = 0; i < active_host->modules_cnt; ++i) {
+  int ret = EXIT_SUCCESS;
+  for (size_t i = 0; i < active_host->modules_cnt && ret == EXIT_SUCCESS; ++i) {
     Damgr_Module *active_module = active_host->modules[i];
     Damgr_Module *state_module =
         (state_host && !host_diff->host_changed)
@@ -141,9 +142,7 @@ int damgr_diff_host(Damgr_Host_Diff *host_diff, const Damgr_Host *state_host,
       module_diff->state_module = nullptr;
       module_diff->active_module = active_module;
     } else {
-      int ret = diff_module(module_diff, state_module, active_module, arena);
-      if (ret == EXIT_FAILURE)
-        return EXIT_FAILURE;
+      ret = diff_module(module_diff, state_module, active_module, arena);
     }
   }
 
@@ -163,7 +162,7 @@ int damgr_diff_host(Damgr_Host_Diff *host_diff, const Damgr_Host *state_host,
     }
   }
 
-  return EXIT_SUCCESS;
+  return ret;
 }
 
 // static const char *diff_type_string(Damgr_Diff_Type type) {

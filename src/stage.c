@@ -79,15 +79,14 @@ int damgr_stage_with_context(const Damgr_Context *context) {
   if (ret == EXIT_FAILURE)
     return ret;
 
-  for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
+  for (size_t i = 0;
+       i < context->active_host->modules_cnt && ret == EXIT_SUCCESS; ++i) {
     damgr_format_fid_buf(fid_buf, context->active_host->modules[i]->module_name,
                          true, NO_ACTIVE_DIR, STAGING);
     ret = stage_module(context->active_host->modules[i], fid_buf);
-    if (ret == EXIT_FAILURE)
-      return ret;
   }
 
-  return EXIT_SUCCESS;
+  return ret;
 }
 
 int damgr_stage(Damgr_Arena *arena) {
