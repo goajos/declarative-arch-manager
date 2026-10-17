@@ -267,12 +267,12 @@ void damgr_free_queue(Damgr_Task_Queue *queue) {
   queue->capacity = 0;
 }
 
-int do_task(const Damgr_Context *context, const Damgr_Task *task) {
+int do_task(const char *aur_helper, const Damgr_Task *task) {
   switch (task->type) {
   case PKG_INSTALL:
     return run_package_command(true, task->packages, task->packages_cnt);
   case AUR_INSTALL:
-    return run_aur_install_command(context->aur_helper, task->packages,
+    return run_aur_install_command(aur_helper, task->packages,
                                    task->packages_cnt);
 
   case PKG_REMOVE:
@@ -293,7 +293,7 @@ int do_task(const Damgr_Context *context, const Damgr_Task *task) {
   return EXIT_FAILURE;
 }
 
-int undo_task(const Damgr_Context *context, const Damgr_Task *task) {
+int undo_task(const char *aur_helper, const Damgr_Task *task) {
   switch (task->type) {
   case PKG_INSTALL:
   case AUR_INSTALL:
@@ -302,7 +302,7 @@ int undo_task(const Damgr_Context *context, const Damgr_Task *task) {
   case PKG_REMOVE:
     return run_package_command(true, task->packages, task->packages_cnt);
   case AUR_REMOVE:
-    return run_aur_install_command(context->aur_helper, task->packages,
+    return run_aur_install_command(aur_helper, task->packages,
                                    task->packages_cnt);
 
   case SVC_ENABLE:

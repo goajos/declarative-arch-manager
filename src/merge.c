@@ -71,7 +71,7 @@ int damgr_merge(Damgr_Arena *arena) {
     return ret;
   }
 
-  ret = damgr_transaction(&context, &queue);
+  ret = damgr_transaction(context.aur_helper, &queue);
   if (ret == EXIT_FAILURE) {
     damgr_free_queue(&queue);
     return ret;

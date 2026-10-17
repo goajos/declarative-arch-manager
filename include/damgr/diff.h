@@ -33,5 +33,4 @@ typedef struct host_diff {
 int damgr_diff_host(Damgr_Host_Diff *host_diff, const Damgr_Host *state_host,
                     const Damgr_Host *active_host, Damgr_Arena *arena);
 
-void damgr_log_diff_hosts(const Damgr_Host_Diff *host_diff);
 #endif /* DAMGR_DIFF_H */

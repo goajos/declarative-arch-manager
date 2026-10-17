@@ -86,14 +86,14 @@ int damgr_preflight_transaction(const Damgr_Context *context,
   return EXIT_SUCCESS;
 }
 
-static void transaction_rollback(const Damgr_Context *context,
+static void transaction_rollback(const char *aur_helper,
                                  const size_t succeeded_cnt,
                                  Damgr_Task_Queue *queue) {
   damgr_log(INFO, "rolling back %zu succeeded task(s) in reverse order",
             succeeded_cnt);
   for (size_t i = succeeded_cnt; i-- > 0;) {
     Damgr_Task *task = &queue->tasks[i];
-    if (undo_task(context, task) == EXIT_SUCCESS) {
+    if (undo_task(aur_helper, task) == EXIT_SUCCESS) {
       task->status = ROLLBACK_SUCCEEDED;
       damgr_log(INFO, "successful rollback %s module=%s",
                 task_type_string(task->type), task->module_name);
@@ -107,21 +107,21 @@ static void transaction_rollback(const Damgr_Context *context,
   }
 }
 
-int damgr_transaction(const Damgr_Context *context, Damgr_Task_Queue *queue) {
+int damgr_transaction(const char *aur_helper, Damgr_Task_Queue *queue) {
   damgr_log(INFO, "starting transaction: %zu task(s)", queue->cnt);
   size_t succeeded_cnt = 0;
   for (; succeeded_cnt < queue->cnt; ++succeeded_cnt) {
     Damgr_Task *task = &queue->tasks[succeeded_cnt];
     damgr_log(INFO, "running [%zu/%zu] %s module=%s", succeeded_cnt + 1,
               queue->cnt, task_type_string(task->type), task->module_name);
-    if (do_task(context, task) == EXIT_SUCCESS) {
+    if (do_task(aur_helper, task) == EXIT_SUCCESS) {
       task->status = SUCCEEDED;
     } else {
       task->status = FAILED;
       damgr_log(ERROR, "transaction failed at task %zu: %s module=%s",
                 succeeded_cnt + 1, task_type_string(task->type),
                 task->module_name);
-      transaction_rollback(context, succeeded_cnt, queue);
+      transaction_rollback(aur_helper, succeeded_cnt, queue);
       // TODO: report residual (failed and pending tasks after rollback?)
       return EXIT_FAILURE;
     }
