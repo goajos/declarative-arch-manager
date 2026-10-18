@@ -1,7 +1,7 @@
 #define _DEFAULT_SOURCE
 #include "damgr/utils.h"
 
-static const char *active_dir_type_string(Damgr_Active_Dir_Type type) {
+static const char *active_dir_type_string(const Damgr_Active_Dir_Type type) {
   switch (type) {
   case CONTEXT:
     return ".config/damgr";
@@ -17,7 +17,7 @@ static const char *active_dir_type_string(Damgr_Active_Dir_Type type) {
   return "";
 }
 
-const char *state_dir_type_string(Damgr_State_Dir_Type type) {
+const char *state_dir_type_string(const Damgr_State_Dir_Type type) {
   switch (type) {
   case STATE:
     return ".local/state/damgr";
@@ -69,29 +69,63 @@ void damgr_trim_string_inplace(char *str) {
   }
 }
 
+static bool make_dir_parents(const char *fid_buf) {
+  const char *sep = strrchr(fid_buf, '/');
+  if (sep == nullptr || sep == fid_buf)
+    return true;
+
+  char parent[DAMGR_FID_BUF_MAX];
+  size_t len = (size_t)(sep - fid_buf);
+  if (len >= sizeof(parent)) {
+    return false;
+  }
+  memcpy(parent, fid_buf, len);
+  parent[len] = '\0';
+
+  struct stat st;
+  if (lstat(parent, &st) == 0) {
+    if (S_ISDIR(st.st_mode))
+      return true;
+    damgr_log(ERROR, "%s exists but is not a dir", parent);
+    return false;
+  }
+  if (errno != ENOENT) {
+    damgr_log(ERROR, "could not stat %s: %s", parent, strerror(errno));
+    return false;
+  }
+
+  if (!make_dir_parents(parent))
+    return false;
+
+  if (mkdir(parent, DAMGR_DIR_PERM) != 0) {
+    damgr_log(ERROR, "could not create %s dir: %s", parent, strerror(errno));
+    return false;
+  }
+  return true;
+}
+
 bool damgr_make_dir(const char *fid_buf) {
   struct stat st;
-  if (lstat(fid_buf, &st) != 0) {
-    if (errno == ENOENT) {
-      if (mkdir(fid_buf, DAMGR_DIR_PERM) != 0) {
-        damgr_log(ERROR, "could not create %s dir: %s", fid_buf,
-                  strerror(errno));
-        return false;
-      }
-      damgr_log(INFO, "created %s dir", fid_buf);
+  if (lstat(fid_buf, &st) == 0) {
+    if (S_ISDIR(st.st_mode))
       return true;
-    }
+    damgr_log(ERROR, "%s exists but is not a dir", fid_buf);
+    return false;
+  }
+  if (errno != ENOENT) {
     damgr_log(ERROR, "could not stat %s: %s", fid_buf, strerror(errno));
     return false;
   }
 
-  if (S_ISDIR(st.st_mode)) {
-    // damgr_log(INFO, "%s dir already exists", fid_buf);
-    return true;
-  }
+  if (!make_dir_parents(fid_buf))
+    return false;
 
-  damgr_log(ERROR, "%s already exists but is not a dir", fid_buf);
-  return false;
+  if (mkdir(fid_buf, DAMGR_DIR_PERM) != 0) {
+    damgr_log(ERROR, "could not create %s dir: %s", fid_buf, strerror(errno));
+    return false;
+  }
+  damgr_log(INFO, "created %s dir", fid_buf);
+  return true;
 }
 
 bool damgr_dir_exists(const char *fid_buf) {
@@ -122,6 +156,9 @@ bool damgr_is_dir_empty(const char *fid_buf) {
   while ((ent = readdir(dir)) != nullptr) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
       continue;
+
+    if (strcmp(ent->d_name, DAMGR_JOURNAL) == 0)
+      continue; // the journal is not state content
 
     if (ent->d_type == DT_REG)
       count++;
@@ -166,6 +203,11 @@ int damgr_copy_file(const char *src_buf, const char *dst_buf) {
 
 int damgr_copy_dir(const char *src_buf, const char *dst_buf,
                    const bool rename) {
+  return damgr_copy_dir_except(src_buf, dst_buf, rename, nullptr);
+}
+
+int damgr_copy_dir_except(const char *src_buf, const char *dst_buf,
+                          const bool rename, const char *keep) {
   DIR *src_dir = opendir(src_buf);
   if (src_dir == nullptr) {
     damgr_log(ERROR, "could not open src dir %s: %s", src_buf, strerror(errno));
@@ -176,6 +218,8 @@ int damgr_copy_dir(const char *src_buf, const char *dst_buf,
   int ret = EXIT_SUCCESS;
   while ((ent = readdir(src_dir)) != nullptr) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+      continue;
+    if (keep != nullptr && strcmp(ent->d_name, keep) == 0)
       continue;
 
     char src_file_buf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
@@ -206,6 +250,11 @@ int damgr_copy_dir(const char *src_buf, const char *dst_buf,
 }
 
 int damgr_clean_dir(const char *fid_buf, const bool state) {
+  return damgr_clean_dir_except(fid_buf, state, nullptr);
+}
+
+int damgr_clean_dir_except(const char *fid_buf, const bool state,
+                           const char *keep) {
   DIR *open_dir = opendir(fid_buf);
   if (open_dir == nullptr) {
     damgr_log(ERROR, "could not open directory %s: %s", fid_buf,
@@ -218,6 +267,8 @@ int damgr_clean_dir(const char *fid_buf, const bool state) {
   while ((ent = readdir(open_dir)) != nullptr) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
       continue;
+    if (keep != nullptr && strcmp(ent->d_name, keep) == 0)
+      continue; // never remove the reserved file
     char child_buf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
     snprintf(child_buf, sizeof(child_buf), "%s/%s", fid_buf, ent->d_name);
     if (lstat(child_buf, &st) != 0) {

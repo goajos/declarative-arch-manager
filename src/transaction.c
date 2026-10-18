@@ -88,6 +88,7 @@ int damgr_transaction_preflight(const Damgr_Context *context,
 }
 
 static void transaction_rollback(const char *aur_helper,
+                                 const char *journal_buf,
                                  const size_t succeeded_cnt,
                                  Damgr_Task_Queue *queue) {
   damgr_log(INFO, "rolling back %zu succeeded task(s) in reverse order",
@@ -98,6 +99,10 @@ static void transaction_rollback(const char *aur_helper,
       task->status = ROLLBACK_SUCCEEDED;
       damgr_log(INFO, "successful rollback %s module=%s",
                 task_type_string(task->type), task->module_name);
+      if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_ROLLBACK, queue) ==
+          EXIT_FAILURE)
+        damgr_log(WARNING, "could not udpate the journal during rollback");
+
     } else {
       task->status = ROLLBACK_FAILED;
       damgr_log(ERROR,
@@ -107,8 +112,15 @@ static void transaction_rollback(const char *aur_helper,
   }
 }
 
-int damgr_transaction(const char *aur_helper, Damgr_Task_Queue *queue) {
+int damgr_transaction(const char *aur_helper, const char *journal_buf,
+                      Damgr_Task_Queue *queue) {
   damgr_log(INFO, "starting transaction: %zu task(s)", queue->cnt);
+  if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_RUNNING, queue) ==
+      EXIT_FAILURE) {
+    damgr_log(ERROR, "could not write the journal, aborting transaction");
+    return EXIT_FAILURE;
+  }
+
   size_t succeeded_cnt = 0;
   for (; succeeded_cnt < queue->cnt; ++succeeded_cnt) {
     Damgr_Task *task = &queue->tasks[succeeded_cnt];
@@ -121,11 +133,22 @@ int damgr_transaction(const char *aur_helper, Damgr_Task_Queue *queue) {
       damgr_log(ERROR, "transaction failed at task %zu: %s module=%s",
                 succeeded_cnt + 1, task_type_string(task->type),
                 task->module_name);
-      transaction_rollback(aur_helper, succeeded_cnt, queue);
-      // TODO: report residual (failed and pending tasks after rollback?)
+
+      if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_ROLLBACK, queue) ==
+          EXIT_FAILURE)
+        damgr_log(WARNING, "could not update the journal before rollback");
+
+      transaction_rollback(aur_helper, journal_buf, succeeded_cnt, queue);
       return EXIT_FAILURE;
     }
+    if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_RUNNING, queue) ==
+        EXIT_FAILURE)
+      damgr_log(WARNING, "could not update the journal during transaction");
   }
+  if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_DONE, queue) ==
+      EXIT_FAILURE)
+    damgr_log(WARNING, "could not mark the journal as DONE");
+
   damgr_log(INFO, "transaction succeeded: %zu task(s) done", queue->cnt);
   return EXIT_SUCCESS;
 }

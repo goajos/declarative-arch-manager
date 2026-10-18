@@ -13,7 +13,7 @@ typedef enum task_type {
   LINK,
   UNLINK,
 } Damgr_Task_Type;
-const char *task_type_string(Damgr_Task_Type type);
+const char *task_type_string(const Damgr_Task_Type type);
 
 typedef enum task_status {
   PENDING,
@@ -22,6 +22,7 @@ typedef enum task_status {
   ROLLBACK_SUCCEEDED,
   ROLLBACK_FAILED
 } Damgr_Task_Status;
+const char *task_status_string(const Damgr_Task_Status status);
 
 typedef struct task {
   Damgr_Task_Type type;

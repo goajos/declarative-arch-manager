@@ -1,7 +1,7 @@
 #include "damgr/task.h"
 #include "damgr/log.h"
 
-const char *task_type_string(Damgr_Task_Type type) {
+const char *task_type_string(const Damgr_Task_Type type) {
   switch (type) {
   case PKG_INSTALL:
     return "PKG_INSTALL";
@@ -21,6 +21,22 @@ const char *task_type_string(Damgr_Task_Type type) {
     return "UNLINK";
   }
   return "";
+}
+
+const char *task_status_string(const Damgr_Task_Status status) {
+  switch (status) {
+  case PENDING:
+    return "PENDING";
+  case SUCCEEDED:
+    return "SUCCEEDED";
+  case FAILED:
+    return "FAILED";
+  case ROLLBACK_SUCCEEDED:
+    return "ROLLBACK_SUCCEEDED";
+  case ROLLBACK_FAILED:
+    return "ROLLBACK_FAILED";
+  }
+  return "PENDING";
 }
 
 // queue borrows its memory from the arena

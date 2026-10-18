@@ -1,44 +1,67 @@
 #include "damgr/merge.h"
-#include "damgr/commit.h"
-#include "damgr/diff.h"
-#include "damgr/stage.h"
-#include "damgr/task.h"
-#include "damgr/transaction.h"
-#include "damgr/utils.h"
 
 int damgr_merge(Damgr_Arena *arena) {
 
   int ret;
-  char fid_buf[DAMGR_FID_BUF_MAX];
-  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+  char state_buf[DAMGR_FID_BUF_MAX];
+  snprintf(state_buf, sizeof(state_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STATE));
   // state folder should be created before merge
-  if (!damgr_make_dir(fid_buf)) {
+  if (!damgr_make_dir(state_buf)) {
     return EXIT_FAILURE;
   }
 
-  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+  char staging_buf[DAMGR_FID_BUF_MAX];
+  snprintf(staging_buf, sizeof(staging_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STAGING));
+
+  char journal_buf[DAMGR_FID_BUF_MAX + sizeof(DAMGR_JOURNAL)];
+  snprintf(journal_buf, sizeof(journal_buf), "%s/%s", state_buf, DAMGR_JOURNAL);
+  int phase = -1;
+  int ntasks = -1;
+  if (damgr_read_journal(journal_buf, &phase, &ntasks) == EXIT_SUCCESS) {
+    if (phase == DAMGR_JOURNAL_DONE) {
+      if (damgr_dir_exists(staging_buf)) {
+        damgr_log(ERROR,
+                  "a previous transaction finished but the commit did not, "
+                  "the .staging folder is still present, re-run damgr commit "
+                  "to retry the commit");
+        return EXIT_FAILURE;
+      }
+      // stakle DONE journal
+      if (damgr_clean_journal(journal_buf) != EXIT_SUCCESS)
+        return EXIT_FAILURE;
+    } else {
+      damgr_log(ERROR,
+                "found a journal with phase %s from a previous interrupted "
+                "transaction, refusing to merge, inspect the journal, clean "
+                "up the residual tasks manually and remove it first: %s",
+                journal_phase_string((Damgr_Journal_Phase)phase), journal_buf);
+      return EXIT_FAILURE;
+    }
+  }
+
   // staging folder shouldn't exist before merge
-  if (damgr_dir_exists(fid_buf)) {
+  if (damgr_dir_exists(staging_buf)) {
     damgr_log(ERROR, "trying to merge with a .staging folder");
     return EXIT_FAILURE;
   }
 
-  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+  char backup_buf[DAMGR_FID_BUF_MAX];
+  snprintf(backup_buf, sizeof(backup_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(BACKUP));
   // backup folder shouldn't exist before merge
-  if (damgr_dir_exists(fid_buf)) {
+  if (damgr_dir_exists(backup_buf)) {
     damgr_log(ERROR, "trying to merge with a backup folder");
     return EXIT_FAILURE;
   }
 
   Damgr_Context context = {nullptr};
-  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
+  snprintf(state_buf, sizeof(state_buf), "%s/%s", getenv("HOME"),
            state_dir_type_string(STATE));
-  if (damgr_is_dir_empty(fid_buf)) {
+  if (damgr_is_dir_empty(state_buf)) {
     damgr_log(INFO, "no state to parse, the state directory is empty: %s",
-              fid_buf);
+              state_buf);
   } else {
     ret = damgr_read_state_context(&context, arena);
     if (ret == EXIT_FAILURE)
@@ -73,7 +96,7 @@ int damgr_merge(Damgr_Arena *arena) {
     return ret;
   }
 
-  ret = damgr_transaction(context.aur_helper, &queue);
+  ret = damgr_transaction(context.aur_helper, journal_buf, &queue);
   if (ret == EXIT_FAILURE) {
     damgr_free_queue(&queue);
     return ret;
