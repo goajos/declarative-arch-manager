@@ -147,8 +147,6 @@ int do_dotfile_link(const char *dotfile) {
         return EXIT_SUCCESS; // already linked
       }
     }
-    damgr_log(ERROR, "could not stat dotfile %s: %s", dst_buf, strerror(errno));
-    return EXIT_FAILURE;
   } else {
     if (symlink(src_buf, dst_buf) != 0) {
       damgr_log(ERROR, "could not symlink dotfile %s -> %s: %s", src_buf,
