@@ -11,7 +11,8 @@ static bool unit_file_exists_in(const char *dir, const char *unit) {
   return access(fid_buf, F_OK) == 0;
 }
 
-static bool unit_file_exists(const char *unit, const bool privileged) {
+static bool unit_file_exists(const char *home, const char *unit,
+                             const bool privileged) {
   if (privileged) {
     static const char *const dirs[] = {"/etc/systemd/system",
                                        "/usr/local/lib/systemd/system",
@@ -23,9 +24,9 @@ static bool unit_file_exists(const char *unit, const bool privileged) {
     char config_user_dir[DAMGR_FID_BUF_MAX];
     char local_user_dir[DAMGR_FID_BUF_MAX];
     snprintf(config_user_dir, sizeof(config_user_dir),
-             "%s/.config/systemd/user", getenv("HOME"));
+             "%s/.config/systemd/user", home);
     snprintf(local_user_dir, sizeof(local_user_dir),
-             "%s/.local/share/systemd/user", getenv("HOME"));
+             "%s/.local/share/systemd/user", home);
     return unit_file_exists_in(config_user_dir, unit) ||
            unit_file_exists_in(local_user_dir, unit) ||
            unit_file_exists_in("/etc/systemd/user", unit) ||
@@ -74,7 +75,7 @@ int damgr_transaction_preflight(const Damgr_Paths *paths,
         damgr_log(ERROR, "preflight failed: /usr/bin/sudo is not executable");
         return EXIT_FAILURE;
       }
-      if (!unit_file_exists(task->name, task->privileged)) {
+      if (!unit_file_exists(paths->home, task->name, task->privileged)) {
         damgr_log(ERROR, "systemd unit file not found for: %s", task->name);
         return EXIT_FAILURE;
       }

@@ -1,8 +1,7 @@
 #ifndef DAMGR_PATHS_H
 #define DAMGR_PATHS_H
+#include "damgr/utils.h"
 #include <stdio.h>
-
-#define DAMGR_FID_BUF_MAX 4096
 
 typedef struct paths {
   char home[DAMGR_FID_BUF_MAX];
@@ -17,7 +16,7 @@ typedef struct paths {
   char journal[DAMGR_FID_BUF_MAX];            // ~/.local/state/damgr/.journal
 } Damgr_Paths;
 
-bool damgr_paths_init(Damgr_Paths *paths, const char *home);
+void damgr_paths_init(Damgr_Paths *paths, const char *home);
 
 void damgr_paths_active_host_conf(const Damgr_Paths *paths, const char *name,
                                   char *out, size_t out_size);

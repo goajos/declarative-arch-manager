@@ -4,10 +4,6 @@
 #include "damgr/task.h"
 #include "damgr/utils.h"
 
-#ifndef DAMGR_JOURNAL
-#define DAMGR_JOURNAL ".journal"
-#endif
-
 typedef enum journal_phase {
   DAMGR_JOURNAL_RUNNING,
   DAMGR_JOURNAL_ROLLBACK,

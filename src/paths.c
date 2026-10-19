@@ -1,6 +1,6 @@
 #include "damgr/paths.h"
 
-bool damgr_paths_init(Damgr_Paths *paths, const char *home) {
+void damgr_paths_init(Damgr_Paths *paths, const char *home) {
   snprintf(paths->home, sizeof(paths->home), "%s", home);
   snprintf(paths->active_dir, sizeof(paths->active_dir), "%s/.config/damgr",
            home);
@@ -20,7 +20,6 @@ bool damgr_paths_init(Damgr_Paths *paths, const char *home) {
            "%s/.local/state/damgr/.backup", home);
   snprintf(paths->journal, sizeof(paths->journal),
            "%s/.local/state/damgr/.journal", home);
-  return true;
 }
 
 static void append_conf(const char *prefix, const char *name, char *out,

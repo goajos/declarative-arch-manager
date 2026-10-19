@@ -112,7 +112,6 @@ int run_service_command(const bool privileged, const bool to_enable,
   return ret;
 }
 
-// TODO: can we use the format function here?
 int do_dotfile_link(const Damgr_Paths *paths, const char *dotfile) {
   char src_buf[DAMGR_FID_BUF_MAX];
   damgr_paths_dotfile_src(paths, dotfile, src_buf, sizeof(src_buf));
@@ -156,7 +155,6 @@ int do_dotfile_link(const Damgr_Paths *paths, const char *dotfile) {
   return EXIT_SUCCESS;
 }
 
-// TODO: can we use the format function here?
 int do_dotfile_unlink(const Damgr_Paths *paths, const char *dotfile) {
   char dst_buf[DAMGR_FID_BUF_MAX];
   damgr_paths_dotfile_dst(paths, dotfile, dst_buf, sizeof(dst_buf));

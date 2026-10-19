@@ -155,12 +155,12 @@ int damgr_copy_file(const char *src_buf, const char *dst_buf) {
 }
 
 int damgr_copy_dir(const char *src_buf, const char *dst_buf,
-                   const bool rename) {
-  return damgr_copy_dir_except(src_buf, dst_buf, rename, nullptr);
+                   const bool add_state_prefix) {
+  return damgr_copy_dir_except(src_buf, dst_buf, add_state_prefix, nullptr);
 }
 
 int damgr_copy_dir_except(const char *src_buf, const char *dst_buf,
-                          const bool rename, const char *keep) {
+                          const bool add_state_prefix, const char *keep) {
   DIR *src_dir = opendir(src_buf);
   if (src_dir == nullptr) {
     damgr_log(ERROR, "could not open src dir %s: %s", src_buf, strerror(errno));
@@ -176,14 +176,15 @@ int damgr_copy_dir_except(const char *src_buf, const char *dst_buf,
       continue;
 
     char src_file_buf[DAMGR_FID_BUF_MAX + sizeof(ent->d_name)];
-    size_t dst_file_buf_size =
-        rename ? DAMGR_FID_BUF_MAX + sizeof(ent->d_name) + sizeof("state_")
-               : DAMGR_FID_BUF_MAX + sizeof(ent->d_name);
+    size_t dst_file_buf_size = add_state_prefix
+                                   ? DAMGR_FID_BUF_MAX + sizeof(ent->d_name) +
+                                         sizeof(DAMGR_STATE_FILE_PREFIX)
+                                   : DAMGR_FID_BUF_MAX + sizeof(ent->d_name);
     char dst_file_buf[dst_file_buf_size];
     snprintf(src_file_buf, sizeof(src_file_buf), "%s/%s", src_buf, ent->d_name);
-    if (rename) {
-      snprintf(dst_file_buf, sizeof(dst_file_buf), "%s/%s%s", dst_buf, "state_",
-               ent->d_name);
+    if (add_state_prefix) {
+      snprintf(dst_file_buf, sizeof(dst_file_buf), "%s/%s%s", dst_buf,
+               DAMGR_STATE_FILE_PREFIX, ent->d_name);
     } else {
       snprintf(dst_file_buf, sizeof(dst_file_buf), "%s/%s", dst_buf,
                ent->d_name);

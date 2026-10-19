@@ -1,6 +1,5 @@
 #ifndef DAMGR_UTILS_H
 #define DAMGR_UTILS_H
-// #include "damgr/context.h"
 #include "damgr/log.h"
 #include <ctype.h>
 #include <dirent.h>
@@ -15,9 +14,7 @@
 #define DAMGR_DIR_PERM 0755
 #define DAMGR_BYTES_BUF_MAX 1024
 #define DAMGR_JOURNAL ".journal"
-
-typedef enum cmd { COMMIT, MERGE, STAGE } Damgr_Cmd;
-const char *cmd_string(const Damgr_Cmd cmd);
+#define DAMGR_STATE_FILE_PREFIX "state_"
 
 void damgr_trim_string_inplace(char *str);
 

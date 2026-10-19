@@ -1,6 +1,4 @@
 #include "damgr/context.h"
-#include "damgr/log.h"
-#include "damgr/utils.h"
 
 static int read_context(Damgr_Context *context, Damgr_Arena *arena,
                         const char *fid_buf, bool is_state) {
