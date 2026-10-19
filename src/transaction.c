@@ -36,7 +36,8 @@ static bool unit_file_exists(const char *unit, const bool privileged) {
 }
 
 // TODO: check if services that should be enabled are enabled?
-int damgr_transaction_preflight(const Damgr_Context *context,
+int damgr_transaction_preflight(const Damgr_Paths *paths,
+                                const Damgr_Context *context,
                                 const Damgr_Task_Queue *queue) {
   damgr_log(INFO, "running preflight checks");
   char fid_buf[DAMGR_FID_BUF_MAX];
@@ -60,8 +61,7 @@ int damgr_transaction_preflight(const Damgr_Context *context,
       }
       break;
     case LINK:
-      snprintf(fid_buf, sizeof(fid_buf), "%s/.config/damgr/dotfiles/%s",
-               getenv("HOME"), task->name);
+      damgr_paths_dotfile_src(paths, task->name, fid_buf, sizeof(fid_buf));
       if (access(fid_buf, F_OK) != 0) {
         damgr_log(ERROR, "preflight failed: dotfile source is missing: %s",
                   fid_buf);
@@ -87,19 +87,19 @@ int damgr_transaction_preflight(const Damgr_Context *context,
   return EXIT_SUCCESS;
 }
 
-static void transaction_rollback(const char *aur_helper,
-                                 const char *journal_buf,
+static void transaction_rollback(const Damgr_Paths *paths,
+                                 const char *aur_helper,
                                  const size_t succeeded_cnt,
                                  Damgr_Task_Queue *queue) {
   damgr_log(INFO, "rolling back %zu succeeded task(s) in reverse order",
             succeeded_cnt);
   for (size_t i = succeeded_cnt; i-- > 0;) {
     Damgr_Task *task = &queue->tasks[i];
-    if (undo_task(aur_helper, task) == EXIT_SUCCESS) {
+    if (undo_task(paths, aur_helper, task) == EXIT_SUCCESS) {
       task->status = ROLLBACK_SUCCEEDED;
       damgr_log(INFO, "successful rollback %s module=%s",
                 task_type_string(task->type), task->module_name);
-      if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_ROLLBACK, queue) ==
+      if (damgr_write_journal(paths->journal, DAMGR_JOURNAL_ROLLBACK, queue) ==
           EXIT_FAILURE)
         damgr_log(WARNING, "could not udpate the journal during rollback");
 
@@ -112,10 +112,10 @@ static void transaction_rollback(const char *aur_helper,
   }
 }
 
-int damgr_transaction(const char *aur_helper, const char *journal_buf,
+int damgr_transaction(const Damgr_Paths *paths, const char *aur_helper,
                       Damgr_Task_Queue *queue) {
   damgr_log(INFO, "starting transaction: %zu task(s)", queue->cnt);
-  if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_RUNNING, queue) ==
+  if (damgr_write_journal(paths->journal, DAMGR_JOURNAL_RUNNING, queue) ==
       EXIT_FAILURE) {
     damgr_log(ERROR, "could not write the journal, aborting transaction");
     return EXIT_FAILURE;
@@ -126,7 +126,7 @@ int damgr_transaction(const char *aur_helper, const char *journal_buf,
     Damgr_Task *task = &queue->tasks[succeeded_cnt];
     damgr_log(INFO, "running [%zu/%zu] %s module=%s", succeeded_cnt + 1,
               queue->cnt, task_type_string(task->type), task->module_name);
-    if (do_task(aur_helper, task) == EXIT_SUCCESS) {
+    if (do_task(paths, aur_helper, task) == EXIT_SUCCESS) {
       task->status = SUCCEEDED;
     } else {
       task->status = FAILED;
@@ -134,18 +134,18 @@ int damgr_transaction(const char *aur_helper, const char *journal_buf,
                 succeeded_cnt + 1, task_type_string(task->type),
                 task->module_name);
 
-      if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_ROLLBACK, queue) ==
+      if (damgr_write_journal(paths->journal, DAMGR_JOURNAL_ROLLBACK, queue) ==
           EXIT_FAILURE)
         damgr_log(WARNING, "could not update the journal before rollback");
 
-      transaction_rollback(aur_helper, journal_buf, succeeded_cnt, queue);
+      transaction_rollback(paths, aur_helper, succeeded_cnt, queue);
       return EXIT_FAILURE;
     }
-    if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_RUNNING, queue) ==
+    if (damgr_write_journal(paths->journal, DAMGR_JOURNAL_RUNNING, queue) ==
         EXIT_FAILURE)
       damgr_log(WARNING, "could not update the journal during transaction");
   }
-  if (damgr_write_journal(journal_buf, DAMGR_JOURNAL_DONE, queue) ==
+  if (damgr_write_journal(paths->journal, DAMGR_JOURNAL_DONE, queue) ==
       EXIT_FAILURE)
     damgr_log(WARNING, "could not mark the journal as DONE");
 

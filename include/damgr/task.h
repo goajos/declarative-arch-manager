@@ -2,6 +2,7 @@
 #define DAMGR_TASK_H
 #include "damgr/cmd.h"
 #include "damgr/diff.h"
+#include "damgr/paths.h"
 
 typedef enum task_type {
   PKG_INSTALL,
@@ -46,7 +47,9 @@ void damgr_free_queue(Damgr_Task_Queue *queue);
 int damgr_fill_queue(Damgr_Task_Queue *queue, const Damgr_Host_Diff *host_diff,
                      Damgr_Arena *arena);
 
-int do_task(const char *aur_helper, const Damgr_Task *task);
-int undo_task(const char *aur_helper, const Damgr_Task *task);
+int do_task(const Damgr_Paths *paths, const char *aur_helper,
+            const Damgr_Task *task);
+int undo_task(const Damgr_Paths *paths, const char *aur_helper,
+              const Damgr_Task *task);
 
 #endif /* DAMGR_TASK_H */

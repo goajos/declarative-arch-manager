@@ -4,11 +4,12 @@
 #include "damgr/commit.h"
 #include "damgr/diff.h"
 #include "damgr/journal.h"
+#include "damgr/paths.h"
 #include "damgr/stage.h"
 #include "damgr/task.h"
 #include "damgr/transaction.h"
 #include "damgr/utils.h"
 
-int damgr_merge(Damgr_Arena *arena);
+int damgr_merge(const Damgr_Paths *paths, Damgr_Arena *arena);
 
 #endif /* DAMGR_MERGE_H */

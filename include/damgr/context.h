@@ -1,6 +1,7 @@
 #ifndef DAMGR_CONTEXT_H
 #define DAMGR_CONTEXT_H
 #include "damgr/arena.h"
+#include "damgr/paths.h"
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -35,7 +36,9 @@ typedef struct context {
   Damgr_Host *state_host;
 } Damgr_Context;
 
-int damgr_read_state_context(Damgr_Context *context, Damgr_Arena *arena);
-int damgr_read_active_context(Damgr_Context *context, Damgr_Arena *arena);
+int damgr_read_state_context(const Damgr_Paths *paths, Damgr_Context *context,
+                             Damgr_Arena *arena);
+int damgr_read_active_context(const Damgr_Paths *paths, Damgr_Context *context,
+                              Damgr_Arena *arena);
 
 #endif /* DAMGR_CONTEXT_H */

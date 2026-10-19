@@ -65,30 +65,30 @@ static int stage_module(const Damgr_Module *module, const char *fidbuf) {
   return EXIT_SUCCESS;
 }
 
-int damgr_stage_with_context(const Damgr_Context *context) {
+int damgr_stage_with_context(const Damgr_Context *context,
+                             const Damgr_Paths *paths) {
   int ret;
-  char fid_buf[DAMGR_FID_BUF_MAX];
-  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
-           state_dir_type_string(STAGING));
-  if (!damgr_make_dir(fid_buf)) {
+  if (!damgr_make_dir(paths->staging_dir)) {
     return EXIT_FAILURE;
   }
 
-  damgr_format_fid_buf(fid_buf, "config", true, NO_ACTIVE_DIR, STAGING);
+  char fid_buf[DAMGR_FID_BUF_MAX];
+  damgr_paths_staging_conf(paths, "config", fid_buf, sizeof(fid_buf));
   ret = stage_context(context, fid_buf);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  damgr_format_fid_buf(fid_buf, context->active_host->host_name, true,
-                       NO_ACTIVE_DIR, STAGING);
+  damgr_paths_staging_conf(paths, context->active_host->host_name, fid_buf,
+                           sizeof(fid_buf));
   ret = stage_host(context->active_host, fid_buf);
   if (ret == EXIT_FAILURE)
     return ret;
 
   for (size_t i = 0;
        i < context->active_host->modules_cnt && ret == EXIT_SUCCESS; ++i) {
-    damgr_format_fid_buf(fid_buf, context->active_host->modules[i]->module_name,
-                         true, NO_ACTIVE_DIR, STAGING);
+    damgr_paths_staging_conf(paths,
+                             context->active_host->modules[i]->module_name,
+                             fid_buf, sizeof(fid_buf));
     ret = stage_module(context->active_host->modules[i], fid_buf);
   }
 
@@ -96,28 +96,26 @@ int damgr_stage_with_context(const Damgr_Context *context) {
   return ret;
 }
 
-int damgr_stage(Damgr_Arena *arena) {
-  char fid_buf[DAMGR_FID_BUF_MAX];
-  snprintf(fid_buf, sizeof(fid_buf), "%s/%s", getenv("HOME"),
-           state_dir_type_string(STAGING));
+int damgr_stage(const Damgr_Paths *paths, Damgr_Arena *arena) {
   // staging folder should be created before stage
-  if (!damgr_make_dir(fid_buf)) {
+  if (!damgr_make_dir(paths->staging_dir)) {
     return EXIT_FAILURE;
   }
 
   // staging folder should be empty before stage
-  if (!damgr_is_dir_empty(fid_buf)) {
+  if (!damgr_is_dir_empty(paths->staging_dir)) {
     damgr_log(ERROR, "trying to stage with a non-empty .staging folder");
     return EXIT_FAILURE;
   }
 
   int ret;
-  Damgr_Context context = {nullptr};
-  ret = damgr_read_active_context(&context, arena);
+  // Damgr_Context context = {nullptr};
+  Damgr_Context context = {0};
+  ret = damgr_read_active_context(paths, &context, arena);
   if (ret == EXIT_FAILURE)
     return ret;
 
-  ret = damgr_stage_with_context(&context);
+  ret = damgr_stage_with_context(&context, paths);
   if (ret == EXIT_FAILURE)
     return ret;
 

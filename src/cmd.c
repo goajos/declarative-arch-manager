@@ -113,12 +113,11 @@ int run_service_command(const bool privileged, const bool to_enable,
 }
 
 // TODO: can we use the format function here?
-int do_dotfile_link(const char *dotfile) {
+int do_dotfile_link(const Damgr_Paths *paths, const char *dotfile) {
   char src_buf[DAMGR_FID_BUF_MAX];
+  damgr_paths_dotfile_src(paths, dotfile, src_buf, sizeof(src_buf));
   char dst_buf[DAMGR_FID_BUF_MAX];
-  snprintf(src_buf, sizeof(src_buf), "%s/.config/damgr/dotfiles/%s",
-           getenv("HOME"), dotfile);
-  snprintf(dst_buf, sizeof(dst_buf), "%s/.config/%s", getenv("HOME"), dotfile);
+  damgr_paths_dotfile_dst(paths, dotfile, dst_buf, sizeof(dst_buf));
 
   struct stat st;
   if (lstat(dst_buf, &st) == 0) {
@@ -158,9 +157,9 @@ int do_dotfile_link(const char *dotfile) {
 }
 
 // TODO: can we use the format function here?
-int do_dotfile_unlink(const char *dotfile) {
+int do_dotfile_unlink(const Damgr_Paths *paths, const char *dotfile) {
   char dst_buf[DAMGR_FID_BUF_MAX];
-  snprintf(dst_buf, sizeof(dst_buf), "%s/.config/%s", getenv("HOME"), dotfile);
+  damgr_paths_dotfile_dst(paths, dotfile, dst_buf, sizeof(dst_buf));
   struct stat st;
   if (lstat(dst_buf, &st) != 0) {
     if (errno == ENOENT)

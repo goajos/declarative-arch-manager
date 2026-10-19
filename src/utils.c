@@ -1,53 +1,6 @@
 #define _DEFAULT_SOURCE
 #include "damgr/utils.h"
 
-static const char *active_dir_type_string(const Damgr_Active_Dir_Type type) {
-  switch (type) {
-  case CONTEXT:
-    return ".config/damgr";
-  case HOST:
-    return ".config/damgr/hosts";
-  case MODULE:
-    return ".config/damgr/modules";
-  case DOTFILE:
-    return ".config/damgr/dotfiles";
-  case NO_ACTIVE_DIR:
-    return "";
-  }
-  return "";
-}
-
-const char *state_dir_type_string(const Damgr_State_Dir_Type type) {
-  switch (type) {
-  case STATE:
-    return ".local/state/damgr";
-  case STAGING:
-    return ".local/state/damgr/.staging";
-  case BACKUP:
-    return ".local/state/damgr/.backup";
-  case NO_STATE_DIR:
-    return "";
-  }
-  return "";
-}
-
-void damgr_format_fid_buf(char *fid_buf, const char *name, const bool is_state,
-                          const Damgr_Active_Dir_Type active_dir_type,
-                          const Damgr_State_Dir_Type state_dir_type) {
-  if (is_state) {
-    if (state_dir_type == STAGING) {
-      snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
-               state_dir_type_string(state_dir_type), name);
-    } else {
-      snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/state_%s.conf",
-               getenv("HOME"), state_dir_type_string(state_dir_type), name);
-    }
-  } else {
-    snprintf(fid_buf, DAMGR_FID_BUF_MAX, "%s/%s/%s.conf", getenv("HOME"),
-             active_dir_type_string(active_dir_type), name);
-  }
-}
-
 void damgr_trim_string_inplace(char *str) {
   if (*str == '\0')
     return;

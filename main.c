@@ -2,6 +2,7 @@
 #include "damgr/commit.h"
 #include "damgr/log.h"
 #include "damgr/merge.h"
+#include "damgr/paths.h"
 #include "damgr/stage.h"
 
 int main(int argc, char *argv[]) {
@@ -39,10 +40,15 @@ int main(int argc, char *argv[]) {
   }
 
   // ensure that getenv("HOME") is available for every command
-  if (getenv("HOME") == nullptr) {
+  const char *home = getenv("HOME");
+  if (home == nullptr) {
     damgr_log(ERROR, "getenv(\"HOME\") returns a nullptr");
     return EXIT_FAILURE;
   }
+
+  // Damgr_Paths paths = {nullptr};
+  Damgr_Paths paths = {0};
+  damgr_paths_init(&paths, home);
 
   Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
   if (arena == nullptr)
@@ -58,15 +64,15 @@ int main(int argc, char *argv[]) {
     break;
   case 1:
     damgr_log(INFO, "starting damgr merge!");
-    ret = damgr_merge(arena);
+    ret = damgr_merge(&paths, arena);
     break;
   case 2:
     damgr_log(INFO, "starting damgr stage!");
-    ret = damgr_stage(arena);
+    ret = damgr_stage(&paths, arena);
     break;
   case 3:
     damgr_log(INFO, "starting damgr commit!");
-    ret = damgr_commit();
+    ret = damgr_commit(&paths);
     break;
   }
 

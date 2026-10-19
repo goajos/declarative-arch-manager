@@ -21,7 +21,8 @@ CFILES=main.c \
 			 src/task.c \
 			 src/transaction.c \
 			 src/cmd.c \
-			 src/journal.c
+			 src/journal.c \
+			 src/paths.c
 OBJECTS=$(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(BUILDDIR)/%.d,$(CFILES))
 

@@ -2,6 +2,6 @@ CompileFlags:
   Add: [
     # -I/home/jappe/Repositories/declarative-arch-manager/include,
     # -I/Users/jaspercremers/Repositories/declarative-arch-manager/include,
-    -I/home/jappe/Projects/v3/include,
-    # -I/Users/jaspercremers/Projects/v3/include,
+    # -I/home/jappe/Projects/v3/include,
+    -I/Users/jaspercremers/Projects/v3/include,
 ]
