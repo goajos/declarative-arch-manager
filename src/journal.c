@@ -68,7 +68,7 @@ int damgr_write_journal(const char *journal_buf,
 int damgr_read_journal(const char *journal_buf, int *phase, int *task_cnt) {
   FILE *fid = fopen(journal_buf, "r");
   if (fid == nullptr) {
-    damgr_log(ERROR, "could not open journal %s", journal_buf);
+    damgr_log(WARNING, "could not open journal %s", journal_buf);
     *phase = -1;
     *task_cnt = -1;
     return EXIT_FAILURE;
