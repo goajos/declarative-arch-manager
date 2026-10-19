@@ -126,7 +126,9 @@ int damgr_commit(const Damgr_Paths *paths) {
   int ntasks = -1;
   if (damgr_read_journal(paths->journal, &phase, &ntasks) == EXIT_SUCCESS &&
       damgr_clean_journal(paths->journal) != EXIT_SUCCESS) {
-    damgr_log(ERROR, "could not clear journal after successful commit: %s",
+    damgr_log(ERROR,
+              "could not clear journal after successful commit, manually clean "
+              "it!: %s",
               paths->journal);
   }
 
