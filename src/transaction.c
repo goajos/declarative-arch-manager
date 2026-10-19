@@ -102,7 +102,7 @@ static void transaction_rollback(const Damgr_Paths *paths,
                 task_type_string(task->type), task->module_name);
       if (damgr_write_journal(paths->journal, DAMGR_JOURNAL_ROLLBACK, queue) ==
           EXIT_FAILURE)
-        damgr_log(WARNING, "could not udpate the journal during rollback");
+        damgr_log(WARNING, "could not update the journal during rollback");
 
     } else {
       task->status = ROLLBACK_FAILED;

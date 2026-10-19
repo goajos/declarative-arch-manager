@@ -55,7 +55,7 @@ static int journal_guard(const Damgr_Paths *paths) {
   int ret;
   ret = damgr_read_journal(paths->journal, &phase, &ntasks);
   if (ret == EXIT_FAILURE)
-    return ret; // can't opeh or malformed journal
+    return ret; // can't open or malformed journal
 
   if (phase != DAMGR_JOURNAL_DONE) {
     damgr_log(ERROR,
@@ -126,7 +126,7 @@ int damgr_commit(const Damgr_Paths *paths) {
   int ntasks = -1;
   if (damgr_read_journal(paths->journal, &phase, &ntasks) == EXIT_SUCCESS &&
       damgr_clean_journal(paths->journal) != EXIT_SUCCESS) {
-    damgr_log(ERROR,
+    damgr_log(WARNING,
               "could not clear journal after successful commit, manually clean "
               "it!: %s",
               paths->journal);
