@@ -10,6 +10,9 @@
 #define DAMGR_PATHS_IMPLEMENTATION
 #include "damgr/paths.h"
 
+#define DAMGR_UTILS_IMPLEMENTATION
+#include "damgr/utils.h"
+
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
   if (argc == 1) {
@@ -45,9 +48,9 @@ int main(int argc, char *argv[]) {
 
   // Damgr_Paths paths = {nullptr};
   Damgr_Paths paths = {0};
-  Result_t(Nullptr_t, ErrMessage_t) result = damgr_paths_init(&paths, home);
-  if (!result.is_success) {
-    damgr_log(ERROR, "failed to init paths: %s", result.error);
+  auto nullptr_r = damgr_paths_init(&paths, home);
+  if (!nullptr_r.is_success) {
+    damgr_log(ERROR, "failed to init paths: %s", nullptr_r.error);
     return EXIT_FAILURE;
   }
 
@@ -56,20 +59,32 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   damgr_arena_init(arena);
 
+  struct stat st;
   int ret;
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
+    // TODO: ensure all the direcotires are made for merge
     // ret = damgr_merge(&paths, arena);
     ret = EXIT_SUCCESS;
     break;
   case 1:
     damgr_log(INFO, "starting damgr stage!");
+    /*  stage preconditions:
+     *    - .staging folder should exist
+     *    - .staging folder should be empty
+     * */
+    auto bool_r = damgr_make_dir(paths.staging_dir, &st);
+    if (!bool_r.is_success) {
+      damgr_log(ERROR, "%s", bool_r.error);
+      return EXIT_FAILURE;
+    }
     // ret = damgr_stage(&paths, arena);
     ret = EXIT_SUCCESS;
     break;
-  case 3:
+  case 2:
     damgr_log(INFO, "starting damgr commit!");
+    // TODO: ensure all the direcotires are made for commit
     // ret = damgr_commit(&paths);
     ret = EXIT_SUCCESS;
     break;

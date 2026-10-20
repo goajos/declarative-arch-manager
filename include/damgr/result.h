@@ -1,9 +1,11 @@
 #ifndef RESULT_H
 #define RESULT_H
+#define _DEFAULT_SOURCE
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #ifndef DAMGR_ARENA_H
 #include "damgr/arena.h"
@@ -43,6 +45,7 @@ const char *err_fmt(const char *fmt, ...);
 typedef void *Nullptr_t;
 typedef void *Ptr_t;
 typedef FILE *Fid_t;
+typedef bool *Bool_t;
 typedef const char *ErrMessage_t;
 
 Result_t(Ptr_t, ErrMessage_t);
@@ -58,12 +61,6 @@ const char *err_fmt(const char *fmt, ...) {
   return err_buffer;
 }
 
-// Result_t(Ptr_t, ErrMessage_t) dst = arena_strdup_r(arena, "test");
-// if (!dst.is_success) {
-//   damgr_log(ERROR, "%s", dst.error);
-// } else {
-//   damgr_log(INFO, "%s", (char *)dst.value);
-// }
 Result_t(Ptr_t, ErrMessage_t)
     arena_strdup_r(Damgr_Arena *arena, const char *src) {
   Ptr_t dst = damgr_arena_strdup(arena, src);
@@ -72,9 +69,6 @@ Result_t(Ptr_t, ErrMessage_t)
   return Success(Ptr_t, ErrMessage_t)(dst);
 }
 
-// Result_t(Fid_t, ErrMessage_t) fid = fopen_r("./main34.c", "r");
-// if (!fid.is_success)
-//   damgr_log(ERROR, "%s", fid.error);
 Result_t(Fid_t, ErrMessage_t)
     fopen_r(const char *fid_buffer, const char *mode) {
   Fid_t fid = fopen(fid_buffer, mode);
@@ -91,9 +85,40 @@ Result_t(Nullptr_t, ErrMessage_t)
   int n = vsnprintf(out, out_size, fmt, args);
   va_end(args);
   if (n < 0 || (size_t)n >= out_size)
-    return Err(Nullptr_t,
-               ErrMessage_t)(err_fmt("%s: %s", out, strerror(ENAMETOOLONG)));
+    return Err(Nullptr_t, ErrMessage_t)(
+        err_fmt("\"%s\": %s", out, strerror(ENAMETOOLONG)));
   return Success(Nullptr_t, ErrMessage_t)(nullptr);
+}
+
+#define lstat_r(fid_buffer, st, mode, err)                                     \
+  ({                                                                           \
+    Result_t(Bool_t, ErrMessage_t) _result;                                    \
+    if (lstat(fid_buffer, st) == 0) {                                          \
+      bool _matched = mode(st->st_mode);                                       \
+      if (!_matched) {                                                         \
+        _result = Err(Bool_t, ErrMessage_t)(                                   \
+            err_fmt("%s exists but is wrong file type: %s", fid_buffer,        \
+                    strerror(errno)));                                         \
+      } else {                                                                 \
+        _result = Success(Bool_t, ErrMessage_t)(_matched);                     \
+      }                                                                        \
+    } else if (errno != err) {                                                 \
+      _result = Err(Bool_t, ErrMessage_t)(                                     \
+          err_fmt("lstat failed: %s", strerror(errno)));                       \
+    } else {                                                                   \
+      /* errno == ENOENT means the file doesn't exist */                       \
+      _result = Success(Bool_t, ErrMessage_t)(false);                          \
+    }                                                                          \
+    _result;                                                                   \
+  })
+
+Result_t(Bool_t, ErrMessage_t)
+    mkdir_r(const char *fid_buffer, const mode_t perm) {
+  if (mkdir(fid_buffer, perm) != 0)
+    return Err(Bool_t, ErrMessage_t)(err_fmt("could not create dir \"%s\": %s",
+                                             fid_buffer, strerror(errno)));
+
+  return Success(Bool_t, ErrMessage_t)(true);
 }
 
 #endif /* DAMGR_RESULT_IMPLEMENTATION */

@@ -6,7 +6,8 @@ CODEDIRS=.
 INCDIRS=include
 # generate files that encode make rules for the user header deps (-MD includes system headers)
 DEPFLAGS=-MMD
-CFLAGS=-Wall -Wextra -Werror -pedantic -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)) $(DEPFLAGS)
+# CFLAGS=-Wall -Wextra -Werror -pedantic -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)) $(DEPFLAGS)
+CFLAGS=-Wall -Wextra -Werror -std=c23 -g $(foreach D,$(INCDIRS),-I$(D)) $(DEPFLAGS)
 
 BUILDDIR=build
 CFILES=main.c
