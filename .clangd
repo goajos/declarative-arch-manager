@@ -1,5 +1,10 @@
 CompileFlags:
   Add: [
     # -I/home/jappe/Repositories/declarative-arch-manager/include,
-    -I/Users/jaspercremers/Repositories/declarative-arch-manager/include,
+    # -I/Users/jaspercremers/Repositories/declarative-arch-manager/include,
+    -I/Users/jaspercremers/Projects/v2/include,
+    -DDAMGR_ARENA_IMPLEMENTATION,
+    -DDAMGR_LOG_IMPLEMENTATION,
+    -DDAMGR_PATHS_IMPLEMENTATION,
+    -DDAMGR_RESULT_IMPLEMENTATION,
 ]
