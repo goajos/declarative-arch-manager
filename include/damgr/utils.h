@@ -18,82 +18,70 @@ constexpr mode_t DAMGR_DIR_PERM = 0755;
 
 typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
 
-Result_t(Bool_t, ErrMessage_t)
-    damgr_make_dir_r(const char *fid_buffer, struct stat *st);
+Result_t make_dir_r(const char *fid_buffer, struct stat *st, bool *out);
 
 #ifdef DAMGR_UTILS_IMPLEMENTATION
 
-static Result_t(Bool_t, ErrMessage_t)
-    lstat_r(const char *fid_buffer, struct stat *st, Damgr_Filetype type) {
+static Result_t lstat_r(const char *fid_buffer, struct stat *st,
+                        Damgr_Filetype type, bool *out) {
   if (lstat(fid_buffer, st) == 0) {
     bool matched =
         (type == DIR_TYPE) ? S_ISDIR(st->st_mode) : S_ISREG(st->st_mode);
 
     if (!matched)
-      return Err(Bool_t, ErrMessage_t)(err_fmt(
-          "%s exists but is wrong file type: %s", fid_buffer, strerror(errno)));
+      return Error(err_fmt("%s exists but is wrong file type", fid_buffer));
     // exists and is right file type, so true
-    return Success(Bool_t, ErrMessage_t)(true);
+    *out = true;
+    return Success;
   }
   if (errno != ENOENT)
-    return Err(Bool_t,
-               ErrMessage_t)(err_fmt("lstat failed: %s", strerror(errno)));
+    return Error(err_fmt("lstat failed: %s", strerror(errno)));
   // errno == ENOENT means the file doesn't exist, so false
-  return Success(Bool_t, ErrMessage_t)(false);
+  *out = false;
+  return Success;
 }
 
-static Result_t(Bool_t, ErrMessage_t)
-    make_dir_parent_r(const char *fid_buffer, struct stat *st) {
+static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
+                                  bool *out) {
   const char *sep = strrchr(fid_buffer, '/');
-  if (sep == nullptr || sep == fid_buffer)
-    return Success(Bool_t, ErrMessage_t)(true);
+  if (sep == nullptr || sep == fid_buffer) {
+    *out = true;
+    return Success;
+  }
 
   char p_buffer[DAMGR_PATH_BUFFER_MAX];
   size_t len = (size_t)(sep - fid_buffer);
   if (len >= sizeof(p_buffer))
-    return Err(Bool_t, ErrMessage_t)(
-        err_fmt("\"%s\": %s", p_buffer, strerror(ENAMETOOLONG)));
+    return Error(err_fmt("\"%s\": %s", p_buffer, strerror(ENAMETOOLONG)));
 
   memcpy(p_buffer, fid_buffer, len);
   p_buffer[len] = '\0';
 
-  auto bool_r = lstat_r(p_buffer, st, DIR_TYPE);
-  if (!bool_r.is_success)
-    return bool_r;
+  DAMGR_CALL(lstat_r(p_buffer, st, DIR_TYPE, out));
 
-  if (bool_r.value) // parent already exists
-    return Success(Bool_t, ErrMessage_t)(true);
+  if (*out) // parent already exists
+    return Success;
 
-  bool_r = make_dir_parent_r(p_buffer, st);
-  if (!bool_r.is_success)
-    return bool_r;
+  DAMGR_CALL(make_dir_parent_r(p_buffer, st, out));
 
   return mkdir_r(p_buffer, DAMGR_DIR_PERM);
 }
 
-Result_t(Bool_t, ErrMessage_t)
-    damgr_make_dir_r(const char *fid_buffer, struct stat *st) {
-  auto bool_r = lstat_r(fid_buffer, st, DIR_TYPE);
-  if (!bool_r.is_success)
-    return bool_r;
+Result_t make_dir_r(const char *fid_buffer, struct stat *st, bool *out) {
+  DAMGR_CALL(lstat_r(fid_buffer, st, DIR_TYPE, out));
 
-  if (bool_r.value) // folder already exists
-    return Success(Bool_t, ErrMessage_t)(true);
+  if (*out) // folder already exists
+    return Success;
 
-  bool_r = make_dir_parent_r(fid_buffer, st);
-  if (!bool_r.is_success) {
-    return bool_r;
-  }
+  DAMGR_CALL(make_dir_parent_r(fid_buffer, st, out));
 
   return mkdir_r(fid_buffer, DAMGR_DIR_PERM);
 }
 
-Result_t(Bool_t, ErrMessage_t) damgr_is_dir_empty_r(const char *fid_buffer) {
-  auto dir_r = opendir_r(fid_buffer);
-  if (!dir_r.is_success)
-    return Err(Bool_t, ErrMessage_t)(dir_r.error);
+Result_t is_dir_empty_r(const char *fid_buffer, bool *out) {
+  DIR *dir;
+  DAMGR_CALL(opendir_r(fid_buffer, &dir));
 
-  DIR *dir = dir_r.value;
   int count = 0;
   struct dirent *ent;
   // .backup and .staging are not .state/damgr entries
@@ -107,10 +95,10 @@ Result_t(Bool_t, ErrMessage_t) damgr_is_dir_empty_r(const char *fid_buffer) {
 
   closedir(dir);
   if (count == 0) {
-    return Success(Bool_t, ErrMessage_t)(true);
+    *out = true;
+    return Success;
   } else {
-    return Err(Bool_t, ErrMessage_t)(
-        err_fmt("%s: %s", fid_buffer, strerror(ENOTEMPTY)));
+    return Error(err_fmt("%s: %s", fid_buffer, strerror(ENOTEMPTY)));
   }
 }
 

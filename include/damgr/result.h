@@ -18,39 +18,23 @@
 
 constexpr size_t DAMGR_RESULT_BUFFER_MAX = 512;
 
-#define Result_t(T, E)                                                         \
-  struct Result_##T##_##E {                                                    \
-    bool is_success;                                                           \
-    union {                                                                    \
-      T value;                                                                 \
-      E error;                                                                 \
-    };                                                                         \
-  }
+typedef struct Result {
+  bool is_success;
+  const char *error;
+} Result_t;
 
-#define Success(T, E)                                                          \
-  (struct Result_##T##_##E) {                                                  \
-    .is_success = true, .value = (T)_SUCCESS_IMPL
-#define _SUCCESS_IMPL(...)                                                     \
-  __VA_ARGS__                                                                  \
-  }
-
-#define Err(T, E)                                                              \
-  (struct Result_##T##_##E) {                                                  \
-    .is_success = false, .error = (E)_ERR_IMPL
-#define _ERR_IMPL(...)                                                         \
-  __VA_ARGS__                                                                  \
-  }
+#define Success                                                                \
+  (Result_t) { .is_success = true, .error = nullptr }
+#define Error(err)                                                             \
+  (Result_t) { .is_success = false, .error = err }
+#define DAMGR_CALL(func)                                                       \
+  do {                                                                         \
+    Result_t _s = (func);                                                      \
+    if (!_s.is_success)                                                        \
+      return _s;                                                               \
+  } while (0)
 
 const char *err_fmt(const char *fmt, ...);
-
-typedef void *Nullptr_t;
-typedef void *Ptr_t;
-typedef bool Bool_t;
-typedef FILE *Fid_t;
-typedef DIR *Dir_t;
-typedef const char *ErrMessage_t;
-
-Result_t(Ptr_t, ErrMessage_t);
 
 #ifdef DAMGR_RESULT_IMPLEMENTATION
 
@@ -63,57 +47,52 @@ const char *err_fmt(const char *fmt, ...) {
   return err_buffer;
 }
 
-Result_t(Ptr_t, ErrMessage_t)
-    arena_strdup_r(Damgr_Arena *arena, const char *src) {
-  Ptr_t dst = damgr_arena_strdup(arena, src);
-  if (dst == nullptr)
-    return Err(Ptr_t, ErrMessage_t)("arena strdup failed");
-  return Success(Ptr_t, ErrMessage_t)(dst);
+Result_t arena_strdup_r(Damgr_Arena *arena, const char *src, char **out) {
+  *out = arena_strdup(arena, src);
+  if (*out == nullptr)
+    return Error("arena strdup failed");
+  return Success;
 }
 
-Result_t(Ptr_t, ErrMessage_t) arena_alloc_r(Damgr_Arena *arena, size_t size) {
-  Ptr_t dst = damgr_arena_alloc(arena, size);
-  if (dst == nullptr)
-    return Err(Ptr_t, ErrMessage_t)("arena alloc failed");
-  return Success(Ptr_t, ErrMessage_t)(dst);
+Result_t arena_alloc_r(Damgr_Arena *arena, size_t size, void **out) {
+  *out = arena_alloc(arena, size);
+  if (*out == nullptr)
+    return Error("arena alloc failed");
+  return Success;
 }
 
-Result_t(Fid_t, ErrMessage_t)
-    fopen_r(const char *fid_buffer, const char *mode) {
-  FILE *fid = fopen(fid_buffer, mode);
-  if (fid == nullptr)
-    return Err(Fid_t, ErrMessage_t)(
+Result_t fopen_r(const char *fid_buffer, const char *mode, FILE **out) {
+  *out = fopen(fid_buffer, mode);
+  if (*out == nullptr)
+    return Error(
         err_fmt("could not open fid %s: %s", fid_buffer, strerror(errno)));
-  return Success(Fid_t, ErrMessage_t)(fid);
+  return Success;
 }
 
-Result_t(Dir_t, ErrMessage_t) opendir_r(const char *fid_buffer) {
-  DIR *dir = opendir(fid_buffer);
-  if (dir == nullptr)
-    return Err(Dir_t, ErrMessage_t)(
+Result_t opendir_r(const char *fid_buffer, DIR **out) {
+  *out = opendir(fid_buffer);
+  if (*out == nullptr)
+    return Error(
         err_fmt("could not open dir %s: %s", fid_buffer, strerror(errno)));
-  return Success(Dir_t, ErrMessage_t)(dir);
+  return Success;
 }
 
-Result_t(Nullptr_t, ErrMessage_t)
-    snprintf_r(char *out, const size_t out_size, const char *fmt, ...) {
+Result_t snprintf_r(char *buffer, const size_t size, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  int n = vsnprintf(out, out_size, fmt, args);
+  int n = vsnprintf(buffer, size, fmt, args);
   va_end(args);
-  if (n < 0 || (size_t)n >= out_size)
-    return Err(Nullptr_t, ErrMessage_t)(
-        err_fmt("\"%s\": %s", out, strerror(ENAMETOOLONG)));
-  return Success(Nullptr_t, ErrMessage_t)(nullptr);
+  if (n < 0 || (size_t)n >= size)
+    return Error(err_fmt("\"%s\": %s", buffer, strerror(ENAMETOOLONG)));
+  return Success;
 }
 
-Result_t(Bool_t, ErrMessage_t)
-    mkdir_r(const char *fid_buffer, const mode_t perm) {
-  if (mkdir(fid_buffer, perm) != 0)
-    return Err(Bool_t, ErrMessage_t)(err_fmt("could not create dir \"%s\": %s",
-                                             fid_buffer, strerror(errno)));
-
-  return Success(Bool_t, ErrMessage_t)(true);
+Result_t mkdir_r(const char *fid_buffer, const mode_t perm) {
+  if (mkdir(fid_buffer, perm) != 0) {
+    return Error(err_fmt("could not create dir \"%s\": %s", fid_buffer,
+                         strerror(errno)));
+  }
+  return Success;
 }
 
 #endif /* DAMGR_RESULT_IMPLEMENTATION */
