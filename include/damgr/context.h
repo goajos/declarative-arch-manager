@@ -15,8 +15,8 @@
 #include "damgr/utils.h"
 #endif
 
-constexpr size_t DAMGR_LINE_MAX = 512;
-constexpr size_t DAMGR_ARRAY_BUFFER_MAX = 256;
+constexpr size_t LINE_MAX = 512;
+constexpr size_t ARRAY_BUFFER_MAX = 256;
 
 typedef struct module {
   const char *module_name;
@@ -66,11 +66,10 @@ static Result_t is_state_dir_empty_r(const char *fid_buffer, bool *empty) {
   // .backup and .staging are not .state/damgr entries
   while ((ent = readdir(dir)) != nullptr) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 ||
-        strcmp(ent->d_name, DAMGR_BACKUP) == 0 ||
-        strcmp(ent->d_name, DAMGR_STAGING) == 0)
+        strcmp(ent->d_name, BACKUP) == 0 || strcmp(ent->d_name, STAGING) == 0)
       continue;
 
-    if (strcmp(ent->d_name, DAMGR_JOURNAL) == 0)
+    if (strcmp(ent->d_name, JOURNAL) == 0)
       continue; // the journal is not a .state/damgr entry
 
     if (ent->d_type == DT_REG || ent->d_type == DT_LNK || ent->d_type == DT_DIR)
@@ -93,7 +92,7 @@ static Result_t is_state_dir_empty_r(const char *fid_buffer, bool *empty) {
 static Result_t parse_config_r(Damgr_Context *context, Damgr_Arena *arena,
                                FILE *config_fid, bool is_state) {
   char *dup;
-  char line[DAMGR_LINE_MAX];
+  char line[LINE_MAX];
   while (fgets(line, sizeof(line), config_fid)) {
     if (line[0] == '\n') // skip newlines
       continue;
@@ -265,17 +264,17 @@ Result_t read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
 
   DAMGR_CALL(is_state_dir_empty_r(paths->state_dir, &empty));
 
-  char fid_buffer[DAMGR_PATH_BUFFER_MAX];
+  char fid_buffer[PATH_BUFFER_MAX];
   if (!empty) { // state dir is not empty, so read
     DAMGR_CALL(read_config_r(context, arena, paths->state_config, true));
 
-    DAMGR_CALL(resolve_host_path(paths, fid_buffer, sizeof(fid_buffer),
-                                 context->state_host->host_name, true));
+    DAMGR_CALL(resolve_host_path_r(paths, fid_buffer, sizeof(fid_buffer),
+                                   context->state_host->host_name, true));
 
     // CALL(read_host_r(context->state_host, arena, fid_buffer));
 
     for (size_t i = 0; i < context->state_host->modules_cnt; ++i) {
-      DAMGR_CALL(resolve_module_path(
+      DAMGR_CALL(resolve_module_path_r(
           paths, fid_buffer, sizeof(fid_buffer),
           context->state_host->modules[i]->module_name, true));
       // CALL(read_module_r(context->state_host->modules[i], arena,
@@ -285,12 +284,12 @@ Result_t read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
 
   DAMGR_CALL(read_config_r(context, arena, paths->active_config, false));
 
-  DAMGR_CALL(resolve_host_path(paths, fid_buffer, sizeof(fid_buffer),
-                               context->active_host->host_name, false));
+  DAMGR_CALL(resolve_host_path_r(paths, fid_buffer, sizeof(fid_buffer),
+                                 context->active_host->host_name, false));
   // CALL(read_host_r(context->active_host, arena, fid_buffer));
 
   for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
-    DAMGR_CALL(resolve_module_path(
+    DAMGR_CALL(resolve_module_path_r(
         paths, fid_buffer, sizeof(fid_buffer),
         context->active_host->modules[i]->module_name, true));
     // CALL(read_module_r(context->active_host->modules[i], arena, fid_buffer));

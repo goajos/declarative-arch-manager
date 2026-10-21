@@ -11,10 +11,10 @@
 #include "damgr/paths.h"
 #endif
 
-#define DAMGR_BACKUP ".backup"
-#define DAMGR_STAGING ".staging"
-#define DAMGR_JOURNAL ".journal"
-constexpr mode_t DAMGR_DIR_PERM = 0755;
+#define BACKUP ".backup"
+#define STAGING ".staging"
+#define JOURNAL ".journal"
+constexpr mode_t DIR_PERM = 0755;
 
 typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
 
@@ -49,7 +49,7 @@ static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
     return Success;
   }
 
-  char p_buffer[DAMGR_PATH_BUFFER_MAX];
+  char p_buffer[PATH_BUFFER_MAX];
   size_t len = (size_t)(sep - fid_buffer);
   if (len >= sizeof(p_buffer))
     return Error(err_fmt("\"%s\": %s", p_buffer, strerror(ENAMETOOLONG)));
@@ -64,7 +64,7 @@ static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
 
   DAMGR_CALL(make_dir_parent_r(p_buffer, st, out));
 
-  return mkdir_r(p_buffer, DAMGR_DIR_PERM);
+  return mkdir_r(p_buffer, DIR_PERM);
 }
 
 Result_t make_dir_r(const char *fid_buffer, struct stat *st, bool *out) {
@@ -75,7 +75,7 @@ Result_t make_dir_r(const char *fid_buffer, struct stat *st, bool *out) {
 
   DAMGR_CALL(make_dir_parent_r(fid_buffer, st, out));
 
-  return mkdir_r(fid_buffer, DAMGR_DIR_PERM);
+  return mkdir_r(fid_buffer, DIR_PERM);
 }
 
 Result_t is_dir_empty_r(const char *fid_buffer, bool *out) {

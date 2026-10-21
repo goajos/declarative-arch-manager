@@ -6,31 +6,30 @@
 #include "damgr/result.h"
 #endif
 
-constexpr size_t DAMGR_PATH_BUFFER_MAX = 4096;
+constexpr size_t PATH_BUFFER_MAX = 4096;
 
 typedef struct paths {
-  char home[DAMGR_PATH_BUFFER_MAX];
-  char active_dir[DAMGR_PATH_BUFFER_MAX];         // ~/.config/damgr
-  char active_config[DAMGR_PATH_BUFFER_MAX];      // ~/.config/damgr/config.conf
-  char active_host_dir[DAMGR_PATH_BUFFER_MAX];    // ~/.config/damgr/hosts
-  char active_module_dir[DAMGR_PATH_BUFFER_MAX];  // ~/.config/damgr/modules
-  char active_dotfile_dir[DAMGR_PATH_BUFFER_MAX]; // ~/.config/damgr/dotfiles
-  char state_dir[DAMGR_PATH_BUFFER_MAX];          // ~/.local/state/damgr
-  char state_config
-      [DAMGR_PATH_BUFFER_MAX]; // ~/.local/state/damgr/state_config.conf
-  char staging_dir[DAMGR_PATH_BUFFER_MAX]; // ~/.local/state/damgr/.staging
-  char backup_dir[DAMGR_PATH_BUFFER_MAX];  // ~/.local/state/damgr/.backup
-  char journal[DAMGR_PATH_BUFFER_MAX];     // ~/.local/state/damgr/.journal
+  char home[PATH_BUFFER_MAX];
+  char active_dir[PATH_BUFFER_MAX];         // ~/.config/damgr
+  char active_config[PATH_BUFFER_MAX];      // ~/.config/damgr/config.conf
+  char active_host_dir[PATH_BUFFER_MAX];    // ~/.config/damgr/hosts
+  char active_module_dir[PATH_BUFFER_MAX];  // ~/.config/damgr/modules
+  char active_dotfile_dir[PATH_BUFFER_MAX]; // ~/.config/damgr/dotfiles
+  char state_dir[PATH_BUFFER_MAX];          // ~/.local/state/damgr
+  char state_config[PATH_BUFFER_MAX]; // ~/.local/state/damgr/state_config.conf
+  char staging_dir[PATH_BUFFER_MAX];  // ~/.local/state/damgr/.staging
+  char backup_dir[PATH_BUFFER_MAX];   // ~/.local/state/damgr/.backup
+  char journal[PATH_BUFFER_MAX];      // ~/.local/state/damgr/.journal
 } Damgr_Paths;
 
 Result_t paths_init_r(Damgr_Paths *paths, const char *home);
 
-Result_t resolve_host_path(const Damgr_Paths *paths, char *fid_buffer,
-                           size_t size, const char *host_name, bool is_state);
+Result_t resolve_host_path_r(const Damgr_Paths *paths, char *fid_buffer,
+                             size_t size, const char *host_name, bool is_state);
 
-Result_t resolve_module_path(const Damgr_Paths *paths, char *fid_buffer,
-                             size_t size, const char *module_name,
-                             bool is_state);
+Result_t resolve_module_path_r(const Damgr_Paths *paths, char *fid_buffer,
+                               size_t size, const char *module_name,
+                               bool is_state);
 
 #ifdef DAMGR_PATHS_IMPLEMENTATION
 
@@ -61,36 +60,38 @@ Result_t paths_init_r(Damgr_Paths *paths, const char *home) {
   return Success;
 }
 
-static Result_t append_conf(const char *path, const char *name,
-                            char *fid_buffer, size_t size, bool is_state) {
-  if (is_state)
-    DAMGR_CALL(snprintf_r(fid_buffer, size, "%s/state_%s.conf", path, name));
-
-  DAMGR_CALL(snprintf_r(fid_buffer, size, "%s/%s.conf", path, name));
-  return Success;
-}
-
-Result_t resolve_host_path(const Damgr_Paths *paths, char *fid_buffer,
-                           size_t size, const char *host_name, bool is_state) {
+static Result_t append_conf_r(const char *path, const char *name,
+                              char *fid_buffer, size_t size, bool is_state) {
   if (is_state) {
-    DAMGR_CALL(
-        append_conf(paths->state_dir, host_name, fid_buffer, size, is_state));
+    DAMGR_CALL(snprintf_r(fid_buffer, size, "%s/state_%s.conf", path, name));
   } else {
-    DAMGR_CALL(append_conf(paths->active_host_dir, host_name, fid_buffer, size,
-                           is_state));
+    DAMGR_CALL(snprintf_r(fid_buffer, size, "%s/%s.conf", path, name));
   }
   return Success;
 }
 
-Result_t resolve_module_path(const Damgr_Paths *paths, char *fid_buffer,
-                             size_t size, const char *module_name,
+Result_t resolve_host_path_r(const Damgr_Paths *paths, char *fid_buffer,
+                             size_t size, const char *host_name,
                              bool is_state) {
   if (is_state) {
     DAMGR_CALL(
-        append_conf(paths->state_dir, module_name, fid_buffer, size, is_state));
+        append_conf_r(paths->state_dir, host_name, fid_buffer, size, is_state));
   } else {
-    DAMGR_CALL(append_conf(paths->active_module_dir, module_name, fid_buffer,
-                           size, is_state));
+    DAMGR_CALL(append_conf_r(paths->active_host_dir, host_name, fid_buffer,
+                             size, is_state));
+  }
+  return Success;
+}
+
+Result_t resolve_module_path_r(const Damgr_Paths *paths, char *fid_buffer,
+                               size_t size, const char *module_name,
+                               bool is_state) {
+  if (is_state) {
+    DAMGR_CALL(append_conf_r(paths->state_dir, module_name, fid_buffer, size,
+                             is_state));
+  } else {
+    DAMGR_CALL(append_conf_r(paths->active_module_dir, module_name, fid_buffer,
+                             size, is_state));
   }
   return Success;
 }

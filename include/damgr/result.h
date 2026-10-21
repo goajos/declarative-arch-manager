@@ -29,9 +29,9 @@ typedef struct Result {
   (Result_t) { .is_success = false, .error = err }
 #define DAMGR_CALL(func)                                                       \
   do {                                                                         \
-    Result_t _s = (func);                                                      \
-    if (!_s.is_success)                                                        \
-      return _s;                                                               \
+    Result_t _r = (func);                                                      \
+    if (!_r.is_success)                                                        \
+      return _r;                                                               \
   } while (0)
 
 const char *err_fmt(const char *fmt, ...);
