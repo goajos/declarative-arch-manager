@@ -16,6 +16,8 @@ typedef struct paths {
   char active_module_dir[DAMGR_PATH_BUFFER_MAX];  // ~/.config/damgr/modules
   char active_dotfile_dir[DAMGR_PATH_BUFFER_MAX]; // ~/.config/damgr/dotfiles
   char state_dir[DAMGR_PATH_BUFFER_MAX];          // ~/.local/state/damgr
+  char state_config
+      [DAMGR_PATH_BUFFER_MAX]; // ~/.local/state/damgr/state_config.conf
   char staging_dir[DAMGR_PATH_BUFFER_MAX]; // ~/.local/state/damgr/.staging
   char backup_dir[DAMGR_PATH_BUFFER_MAX];  // ~/.local/state/damgr/.backup
   char journal[DAMGR_PATH_BUFFER_MAX];     // ~/.local/state/damgr/.journal
@@ -28,29 +30,31 @@ Result_t(Nullptr_t, ErrMessage_t)
 
 Result_t(Nullptr_t, ErrMessage_t)
     damgr_paths_init(Damgr_Paths *paths, const char *home) {
-  Result_t(Nullptr_t, ErrMessage_t) result;
-  result = snprintf_r(paths->home, sizeof(paths->home), "%s", home);
-  result = snprintf_r(paths->active_dir, sizeof(paths->active_dir),
-                      "%s/.config/damgr", home);
-  result = snprintf_r(paths->active_config, sizeof(paths->active_config),
-                      "%s/.config/damgr/config.conf", home);
-  result = snprintf_r(paths->active_host_dir, sizeof(paths->active_host_dir),
-                      "%s/.config/damgr/hosts", home);
-  result =
+  Result_t(Nullptr_t, ErrMessage_t) nullptr_r;
+  nullptr_r = snprintf_r(paths->home, sizeof(paths->home), "%s", home);
+  nullptr_r = snprintf_r(paths->active_dir, sizeof(paths->active_dir),
+                         "%s/.config/damgr", home);
+  nullptr_r = snprintf_r(paths->active_config, sizeof(paths->active_config),
+                         "%s/.config/damgr/config.conf", home);
+  nullptr_r = snprintf_r(paths->active_host_dir, sizeof(paths->active_host_dir),
+                         "%s/.config/damgr/hosts", home);
+  nullptr_r =
       snprintf_r(paths->active_module_dir, sizeof(paths->active_module_dir),
                  "%s/.config/damgr/modules", home);
-  result =
+  nullptr_r =
       snprintf_r(paths->active_dotfile_dir, sizeof(paths->active_dotfile_dir),
                  "%s/.config/damgr/dotfiles", home);
-  result = snprintf_r(paths->state_dir, sizeof(paths->state_dir),
-                      "%s/.local/state/damgr", home);
-  result = snprintf_r(paths->staging_dir, sizeof(paths->staging_dir),
-                      "%s/.local/state/damgr/.staging", home);
-  result = snprintf_r(paths->backup_dir, sizeof(paths->backup_dir),
-                      "%s/.local/state/damgr/.backup", home);
-  result = snprintf_r(paths->journal, sizeof(paths->journal),
-                      "%s/.local/state/damgr/.journal", home);
-  return result;
+  nullptr_r = snprintf_r(paths->state_dir, sizeof(paths->state_dir),
+                         "%s/.local/state/damgr", home);
+  nullptr_r = snprintf_r(paths->state_config, sizeof(paths->state_config),
+                         "%s/.local/state/damgr/state_config.conf", home);
+  nullptr_r = snprintf_r(paths->staging_dir, sizeof(paths->staging_dir),
+                         "%s/.local/state/damgr/.staging", home);
+  nullptr_r = snprintf_r(paths->backup_dir, sizeof(paths->backup_dir),
+                         "%s/.local/state/damgr/.backup", home);
+  nullptr_r = snprintf_r(paths->journal, sizeof(paths->journal),
+                         "%s/.local/state/damgr/.journal", home);
+  return nullptr_r;
 }
 
 #endif /* DAMGR_PATHS_IMPLEMENTATION */

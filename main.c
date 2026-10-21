@@ -13,6 +13,9 @@
 #define DAMGR_UTILS_IMPLEMENTATION
 #include "damgr/utils.h"
 
+#define DAMGR_CONTEXT_IMPLEMENTATION
+#include "damgr/context.h"
+
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
   if (argc == 1) {
@@ -62,7 +65,16 @@ int main(int argc, char *argv[]) {
   damgr_arena_init(arena);
 
   struct stat st;
+  // Damgr_Context context = {nullptr};
+  Damgr_Context context = {0};
+  nullptr_r = damgr_read_context(&paths, &context, arena, &st);
+  if (!nullptr_r.is_success) {
+    damgr_log(ERROR, "failed to read context: %s", nullptr_r.error);
+    return EXIT_FAILURE;
+  }
+
   int ret;
+  Result_t(Bool_t, ErrMessage_t) bool_r;
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
@@ -76,7 +88,7 @@ int main(int argc, char *argv[]) {
      *    - .staging folder should exist
      *    - .staging folder should be empty
      * */
-    auto bool_r = damgr_make_dir(paths.staging_dir, &st);
+    bool_r = damgr_make_dir(paths.staging_dir, &st);
     if (!bool_r.is_success) {
       damgr_log(ERROR, "%s", bool_r.error);
       return EXIT_FAILURE;

@@ -11,6 +11,7 @@
 #include "damgr/paths.h"
 #endif
 
+#define DAMGR_JOURNAL ".journal"
 constexpr mode_t DAMGR_DIR_PERM = 0755;
 
 Result_t(Bool_t, ErrMessage_t)
@@ -18,25 +19,25 @@ Result_t(Bool_t, ErrMessage_t)
 
 #define lstat_r(fid_buffer, st, mode)                                          \
   ({                                                                           \
-    Result_t(Bool_t, ErrMessage_t) _result;                                    \
+    Result_t(Bool_t, ErrMessage_t) _bool_r;                                    \
     if (lstat(fid_buffer, st) == 0) {                                          \
       bool _matched = mode(st->st_mode);                                       \
       if (!_matched) {                                                         \
-        _result = Err(Bool_t, ErrMessage_t)(                                   \
+        _bool_r = Err(Bool_t, ErrMessage_t)(                                   \
             err_fmt("%s exists but is wrong file type: %s", fid_buffer,        \
                     strerror(errno)));                                         \
       } else {                                                                 \
         /* exists and is right file type, so true  */                          \
-        _result = Success(Bool_t, ErrMessage_t)(true);                         \
+        _bool_r = Success(Bool_t, ErrMessage_t)(true);                         \
       }                                                                        \
     } else if (errno != ENOENT) {                                              \
-      _result = Err(Bool_t, ErrMessage_t)(                                     \
+      _bool_r = Err(Bool_t, ErrMessage_t)(                                     \
           err_fmt("lstat failed: %s", strerror(errno)));                       \
     } else {                                                                   \
       /* errno == ENOENT means the file doesn't exist, so false */             \
-      _result = Success(Bool_t, ErrMessage_t)(false);                          \
+      _bool_r = Success(Bool_t, ErrMessage_t)(false);                          \
     }                                                                          \
-    _result;                                                                   \
+    _bool_r;                                                                   \
   })
 
 #ifdef DAMGR_UTILS_IMPLEMENTATION
@@ -56,50 +57,55 @@ static Result_t(Bool_t, ErrMessage_t)
   memcpy(p_buffer, fid_buffer, len);
   p_buffer[len] = '\0';
 
-  auto result = lstat_r(p_buffer, st, S_ISDIR);
-  if (!result.is_success)
-    return result;
+  auto bool_r = lstat_r(p_buffer, st, S_ISDIR);
+  if (!bool_r.is_success)
+    return bool_r;
 
-  if (result.value) // parent already exists
+  if (bool_r.value) // parent already exists
     return Success(Bool_t, ErrMessage_t)(true);
 
-  result = damgr_make_dir_p(p_buffer, st);
-  if (!result.is_success)
-    return result;
+  bool_r = damgr_make_dir_p(p_buffer, st);
+  if (!bool_r.is_success)
+    return bool_r;
 
   return mkdir_r(p_buffer, DAMGR_DIR_PERM);
 }
 
 Result_t(Bool_t, ErrMessage_t)
     damgr_make_dir(const char *fid_buffer, struct stat *st) {
-  auto result = lstat_r(fid_buffer, st, S_ISDIR);
-  if (!result.is_success)
-    return result;
+  auto bool_r = lstat_r(fid_buffer, st, S_ISDIR);
+  if (!bool_r.is_success)
+    return bool_r;
 
-  if (result.value) // folder already exists
+  if (bool_r.value) // folder already exists
     return Success(Bool_t, ErrMessage_t)(true);
 
-  result = damgr_make_dir_p(fid_buffer, st);
-  if (!result.is_success) {
-    return result;
+  bool_r = damgr_make_dir_p(fid_buffer, st);
+  if (!bool_r.is_success) {
+    return bool_r;
   }
 
   return mkdir_r(fid_buffer, DAMGR_DIR_PERM);
 }
 
 Result_t(Bool_t, ErrMessage_t) damgr_is_dir_empty(const char *fid_buffer) {
-  auto result = opendir_r(fid_buffer);
-  if (!result.is_success)
-    return Err(Bool_t, ErrMessage_t)(result.error);
+  auto dir_r = opendir_r(fid_buffer);
+  if (!dir_r.is_success)
+    return Err(Bool_t, ErrMessage_t)(dir_r.error);
 
-  DIR *dir = result.value;
+  DIR *dir = dir_r.value;
   int count = 0;
   struct dirent *ent;
+  // .backup and .staging are not .state/damgr entries
   while ((ent = readdir(dir)) != nullptr) {
-    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 ||
+        strcmp(ent->d_name, ".backup") == 0 ||
+        strcmp(ent->d_name, ".staging") == 0)
       continue;
 
-    // TODO: do we want to check for dirs here?
+    if (strcmp(ent->d_name, DAMGR_JOURNAL) == 0)
+      continue; // the journal is not a .state/damgr entry
+
     if (ent->d_type == DT_REG || ent->d_type == DT_LNK || ent->d_type == DT_DIR)
       count++;
   }

@@ -71,6 +71,13 @@ Result_t(Ptr_t, ErrMessage_t)
   return Success(Ptr_t, ErrMessage_t)(dst);
 }
 
+Result_t(Ptr_t, ErrMessage_t) arena_alloc_r(Damgr_Arena *arena, size_t size) {
+  Ptr_t dst = damgr_arena_alloc(arena, size);
+  if (dst == nullptr)
+    return Err(Ptr_t, ErrMessage_t)("arena alloc failed");
+  return Success(Ptr_t, ErrMessage_t)(dst);
+}
+
 Result_t(Fid_t, ErrMessage_t)
     fopen_r(const char *fid_buffer, const char *mode) {
   FILE *fid = fopen(fid_buffer, mode);
