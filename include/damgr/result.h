@@ -45,7 +45,7 @@ const char *err_fmt(const char *fmt, ...);
 
 typedef void *Nullptr_t;
 typedef void *Ptr_t;
-typedef bool *Bool_t;
+typedef bool Bool_t;
 typedef FILE *Fid_t;
 typedef DIR *Dir_t;
 typedef const char *ErrMessage_t;

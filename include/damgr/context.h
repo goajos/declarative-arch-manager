@@ -40,7 +40,7 @@ Result_t(Nullptr_t, ErrMessage_t)
 
 #ifdef DAMGR_CONTEXT_IMPLEMENTATION
 
-void damgr_trim_string_inplace(char *str) {
+static void damgr_trim_string_inplace(char *str) {
   if (*str == '\0')
     return;
 
@@ -55,6 +55,37 @@ void damgr_trim_string_inplace(char *str) {
   *(end + 1) = '\0'; // ensure proper null termination
   if (start != str) {
     memmove(str, start, end - start + 2); // +2 includes the null terminator
+  }
+}
+
+static Result_t(Bool_t, ErrMessage_t)
+    is_state_dir_empty(const char *fid_buffer) {
+  auto dir_r = opendir_r(fid_buffer);
+  if (!dir_r.is_success)
+    return Err(Bool_t, ErrMessage_t)(dir_r.error);
+
+  DIR *dir = dir_r.value;
+  int count = 0;
+  struct dirent *ent;
+  // .backup and .staging are not .state/damgr entries
+  while ((ent = readdir(dir)) != nullptr) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 ||
+        strcmp(ent->d_name, DAMGR_BACKUP) == 0 ||
+        strcmp(ent->d_name, DAMGR_STAGING) == 0)
+      continue;
+
+    if (strcmp(ent->d_name, DAMGR_JOURNAL) == 0)
+      continue; // the journal is not a .state/damgr entry
+
+    if (ent->d_type == DT_REG || ent->d_type == DT_LNK || ent->d_type == DT_DIR)
+      count++;
+  }
+
+  closedir(dir);
+  if (count == 0) {
+    return Success(Bool_t, ErrMessage_t)(true);
+  } else {
+    return Success(Bool_t, ErrMessage_t)(false);
   }
 }
 
@@ -138,15 +169,20 @@ Result_t(Nullptr_t, ErrMessage_t)
                        Damgr_Arena *arena, struct stat *st) {
   Result_t(Bool_t, ErrMessage_t) bool_r;
   bool_r = damgr_make_dir(paths->state_dir, st);
-  if (!bool_r.is_success) {
+  if (!bool_r.is_success)
     return Err(Nullptr_t, ErrMessage_t)(bool_r.error);
-  }
+
+  bool_r = is_state_dir_empty(paths->state_dir);
+  if (!bool_r.is_success)
+    return Err(Nullptr_t, ErrMessage_t)(bool_r.error);
 
   Result_t(Nullptr_t, ErrMessage_t) nullptr_r;
-  if (!damgr_is_dir_empty(paths->state_dir).is_success) {
+  if (!bool_r.value) { // state dir is not empty, so read
     nullptr_r = read_config(context, arena, paths->state_config, true);
     if (!nullptr_r.is_success)
       return nullptr_r;
+
+    // nullptr_r = read_host(context, arena, paths->state_config)
   }
 
   nullptr_r = read_config(context, arena, paths->active_config, false);
