@@ -32,7 +32,7 @@ static Result_t(Bool_t, ErrMessage_t)
   memcpy(p_buffer, fid_buffer, len);
   p_buffer[len] = '\0';
 
-  auto result = lstat_r(p_buffer, st, S_ISDIR, ENOENT);
+  auto result = lstat_r(p_buffer, st, S_ISDIR);
   if (!result.is_success) {
     return result;
   }
@@ -49,7 +49,7 @@ static Result_t(Bool_t, ErrMessage_t)
 
 Result_t(Bool_t, ErrMessage_t)
     damgr_make_dir(const char *fid_buffer, struct stat *st) {
-  auto result = lstat_r(fid_buffer, st, S_ISDIR, ENOENT);
+  auto result = lstat_r(fid_buffer, st, S_ISDIR);
   if (!result.is_success) {
     return result;
   }

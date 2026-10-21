@@ -90,7 +90,7 @@ Result_t(Nullptr_t, ErrMessage_t)
   return Success(Nullptr_t, ErrMessage_t)(nullptr);
 }
 
-#define lstat_r(fid_buffer, st, mode, err)                                     \
+#define lstat_r(fid_buffer, st, mode)                                          \
   ({                                                                           \
     Result_t(Bool_t, ErrMessage_t) _result;                                    \
     if (lstat(fid_buffer, st) == 0) {                                          \
@@ -100,13 +100,14 @@ Result_t(Nullptr_t, ErrMessage_t)
             err_fmt("%s exists but is wrong file type: %s", fid_buffer,        \
                     strerror(errno)));                                         \
       } else {                                                                 \
-        _result = Success(Bool_t, ErrMessage_t)(_matched);                     \
+        /* exists and is right file type, so true  */                          \
+        _result = Success(Bool_t, ErrMessage_t)(true);                         \
       }                                                                        \
-    } else if (errno != err) {                                                 \
+    } else if (errno != ENOENT) {                                              \
       _result = Err(Bool_t, ErrMessage_t)(                                     \
           err_fmt("lstat failed: %s", strerror(errno)));                       \
     } else {                                                                   \
-      /* errno == ENOENT means the file doesn't exist */                       \
+      /* errno == ENOENT means the file doesn't exist, so false */             \
       _result = Success(Bool_t, ErrMessage_t)(false);                          \
     }                                                                          \
     _result;                                                                   \

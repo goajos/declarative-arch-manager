@@ -55,8 +55,10 @@ int main(int argc, char *argv[]) {
   }
 
   Damgr_Arena *arena = calloc(1, sizeof(Damgr_Arena));
-  if (arena == nullptr)
+  if (arena == nullptr) {
+    damgr_log(ERROR, "calloc arena failed");
     return EXIT_FAILURE;
+  }
   damgr_arena_init(arena);
 
   struct stat st;
