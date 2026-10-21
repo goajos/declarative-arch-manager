@@ -24,12 +24,21 @@ typedef struct paths {
 } Damgr_Paths;
 
 Result_t(Nullptr_t, ErrMessage_t)
-    damgr_paths_init(Damgr_Paths *paths, const char *home);
+    damgr_paths_init_r(Damgr_Paths *paths, const char *home);
+
+Result_t(Nullptr_t, ErrMessage_t)
+    damgr_resolve_host_path(const Damgr_Paths *paths, char *fid_buffer,
+                            size_t size, const char *host_name, bool is_state);
+
+Result_t(Nullptr_t, ErrMessage_t)
+    damgr_resolve_module_path(const Damgr_Paths *paths, char *fid_buffer,
+                              size_t size, const char *module_name,
+                              bool is_state);
 
 #ifdef DAMGR_PATHS_IMPLEMENTATION
 
 Result_t(Nullptr_t, ErrMessage_t)
-    damgr_paths_init(Damgr_Paths *paths, const char *home) {
+    damgr_paths_init_r(Damgr_Paths *paths, const char *home) {
   Result_t(Nullptr_t, ErrMessage_t) nullptr_r;
   nullptr_r = snprintf_r(paths->home, sizeof(paths->home), "%s", home);
   if (!nullptr_r.is_success)
@@ -80,5 +89,42 @@ Result_t(Nullptr_t, ErrMessage_t)
   return nullptr_r;
 }
 
+static Result_t(Nullptr_t, ErrMessage_t)
+    append_conf(const char *path, const char *name, char *fid_buffer,
+                size_t size, bool is_state) {
+  if (is_state)
+    return snprintf_r(fid_buffer, size, "%s/state_%s.conf", path, name);
+
+  return snprintf_r(fid_buffer, size, "%s/%s.conf", path, name);
+}
+
+Result_t(Nullptr_t, ErrMessage_t)
+    damgr_resolve_host_path(const Damgr_Paths *paths, char *fid_buffer,
+                            size_t size, const char *host_name, bool is_state) {
+  Result_t(Nullptr_t, ErrMessage_t) nullptr_r;
+  if (is_state) {
+    nullptr_r =
+        append_conf(paths->state_dir, host_name, fid_buffer, size, is_state);
+  } else {
+    nullptr_r = append_conf(paths->active_host_dir, host_name, fid_buffer, size,
+                            is_state);
+  }
+  return nullptr_r;
+}
+
+Result_t(Nullptr_t, ErrMessage_t)
+    damgr_resolve_module_path(const Damgr_Paths *paths, char *fid_buffer,
+                              size_t size, const char *module_name,
+                              bool is_state) {
+  Result_t(Nullptr_t, ErrMessage_t) nullptr_r;
+  if (is_state) {
+    nullptr_r =
+        append_conf(paths->state_dir, module_name, fid_buffer, size, is_state);
+  } else {
+    nullptr_r = append_conf(paths->active_module_dir, module_name, fid_buffer,
+                            size, is_state);
+  }
+  return nullptr_r;
+}
 #endif /* DAMGR_PATHS_IMPLEMENTATION */
 #endif /* DAMGR_PATHS_H */

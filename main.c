@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
 
   // Damgr_Paths paths = {nullptr};
   Damgr_Paths paths = {0};
-  auto nullptr_r = damgr_paths_init(&paths, home);
+  auto nullptr_r = damgr_paths_init_r(&paths, home);
   if (!nullptr_r.is_success) {
     damgr_log(ERROR, "failed to init paths: %s", nullptr_r.error);
     return EXIT_FAILURE;
@@ -67,11 +67,13 @@ int main(int argc, char *argv[]) {
   struct stat st;
   // Damgr_Context context = {nullptr};
   Damgr_Context context = {0};
-  nullptr_r = damgr_read_context(&paths, &context, arena, &st);
+  nullptr_r = damgr_read_context_r(&paths, &context, arena, &st);
   if (!nullptr_r.is_success) {
     damgr_log(ERROR, "failed to read context: %s", nullptr_r.error);
     return EXIT_FAILURE;
   }
+
+  damgr_log(INFO, "%s", context.active_host->modules[0]->module_name);
 
   int ret;
   Result_t(Bool_t, ErrMessage_t) bool_r;
@@ -88,12 +90,12 @@ int main(int argc, char *argv[]) {
      *    - .staging folder should exist
      *    - .staging folder should be empty
      * */
-    bool_r = damgr_make_dir(paths.staging_dir, &st);
+    bool_r = damgr_make_dir_r(paths.staging_dir, &st);
     if (!bool_r.is_success) {
       damgr_log(ERROR, "%s", bool_r.error);
       return EXIT_FAILURE;
     }
-    bool_r = damgr_is_dir_empty(paths.staging_dir);
+    bool_r = damgr_is_dir_empty_r(paths.staging_dir);
     if (!bool_r.is_success) {
       damgr_log(ERROR, "%s", bool_r.error);
       return EXIT_FAILURE;

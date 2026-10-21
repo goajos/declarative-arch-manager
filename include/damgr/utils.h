@@ -19,7 +19,7 @@ constexpr mode_t DAMGR_DIR_PERM = 0755;
 typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
 
 Result_t(Bool_t, ErrMessage_t)
-    damgr_make_dir(const char *fid_buffer, struct stat *st);
+    damgr_make_dir_r(const char *fid_buffer, struct stat *st);
 
 #ifdef DAMGR_UTILS_IMPLEMENTATION
 
@@ -43,7 +43,7 @@ static Result_t(Bool_t, ErrMessage_t)
 }
 
 static Result_t(Bool_t, ErrMessage_t)
-    make_dir_p(const char *fid_buffer, struct stat *st) {
+    make_dir_parent_r(const char *fid_buffer, struct stat *st) {
   const char *sep = strrchr(fid_buffer, '/');
   if (sep == nullptr || sep == fid_buffer)
     return Success(Bool_t, ErrMessage_t)(true);
@@ -64,7 +64,7 @@ static Result_t(Bool_t, ErrMessage_t)
   if (bool_r.value) // parent already exists
     return Success(Bool_t, ErrMessage_t)(true);
 
-  bool_r = make_dir_p(p_buffer, st);
+  bool_r = make_dir_parent_r(p_buffer, st);
   if (!bool_r.is_success)
     return bool_r;
 
@@ -72,7 +72,7 @@ static Result_t(Bool_t, ErrMessage_t)
 }
 
 Result_t(Bool_t, ErrMessage_t)
-    damgr_make_dir(const char *fid_buffer, struct stat *st) {
+    damgr_make_dir_r(const char *fid_buffer, struct stat *st) {
   auto bool_r = lstat_r(fid_buffer, st, DIR_TYPE);
   if (!bool_r.is_success)
     return bool_r;
@@ -80,7 +80,7 @@ Result_t(Bool_t, ErrMessage_t)
   if (bool_r.value) // folder already exists
     return Success(Bool_t, ErrMessage_t)(true);
 
-  bool_r = make_dir_p(fid_buffer, st);
+  bool_r = make_dir_parent_r(fid_buffer, st);
   if (!bool_r.is_success) {
     return bool_r;
   }
@@ -88,7 +88,7 @@ Result_t(Bool_t, ErrMessage_t)
   return mkdir_r(fid_buffer, DAMGR_DIR_PERM);
 }
 
-Result_t(Bool_t, ErrMessage_t) damgr_is_dir_empty(const char *fid_buffer) {
+Result_t(Bool_t, ErrMessage_t) damgr_is_dir_empty_r(const char *fid_buffer) {
   auto dir_r = opendir_r(fid_buffer);
   if (!dir_r.is_success)
     return Err(Bool_t, ErrMessage_t)(dir_r.error);
