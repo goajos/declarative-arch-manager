@@ -81,6 +81,11 @@ int main(int argc, char *argv[]) {
       damgr_log(ERROR, "%s", bool_r.error);
       return EXIT_FAILURE;
     }
+    bool_r = damgr_is_dir_empty(paths.staging_dir);
+    if (!bool_r.is_success) {
+      damgr_log(ERROR, "%s", bool_r.error);
+      return EXIT_FAILURE;
+    }
     // ret = damgr_stage(&paths, arena);
     ret = EXIT_SUCCESS;
     break;

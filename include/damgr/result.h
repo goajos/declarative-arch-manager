@@ -1,6 +1,7 @@
 #ifndef RESULT_H
 #define RESULT_H
 #define _DEFAULT_SOURCE
+#include <dirent.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -44,8 +45,9 @@ const char *err_fmt(const char *fmt, ...);
 
 typedef void *Nullptr_t;
 typedef void *Ptr_t;
-typedef FILE *Fid_t;
 typedef bool *Bool_t;
+typedef FILE *Fid_t;
+typedef DIR *Dir_t;
 typedef const char *ErrMessage_t;
 
 Result_t(Ptr_t, ErrMessage_t);
@@ -71,11 +73,19 @@ Result_t(Ptr_t, ErrMessage_t)
 
 Result_t(Fid_t, ErrMessage_t)
     fopen_r(const char *fid_buffer, const char *mode) {
-  Fid_t fid = fopen(fid_buffer, mode);
+  FILE *fid = fopen(fid_buffer, mode);
   if (fid == nullptr)
     return Err(Fid_t, ErrMessage_t)(
         err_fmt("could not open fid %s: %s", fid_buffer, strerror(errno)));
   return Success(Fid_t, ErrMessage_t)(fid);
+}
+
+Result_t(Dir_t, ErrMessage_t) opendir_r(const char *fid_buffer) {
+  DIR *dir = opendir(fid_buffer);
+  if (dir == nullptr)
+    return Err(Dir_t, ErrMessage_t)(
+        err_fmt("could not open dir %s: %s", fid_buffer, strerror(errno)));
+  return Success(Dir_t, ErrMessage_t)(dir);
 }
 
 Result_t(Nullptr_t, ErrMessage_t)
@@ -89,29 +99,6 @@ Result_t(Nullptr_t, ErrMessage_t)
         err_fmt("\"%s\": %s", out, strerror(ENAMETOOLONG)));
   return Success(Nullptr_t, ErrMessage_t)(nullptr);
 }
-
-#define lstat_r(fid_buffer, st, mode)                                          \
-  ({                                                                           \
-    Result_t(Bool_t, ErrMessage_t) _result;                                    \
-    if (lstat(fid_buffer, st) == 0) {                                          \
-      bool _matched = mode(st->st_mode);                                       \
-      if (!_matched) {                                                         \
-        _result = Err(Bool_t, ErrMessage_t)(                                   \
-            err_fmt("%s exists but is wrong file type: %s", fid_buffer,        \
-                    strerror(errno)));                                         \
-      } else {                                                                 \
-        /* exists and is right file type, so true  */                          \
-        _result = Success(Bool_t, ErrMessage_t)(true);                         \
-      }                                                                        \
-    } else if (errno != ENOENT) {                                              \
-      _result = Err(Bool_t, ErrMessage_t)(                                     \
-          err_fmt("lstat failed: %s", strerror(errno)));                       \
-    } else {                                                                   \
-      /* errno == ENOENT means the file doesn't exist, so false */             \
-      _result = Success(Bool_t, ErrMessage_t)(false);                          \
-    }                                                                          \
-    _result;                                                                   \
-  })
 
 Result_t(Bool_t, ErrMessage_t)
     mkdir_r(const char *fid_buffer, const mode_t perm) {
