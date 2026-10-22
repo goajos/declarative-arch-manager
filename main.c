@@ -73,8 +73,6 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  damgr_log(INFO, "%s", context.active_host->host_name);
-
   int ret;
   switch (command_idx) {
   case 0:

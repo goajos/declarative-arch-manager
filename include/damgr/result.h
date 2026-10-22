@@ -1,5 +1,5 @@
-#ifndef RESULT_H
-#define RESULT_H
+#ifndef DAMGR_RESULT_H
+#define DAMGR_RESULT_H
 #define _DEFAULT_SOURCE
 #include <dirent.h>
 #include <errno.h>
@@ -16,7 +16,7 @@
 #include "damgr/log.h"
 #endif
 
-constexpr size_t DAMGR_RESULT_BUFFER_MAX = 512;
+constexpr size_t RESULT_BUFFER_MAX = 512;
 
 typedef struct Result {
   bool is_success;
@@ -39,7 +39,7 @@ const char *err_fmt(const char *fmt, ...);
 #ifdef DAMGR_RESULT_IMPLEMENTATION
 
 const char *err_fmt(const char *fmt, ...) {
-  static char err_buffer[DAMGR_RESULT_BUFFER_MAX];
+  static char err_buffer[RESULT_BUFFER_MAX];
   va_list args;
   va_start(args, fmt);
   vsnprintf(err_buffer, sizeof(err_buffer), fmt, args);
@@ -96,4 +96,4 @@ Result_t mkdir_r(const char *fid_buffer, const mode_t perm) {
 }
 
 #endif /* DAMGR_RESULT_IMPLEMENTATION */
-#endif /* RESULT_H */
+#endif /* DAMGR_RESULT_H */

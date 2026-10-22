@@ -52,7 +52,7 @@ static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
   char p_buffer[PATH_BUFFER_MAX];
   size_t len = (size_t)(sep - fid_buffer);
   if (len >= sizeof(p_buffer))
-    return Error(err_fmt("\"%s\": %s", p_buffer, strerror(ENAMETOOLONG)));
+    return Error(err_fmt("\"%s\": %s", fid_buffer, strerror(ENAMETOOLONG)));
 
   memcpy(p_buffer, fid_buffer, len);
   p_buffer[len] = '\0';
@@ -89,7 +89,8 @@ Result_t is_dir_empty_r(const char *fid_buffer, bool *out) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
       continue;
 
-    if (ent->d_type == DT_REG || ent->d_type == DT_LNK || ent->d_type == DT_DIR)
+    if (ent->d_type == DT_REG || ent->d_type == DT_LNK ||
+        ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN)
       count++;
   }
 
