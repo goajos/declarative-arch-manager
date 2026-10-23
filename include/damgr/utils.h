@@ -3,13 +3,8 @@
 #include <dirent.h>
 #include <string.h>
 
-#ifndef DAMGR_RESULT_H
-#include "damgr/result.h"
-#endif
-
-#ifndef DAMGR_PATHS_H
 #include "damgr/paths.h"
-#endif
+#include "damgr/result.h"
 
 #define BACKUP ".backup"
 #define STAGING ".staging"
@@ -18,7 +13,8 @@ constexpr mode_t DIR_PERM = 0755;
 
 typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
 
-Result_t make_dir_r(const char *fid_buffer, struct stat *st, bool *out);
+Result_t damgr_make_dir_r(const char *fid_buffer, struct stat *st, bool *out);
+Result_t damgr_is_dir_empty_r(const char *fid_buffer, bool *out);
 
 #ifdef DAMGR_UTILS_IMPLEMENTATION
 
@@ -29,13 +25,14 @@ static Result_t lstat_r(const char *fid_buffer, struct stat *st,
         (type == DIR_TYPE) ? S_ISDIR(st->st_mode) : S_ISREG(st->st_mode);
 
     if (!matched)
-      return Error(err_fmt("%s exists but is wrong file type", fid_buffer));
+      return Error(
+          damgr_err_fmt("%s exists but is wrong file type", fid_buffer));
     // exists and is right file type, so true
     *out = true;
     return Success;
   }
   if (errno != ENOENT)
-    return Error(err_fmt("lstat failed: %s", strerror(errno)));
+    return Error(damgr_err_fmt("lstat failed: %s", strerror(errno)));
   // errno == ENOENT means the file doesn't exist, so false
   *out = false;
   return Success;
@@ -52,7 +49,8 @@ static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
   char p_buffer[PATH_BUFFER_MAX];
   size_t len = (size_t)(sep - fid_buffer);
   if (len >= sizeof(p_buffer))
-    return Error(err_fmt("\"%s\": %s", fid_buffer, strerror(ENAMETOOLONG)));
+    return Error(
+        damgr_err_fmt("\"%s\": %s", fid_buffer, strerror(ENAMETOOLONG)));
 
   memcpy(p_buffer, fid_buffer, len);
   p_buffer[len] = '\0';
@@ -64,10 +62,10 @@ static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
 
   DAMGR_CALL(make_dir_parent_r(p_buffer, st, out));
 
-  return mkdir_r(p_buffer, DIR_PERM);
+  return damgr_mkdir_r(p_buffer, DIR_PERM);
 }
 
-Result_t make_dir_r(const char *fid_buffer, struct stat *st, bool *out) {
+Result_t damgr_make_dir_r(const char *fid_buffer, struct stat *st, bool *out) {
   DAMGR_CALL(lstat_r(fid_buffer, st, DIR_TYPE, out));
 
   if (*out) // folder already exists
@@ -75,12 +73,12 @@ Result_t make_dir_r(const char *fid_buffer, struct stat *st, bool *out) {
 
   DAMGR_CALL(make_dir_parent_r(fid_buffer, st, out));
 
-  return mkdir_r(fid_buffer, DIR_PERM);
+  return damgr_mkdir_r(fid_buffer, DIR_PERM);
 }
 
-Result_t is_dir_empty_r(const char *fid_buffer, bool *out) {
+Result_t damgr_is_dir_empty_r(const char *fid_buffer, bool *out) {
   DIR *dir;
-  DAMGR_CALL(opendir_r(fid_buffer, &dir));
+  DAMGR_CALL(damgr_opendir_r(fid_buffer, &dir));
 
   int count = 0;
   struct dirent *ent;
@@ -99,7 +97,7 @@ Result_t is_dir_empty_r(const char *fid_buffer, bool *out) {
     *out = true;
     return Success;
   } else {
-    return Error(err_fmt("%s: %s", fid_buffer, strerror(ENOTEMPTY)));
+    return Error(damgr_err_fmt("%s: %s", fid_buffer, strerror(ENOTEMPTY)));
   }
 }
 

@@ -12,18 +12,18 @@ typedef struct arena {
   size_t offset;
 } Damgr_Arena;
 
-void arena_init(Damgr_Arena *arena);
-void *arena_alloc(Damgr_Arena *arena, size_t size);
-char *arena_strdup(Damgr_Arena *arena, const char *src);
+void damgr_arena_init(Damgr_Arena *arena);
+void *damgr_arena_alloc(Damgr_Arena *arena, size_t size);
+char *damgr_arena_strdup(Damgr_Arena *arena, const char *src);
 
 #ifdef DAMGR_ARENA_IMPLEMENTATION
 
-void arena_init(Damgr_Arena *arena) {
+void damgr_arena_init(Damgr_Arena *arena) {
   if (arena != nullptr)
     arena->offset = 0;
 }
 
-void *arena_alloc(Damgr_Arena *arena, size_t size) {
+void *damgr_arena_alloc(Damgr_Arena *arena, size_t size) {
   if (arena == nullptr || size == 0)
     return nullptr;
 
@@ -38,12 +38,12 @@ void *arena_alloc(Damgr_Arena *arena, size_t size) {
   }
 }
 
-char *arena_strdup(Damgr_Arena *arena, const char *src) {
+char *damgr_arena_strdup(Damgr_Arena *arena, const char *src) {
   if (arena == nullptr || src == nullptr)
     return nullptr;
 
   size_t len = strlen(src) + 1; // null terminator
-  char *dst = arena_alloc(arena, len);
+  char *dst = damgr_arena_alloc(arena, len);
   if (dst != nullptr) {
     memcpy(dst, src, len);
   }

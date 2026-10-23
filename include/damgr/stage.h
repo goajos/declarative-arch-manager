@@ -1,0 +1,7 @@
+#ifndef DAMGR_STAGE_H
+#define DAMGR_STAGE_H
+
+#ifdef DAMGR_STAGE_IMPLEMENTATION
+
+#endif /* DAMGR_STAGE_IMPLEMENTATION */
+#endif /* DAMGR_STAGE_H */

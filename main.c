@@ -49,9 +49,8 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  // Damgr_Paths paths = {nullptr};
   Damgr_Paths paths = {0};
-  auto r = paths_init_r(&paths, home);
+  auto r = damgr_paths_init_r(&paths, home);
   if (!r.is_success) {
     damgr_log(ERROR, "failed to init paths: %s", r.error);
     return EXIT_FAILURE;
@@ -62,13 +61,12 @@ int main(int argc, char *argv[]) {
     damgr_log(ERROR, "calloc arena failed");
     return EXIT_FAILURE;
   }
-  arena_init(arena);
+  damgr_arena_init(arena);
 
   struct stat st;
-  // Damgr_Context context = {nullptr};
   // TODO: do we need context everytime?
   Damgr_Context context = {0};
-  r = read_context_r(&paths, &context, arena, &st);
+  r = damgr_read_context_r(&paths, &context, arena, &st);
   if (!r.is_success) {
     damgr_log(ERROR, "failed to read context: %s", r.error);
     return EXIT_FAILURE;
@@ -89,12 +87,12 @@ int main(int argc, char *argv[]) {
      *    - .staging folder should be empty
      * */
     bool empty;
-    r = make_dir_r(paths.staging_dir, &st, &empty);
+    r = damgr_make_dir_r(paths.staging_dir, &st, &empty);
     if (!r.is_success) {
       damgr_log(ERROR, "%s", r.error);
       return EXIT_FAILURE;
     }
-    r = is_dir_empty_r(paths.staging_dir, &empty);
+    r = damgr_is_dir_empty_r(paths.staging_dir, &empty);
     if (!r.is_success) {
       damgr_log(ERROR, "%s", r.error);
       return EXIT_FAILURE;
