@@ -24,6 +24,7 @@
  * */
 Result_t damgr_check_merge_preconditions(Damgr_Paths *paths, struct stat *st);
 
+// TODO: have all the diff + transaction logic inside merge?
 #ifdef DAMGR_MERGE_IMPLEMENTATION
 
 Result_t damgr_check_merge_preconditions(Damgr_Paths *paths, struct stat *st) {

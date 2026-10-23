@@ -16,6 +16,9 @@
 #define DAMGR_CONTEXT_IMPLEMENTATION
 #include "damgr/context.h"
 
+#define DAMGR_JOURNAL_IMPLEMENTATION
+#include "damgr/journal.h"
+
 #define DAMGR_COMMIT_IMPLEMENTATION
 #include "damgr/commit.h"
 

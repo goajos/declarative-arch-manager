@@ -25,6 +25,7 @@
  * */
 Result_t damgr_check_commit_preconditions(Damgr_Paths *paths, struct stat *st);
 
+// TODO: have all the copy file logic inside commit?
 #ifdef DAMGR_COMMIT_IMPLEMENTATION
 
 Result_t damgr_check_commit_preconditions(Damgr_Paths *paths, struct stat *st) {
