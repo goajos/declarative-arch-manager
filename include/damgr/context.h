@@ -53,6 +53,22 @@ Result_t damgr_read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
 
 #ifdef DAMGR_CONTEXT_IMPLEMENTATION
 
+static const char *module_key_string(const Damgr_Mod_Key key) {
+  switch (key) {
+  case AUR:
+    return "aur_packages";
+  case PKG:
+    return "packages";
+  case SVC:
+    return "services";
+  case DOT:
+    return "dotfiles";
+  case NONE:
+    return "";
+  }
+  return "";
+}
+
 static void trim_string_inplace(char *str) {
   char *start = str;
   while (isspace((unsigned char)*start))
@@ -79,10 +95,10 @@ static Result_t is_state_dir_empty_r(const char *fid_buffer, bool *empty) {
 
   int count = 0;
   struct dirent *ent;
-  // .backup and .staging are not .state/damgr entries
+  // .tmp and are not .state/damgr entries
   while ((ent = readdir(dir)) != nullptr) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 ||
-        strcmp(ent->d_name, BACKUP) == 0 || strcmp(ent->d_name, STAGING) == 0)
+        strcmp(ent->d_name, TMP) == 0)
       continue;
 
     if (strcmp(ent->d_name, JOURNAL) == 0)
@@ -111,6 +127,10 @@ static Result_t parse_config_r(Damgr_Context *context, Damgr_Arena *arena,
   Damgr_Host *host = {0};
   char *dup;
 
+  char *is_state_str = is_state ? "state" : "active";
+  bool aur_parsed = false;
+  bool host_parsed = false;
+
   char line[LINE_MAX];
   while (fgets(line, sizeof(line), config_fid)) {
     if (line[0] == '\n') // skip newlines
@@ -130,11 +150,23 @@ static Result_t parse_config_r(Damgr_Context *context, Damgr_Arena *arena,
     trim_string_inplace(val);
 
     if (strcmp(key, "aur_helper") == 0) {
+      if (aur_parsed)
+        return Error(
+            damgr_err_fmt("detected a duplicate header parsing %s config: %s",
+                          is_state_str, key));
+      aur_parsed = true;
+
       if (!is_state)
         DAMGR_CALL(damgr_arena_strdup_r(arena, val, &context->aur_helper));
 
       // TODO: do we need to replace active_host with host somewhere else?
     } else if (strcmp(key, "host") == 0) {
+      if (host_parsed)
+        return Error(
+            damgr_err_fmt("detected a duplicate header parsing %s config: %s",
+                          is_state_str, key));
+      host_parsed = true;
+
       DAMGR_CALL(
           damgr_arena_alloc_r(arena, sizeof(Damgr_Host), (void **)&host));
       DAMGR_CALL(damgr_arena_strdup_r(arena, val, &dup));
@@ -145,6 +177,10 @@ static Result_t parse_config_r(Damgr_Context *context, Damgr_Arena *arena,
         context->active_host = host;
         context->active_host->host_name = dup;
       }
+    } else {
+      return Error(
+          damgr_err_fmt("detected an invalid header parsing %s config: %s",
+                        is_state_str, key));
     }
   }
   return Success;
@@ -167,6 +203,8 @@ static Result_t parse_host_r(Damgr_Host *host, Damgr_Arena *arena,
   size_t modules_cnt = 0;
   char *dup;
 
+  bool modules_parsed = false;
+
   char line[LINE_MAX];
   while (fgets(line, sizeof(line), host_fid)) {
     if (line[0] == '\n') // skip newlines
@@ -179,7 +217,7 @@ static Result_t parse_host_r(Damgr_Host *host, Damgr_Arena *arena,
       // non = lines should be indented
       if (!isspace((unsigned char)line[0]))
         return Error(damgr_err_fmt(
-            "detected a not indented line parsing modules for host %s:\n%s",
+            "detected a not indented line parsing modules for host %s: %s",
             host->host_name, line));
 
       // is indented
@@ -198,14 +236,22 @@ static Result_t parse_host_r(Damgr_Host *host, Damgr_Arena *arena,
       char *val = eq + 1;
       trim_string_inplace(key);
       trim_string_inplace(val);
-      if (strcmp(key, "modules") != 0)
-        return Error(
-            damgr_err_fmt("detected a invalid key parsing host %s:\n%s",
-                          host->host_name, key));
+      if (strcmp(key, "modules") == 0) {
+        if (modules_parsed)
+          return Error(
+              damgr_err_fmt("detected a duplicate header parsing host %s: %s",
+                            host->host_name, "modules"));
+        modules_parsed = true;
 
-      if (*val != '\0' && *val != '\n') {
-        DAMGR_CALL(append_stack_array_check_r(arena, modules_cnt, val, &dup));
-        stack_modules[modules_cnt++] = dup;
+        if (*val != '\0' && *val != '\n') {
+          DAMGR_CALL(append_stack_array_check_r(arena, modules_cnt, val, &dup));
+          stack_modules[modules_cnt++] = dup;
+        }
+
+      } else {
+        return Error(
+            damgr_err_fmt("detected an invalid header parsing host %s: %s",
+                          host->host_name, key));
       }
     }
   } // end while
@@ -285,7 +331,7 @@ static Result_t parse_module_r(Damgr_Mod *module, Damgr_Arena *arena,
       // non = lines should be indented
       if (!isspace((unsigned char)line[0]))
         return Error(
-            damgr_err_fmt("detected a not indented line parsing module %s:\n%s",
+            damgr_err_fmt("detected a not indented line parsing module %s: %s",
                           module->mod_name, line));
 
       if (cur_key == NONE)
@@ -321,8 +367,14 @@ static Result_t parse_module_r(Damgr_Mod *module, Damgr_Arena *arena,
         next_key = DOT;
       else
         return Error(
-            damgr_err_fmt("detected an invalid key parsing module %s:\n%s",
+            damgr_err_fmt("detected an invalid key parsing module %s: %s",
                           module->mod_name, key));
+
+      // prevent data corruption with duplicate headers
+      if (span[next_key - 1].cnt > 0)
+        return Error(
+            damgr_err_fmt("detected a duplicate header parsing module %s: %s",
+                          module->mod_name, module_key_string(next_key)));
 
       span[next_key - 1].start = cnt;
       cur_key = next_key;
@@ -407,8 +459,7 @@ static Result_t read_module_r(Damgr_Mod *module, Damgr_Arena *arena,
  *    - .state/damgr folder should exist
  *    - .state/damgr folder should be empty, excluding:
  *      - .journal
- *      - .staging/
- *      - .backup/
+ *      - .tmp/
  * */
 Result_t damgr_read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
                               Damgr_Arena *arena, struct stat *st) {

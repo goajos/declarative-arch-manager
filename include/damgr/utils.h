@@ -6,8 +6,7 @@
 #include "damgr/paths.h"
 #include "damgr/result.h"
 
-#define BACKUP ".backup"
-#define STAGING ".staging"
+#define TMP ".tmp"
 #define JOURNAL ".journal"
 constexpr mode_t DIR_PERM = 0755;
 
@@ -43,7 +42,6 @@ static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
                                   bool *out) {
   const char *sep = strrchr(fid_buffer, '/');
   if (sep == nullptr || sep == fid_buffer) {
-    *out = true;
     return Success;
   }
 
@@ -83,7 +81,6 @@ Result_t damgr_is_dir_empty_r(const char *fid_buffer, bool *out) {
 
   int count = 0;
   struct dirent *ent;
-  // .backup and .staging are not .state/damgr entries
   while ((ent = readdir(dir)) != nullptr) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
       continue;

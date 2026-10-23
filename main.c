@@ -16,9 +16,6 @@
 #define DAMGR_CONTEXT_IMPLEMENTATION
 #include "damgr/context.h"
 
-#define DAMGR_STAGE_IMPLEMENTATION
-#include "damgr/stage.h"
-
 #define DAMGR_COMMIT_IMPLEMENTATION
 #include "damgr/commit.h"
 
@@ -29,25 +26,23 @@ int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
   if (argc == 1) {
     damgr_log(ERROR, "No damgr argument given, possible commands "
-                     "are:\n\tdamgr merge\n\tdamgr stage\n\tdamgr commit");
+                     "are:\n\tdamgr merge\n\tdamgr commit");
     return EXIT_FAILURE;
   }
   if (argc > 2) {
     damgr_log(ERROR, "Too many damgr arguments, possible commands "
-                     "are:\n\tdamgr merge\n\tdamgr stage\n\tdamgr commit");
+                     "are:\n\tdamgr merge\n\tdamgr commit");
     return EXIT_FAILURE;
   }
 
   int command_idx;
   if (strcmp(argv[1], "merge") == 0) {
     command_idx = 0;
-  } else if (strcmp(argv[1], "stage") == 0) {
-    command_idx = 1;
   } else if (strcmp(argv[1], "commit") == 0) {
-    command_idx = 2;
+    command_idx = 1;
   } else {
     damgr_log(ERROR, "Not a valid damgr argument, possible commands "
-                     "are:\n\tdamgr merge\n\tdamgr stage\n\tdamgr commit");
+                     "are:\n\tdamgr merge\n\tdamgr commit");
     return EXIT_FAILURE;
   }
 
@@ -94,16 +89,6 @@ int main(int argc, char *argv[]) {
     // ret = damgr_merge(&paths, arena);
     break;
   case 1:
-    damgr_log(INFO, "starting damgr stage!");
-    return EXIT_FAILURE;
-    auto r = damgr_check_stage_preconditions(&paths, &st);
-    if (!r.is_success) {
-      damgr_log(ERROR, "stage pre condition failed: %s", r.error);
-      goto cleanup;
-    }
-    // ret = damgr_stage(&paths, arena);
-    break;
-  case 2:
     damgr_log(INFO, "starting damgr commit!");
     // TODO: journal guard?
     r = damgr_check_commit_preconditions(&paths, &st);

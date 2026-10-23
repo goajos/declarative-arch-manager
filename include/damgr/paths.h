@@ -15,8 +15,7 @@ typedef struct paths {
   char active_dotfile_dir[PATH_BUFFER_MAX]; // ~/.config/damgr/dotfiles
   char state_dir[PATH_BUFFER_MAX];          // ~/.local/state/damgr
   char state_config[PATH_BUFFER_MAX]; // ~/.local/state/damgr/state_config.conf
-  char staging_dir[PATH_BUFFER_MAX];  // ~/.local/state/damgr/.staging
-  char backup_dir[PATH_BUFFER_MAX];   // ~/.local/state/damgr/.backup
+  char tmp_dir[PATH_BUFFER_MAX];      // ~/.local/state/damgr/.tmp
   char journal[PATH_BUFFER_MAX];      // ~/.local/state/damgr/.journal
 } Damgr_Paths;
 
@@ -52,10 +51,8 @@ Result_t damgr_paths_init_r(Damgr_Paths *paths, const char *home) {
                               "%s/.local/state/damgr", home));
   DAMGR_CALL(damgr_snprintf_r(paths->state_config, sizeof(paths->state_config),
                               "%s/.local/state/damgr/state_config.conf", home));
-  DAMGR_CALL(damgr_snprintf_r(paths->staging_dir, sizeof(paths->staging_dir),
-                              "%s/.local/state/damgr/.staging", home));
-  DAMGR_CALL(damgr_snprintf_r(paths->backup_dir, sizeof(paths->backup_dir),
-                              "%s/.local/state/damgr/.backup", home));
+  DAMGR_CALL(damgr_snprintf_r(paths->tmp_dir, sizeof(paths->tmp_dir),
+                              "%s/.local/state/damgr/.tmp", home));
   DAMGR_CALL(damgr_snprintf_r(paths->journal, sizeof(paths->journal),
                               "%s/.local/state/damgr/.journal", home));
   return Success;
