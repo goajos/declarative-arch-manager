@@ -16,6 +16,15 @@
 #define DAMGR_CONTEXT_IMPLEMENTATION
 #include "damgr/context.h"
 
+#define DAMGR_STAGE_IMPLEMENTATION
+#include "damgr/stage.h"
+
+#define DAMGR_COMMIT_IMPLEMENTATION
+#include "damgr/commit.h"
+
+#define DAMGR_MERGE_IMPLEMENTATION
+#include "damgr/merge.h"
+
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
   if (argc == 1) {
@@ -49,8 +58,9 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  Result_t r;
   Damgr_Paths paths = {0};
-  auto r = damgr_paths_init_r(&paths, home);
+  r = damgr_paths_init_r(&paths, home);
   if (!r.is_success) {
     damgr_log(ERROR, "failed to init paths: %s", r.error);
     return EXIT_FAILURE;
@@ -69,50 +79,45 @@ int main(int argc, char *argv[]) {
   r = damgr_read_context_r(&paths, &context, arena, &st);
   if (!r.is_success) {
     damgr_log(ERROR, "failed to read context: %s", r.error);
-    return EXIT_FAILURE;
+    goto cleanup;
   }
 
-  int ret;
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
-    // TODO: ensure all the direcotires are made for merge
+    // TODO: journal guard?
+    r = damgr_check_merge_preconditions(&paths, &st);
+    if (!r.is_success) {
+      damgr_log(ERROR, "merge pre condition failed: %s", r.error);
+      goto cleanup;
+    }
     // ret = damgr_merge(&paths, arena);
-    ret = EXIT_SUCCESS;
     break;
   case 1:
     damgr_log(INFO, "starting damgr stage!");
-    /*  stage preconditions:
-     *    - .staging folder should exist
-     *    - .staging folder should be empty
-     * */
-    bool empty;
-    r = damgr_make_dir_r(paths.staging_dir, &st, &empty);
+    return EXIT_FAILURE;
+    auto r = damgr_check_stage_preconditions(&paths, &st);
     if (!r.is_success) {
-      damgr_log(ERROR, "%s", r.error);
-      return EXIT_FAILURE;
-    }
-    r = damgr_is_dir_empty_r(paths.staging_dir, &empty);
-    if (!r.is_success) {
-      damgr_log(ERROR, "%s", r.error);
-      return EXIT_FAILURE;
+      damgr_log(ERROR, "stage pre condition failed: %s", r.error);
+      goto cleanup;
     }
     // ret = damgr_stage(&paths, arena);
-    ret = EXIT_SUCCESS;
     break;
   case 2:
     damgr_log(INFO, "starting damgr commit!");
-    // TODO: ensure all the direcotires are made for commit
+    // TODO: journal guard?
+    r = damgr_check_commit_preconditions(&paths, &st);
+    if (!r.is_success) {
+      damgr_log(ERROR, "commit pre condition failed: %s", r.error);
+      goto cleanup;
+    }
     // ret = damgr_commit(&paths);
-    ret = EXIT_SUCCESS;
     break;
   }
 
   free(arena);
-  if (ret != EXIT_SUCCESS) {
-    damgr_log(ERROR, "damgr %s failed...", argv[1]);
-  } else {
-    damgr_log(INFO, "damgr finished!");
-  }
-  return ret;
+  return EXIT_SUCCESS;
+cleanup:
+  free(arena);
+  return EXIT_FAILURE;
 }
