@@ -7,10 +7,14 @@
 
 /* commit copies the state files into the .tmp folder before copying the
  * active files into the state folder.
+ *
+ * on success: commit will clean up the .tmp folder and call journal to clean up
+ * the .journal file.
  */
 
 /* commit postconditions:
  *   - .tmp folder doesn't exist
+ *   - .journal doesn't exist
  * */
 
 /*  commit preconditions:

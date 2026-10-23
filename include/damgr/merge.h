@@ -5,23 +5,22 @@
 #include "damgr/result.h"
 #include "damgr/utils.h"
 
-/* merge gathers tasks from the active and state config diff, runs the task
- * transactions and on success runs commit.
+/* merge calls journal to create the .journal file and gathers tasks from the
+ * active and state config diff, runs the task transactions.
+ *
+ * on success: merge calls commit
  */
 
 /* merge postconditions:
- *   - .state folder exists
  *   - .state folder contains 1 file for every active config/host/module file
  *   - .tmp folder doesn't exist
- *   - .journal exist
- *   - .journal status DONE
+ *   - .journal exists
  */
 
 /*  merge preconditions:
  *   - .state folder exists
  *   - .tmp folder doesn't exist
- *   - .journal exists
- *   - .journal status PENDING
+ *   - .journal doesn't exist
  * */
 Result_t damgr_check_merge_preconditions(Damgr_Paths *paths, struct stat *st);
 
