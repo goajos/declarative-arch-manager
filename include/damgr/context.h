@@ -96,7 +96,8 @@ static Result_t is_state_dir_empty_r(const char *fid_buffer, bool *empty) {
     if (strcmp(ent->d_name, JOURNAL) == 0)
       continue; // the journal is not a .state/damgr entry
 
-    if (ent->d_type == DT_REG || ent->d_type == DT_LNK || ent->d_type == DT_DIR)
+    if (ent->d_type == DT_REG || ent->d_type == DT_LNK ||
+        ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN)
       count++;
   }
 
@@ -115,10 +116,10 @@ static Result_t append_stack_array_check_r(Damgr_Arena *arena, size_t cnt,
 
 static Result_t parse_config_r(Damgr_Context *context, Damgr_Arena *arena,
                                FILE *config_fid, bool is_state) {
-  Damgr_Host *host;
+  Damgr_Host *host = {0};
   char *dup;
-  char line[LINE_MAX];
 
+  char line[LINE_MAX];
   while (fgets(line, sizeof(line), config_fid)) {
     if (line[0] == '\n') // skip newlines
       continue;
@@ -167,12 +168,13 @@ static Result_t read_config_r(Damgr_Context *context, Damgr_Arena *arena,
 
 static Result_t parse_host_r(Damgr_Host *host, Damgr_Arena *arena,
                              FILE *host_fid) {
-  Damgr_Mod **modules;
-  Damgr_Mod *module;
-  char *dup;
-  char line[LINE_MAX];
-  char *stack_modules[ARRAY_BUFFER_MAX];
+  Damgr_Mod **modules = {0};
+  Damgr_Mod *module = {0};
+  char *stack_modules[ARRAY_BUFFER_MAX] = {0};
   size_t modules_cnt = 0;
+  char *dup;
+
+  char line[LINE_MAX];
   while (fgets(line, sizeof(line), host_fid)) {
     if (line[0] == '\n') // skip newlines
       continue;
@@ -268,12 +270,13 @@ static Result_t parse_item_r(Damgr_Arena *arena, char *src, const size_t cnt,
 
 static Result_t parse_module_r(Damgr_Mod *module, Damgr_Arena *arena,
                                FILE *module_fid) {
-  char line[LINE_MAX];
-  Damgr_Mod_Item *stack_item;
-  Damgr_Mod_Item *stack_items[ARRAY_BUFFER_MAX];
+  Damgr_Mod_Item *stack_item = {0};
+  Damgr_Mod_Item *stack_items[ARRAY_BUFFER_MAX] = {0};
   size_t cnt = 0;
   Damgr_Mod_Key cur_key = NONE;
   Damgr_Mod_Span span[MOD_KEY_CNT] = {0};
+
+  char line[LINE_MAX];
   while (fgets(line, sizeof(line), module_fid)) {
     if (line[0] == '\n') // skip newlines
       continue;

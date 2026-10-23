@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
 
   struct stat st;
   // Damgr_Context context = {nullptr};
+  // TODO: do we need context everytime?
   Damgr_Context context = {0};
   r = read_context_r(&paths, &context, arena, &st);
   if (!r.is_success) {

@@ -4,11 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-constexpr size_t DAMGR_ARENA_BUFFER_SIZE = 1024 * 1024;
-constexpr size_t DAMGR_ALIGN = 16;
+constexpr size_t ARENA_BUFFER_SIZE = 1024 * 1024;
+constexpr size_t ALIGN = 16;
 
 typedef struct arena {
-  uint8_t arena_buf[DAMGR_ARENA_BUFFER_SIZE];
+  uint8_t arena_buffer[ARENA_BUFFER_SIZE];
   size_t offset;
 } Damgr_Arena;
 
@@ -27,11 +27,11 @@ void *arena_alloc(Damgr_Arena *arena, size_t size) {
   if (arena == nullptr || size == 0)
     return nullptr;
 
-  size = (size + DAMGR_ALIGN - 1) & ~(DAMGR_ALIGN - 1);
-  if (arena->offset + size > DAMGR_ARENA_BUFFER_SIZE) {
+  size = (size + ALIGN - 1) & ~(ALIGN - 1);
+  if (arena->offset + size > ARENA_BUFFER_SIZE) {
     return nullptr; // out of memory
   } else {
-    void *ptr = &arena->arena_buf[arena->offset];
+    void *ptr = &arena->arena_buffer[arena->offset];
     arena->offset += size;
     memset(ptr, 0, size); // zero memory
     return ptr;
