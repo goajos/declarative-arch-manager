@@ -1,6 +1,5 @@
 #ifndef DAMGR_RESULT_H
 #define DAMGR_RESULT_H
-#define _DEFAULT_SOURCE
 #include <dirent.h>
 #include <errno.h>
 #include <stdbool.h>

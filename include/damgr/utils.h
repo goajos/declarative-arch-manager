@@ -15,6 +15,7 @@ typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
 Result_t damgr_make_dir_r(const char *fid_buffer, struct stat *st, bool *out);
 Result_t damgr_is_dir_empty_r(const char *fid_buffer, bool *out);
 Result_t damgr_dir_exists_r(const char *fid_buffer, struct stat *st, bool *out);
+Result_t damgr_reg_exists_r(const char *fid_buffer, struct stat *st, bool *out);
 
 #ifdef DAMGR_UTILS_IMPLEMENTATION
 
@@ -103,6 +104,12 @@ Result_t damgr_is_dir_empty_r(const char *fid_buffer, bool *out) {
 Result_t damgr_dir_exists_r(const char *fid_buffer, struct stat *st,
                             bool *out) {
   DAMGR_CALL(lstat_r(fid_buffer, st, DIR_TYPE, out));
+  return Success;
+}
+
+Result_t damgr_reg_exists_r(const char *fid_buffer, struct stat *st,
+                            bool *out) {
+  DAMGR_CALL(lstat_r(fid_buffer, st, REG_TYPE, out));
   return Success;
 }
 
