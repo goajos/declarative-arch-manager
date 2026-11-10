@@ -1,6 +1,8 @@
 #ifndef DAMGR_MERGE_H
 #define DAMGR_MERGE_H
 
+#include "damgr/cmd.h"
+#include "damgr/commit.h"
 #include "damgr/context.h"
 #include "damgr/journal.h"
 #include "damgr/paths.h"
@@ -14,8 +16,11 @@
  */
 
 /* merge postconditions:
- *   - .tmp folder doesn't exist
- *   - .journal exists
+ *   on success (merge calls commit):
+ *     - commit postconditions hold (.tmp and .journal don't exist)
+ *   on failure:
+ *     - .tmp folder doesn't exist
+ *     - .journal exists with SUCCEEDED/FAILED/PENDING cmds and no DONE line
  */
 
 /*  merge preconditions:
@@ -133,29 +138,64 @@ static Result_t build_journal_r(const Damgr_Context *context,
   return Success;
 }
 
-// TODO: this can be removed in phase 6?
-static void log_journal(const Damgr_Journal *journal) {
-  damgr_log(INFO, "journal contains %zu cmd(s)", journal->cnt);
-  for (size_t i = 0; i < journal->cnt; ++i) {
-    const Damgr_Cmd *cmd = &journal->cmds[i];
-    damgr_log(INFO, "%s\t%s\t%s%s", cmd->mod_name,
-              damgr_task_type_string(cmd->type), cmd->name,
-              (cmd->type == SVC_ENABLE || cmd->type == SVC_DISABLE)
-                  ? (cmd->flag ? ":true" : ":false")
-                  : "");
+static Result_t run_cmd_r(const Damgr_Paths *paths, const char *aur_helper,
+                          const Damgr_Cmd *cmd) {
+  switch (cmd->type) {
+  case SVC_DISABLE:
+    return damgr_svc_r(false, cmd->flag, cmd->name);
+  case DOT_UNLINK:
+    return damgr_dotfile_unlink_r(paths, cmd->name);
+  case AUR_REMOVE:
+  case PKG_REMOVE:
+    return damgr_pkg_r(false, cmd->name);
+  case PKG_INSTALL:
+    return damgr_pkg_r(true, cmd->name);
+  case AUR_INSTALL:
+    return damgr_aur_install_r(aur_helper, cmd->name);
+  case DOT_LINK:
+    return damgr_dotfile_link_r(paths, cmd->name);
+  case SVC_ENABLE:
+    return damgr_svc_r(true, cmd->flag, cmd->name);
   }
+  return Error("unknown task type");
+}
+
+static Result_t run_journal_r(const Damgr_Paths *paths, const char *aur_helper,
+                              Damgr_Journal *journal) {
+  DAMGR_CALL(damgr_journal_write_r(paths, journal)); // all PENDING (or DONE)
+
+  for (size_t i = 0; i < journal->cnt; ++i) {
+    Damgr_Cmd *cmd = &journal->cmds[i];
+    damgr_log(INFO, "[%zu/%zu] %s\t%s\t%s", i + 1, journal->cnt, cmd->mod_name,
+              damgr_task_type_string(cmd->type), cmd->name);
+
+    Result_t cmd_r = run_cmd_r(paths, aur_helper, cmd);
+    cmd->status = cmd_r.is_success ? SUCCEEDED : FAILED;
+    if (!cmd_r.is_success)
+      damgr_log(ERROR, "%s", cmd_r.error);
+
+    DAMGR_CALL(damgr_journal_write_r(paths, journal)); // write on cmd failure
+    if (!cmd_r.is_success)
+      return Error(damgr_err_fmt(
+          "cmd %zu/%zu failed: manually perform the FAILED/PENDING cmds, add "
+          "a %s line to %s and run damgr commit",
+          i + 1, journal->cnt, JOURNAL_DONE, paths->journal));
+  }
+  return Success;
 }
 
 Result_t damgr_merge_r(const Damgr_Paths *paths, const Damgr_Context *context) {
   DAMGR_CALL(check_merge_preconditions(paths));
 
   Damgr_Journal journal = {0};
-  // save result so the journal is always freed before return
-  Result_t r = build_journal_r(context, &journal);
-  if (r.is_success)
-    log_journal(&journal); // phase 5: inspect only, phase 6 runs the cmds
+  DAMGR_CALL(build_journal_r(context, &journal));
+
+  Result_t r = run_journal_r(paths, context->aur_helper, &journal);
   damgr_journal_free(&journal);
-  return r;
+  if (!r.is_success)
+    return r;
+
+  return damgr_commit_r(paths, context);
 }
 
 #endif /* DAMGR_MERGE_IMPLEMENTATION */
