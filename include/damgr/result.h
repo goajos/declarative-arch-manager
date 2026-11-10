@@ -115,5 +115,12 @@ Result_t damgr_unlink_r(const char *fid_buffer) {
   return Success;
 }
 
+Result_t damgr_rename_r(const char *old, const char *new) {
+  if (rename(old, new) != 0)
+    return Error(
+        damgr_err_fmt("rename failed %s -> %s: %s", old, new, strerror(errno)));
+  return Success;
+}
+
 #endif /* DAMGR_RESULT_IMPLEMENTATION */
 #endif /* DAMGR_RESULT_H */

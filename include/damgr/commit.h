@@ -1,6 +1,7 @@
 #ifndef DAMGR_COMMIT_H
 #define DAMGR_COMMIT_H
 
+#include "damgr/journal.h"
 #include "damgr/paths.h"
 #include "damgr/result.h"
 #include "damgr/utils.h"
@@ -24,7 +25,6 @@
  *   - .journal status DONE
  * */
 Result_t damgr_check_commit_preconditions(Damgr_Paths *paths);
-
 // TODO: have all the copy file logic inside commit?
 #ifdef DAMGR_COMMIT_IMPLEMENTATION
 
@@ -40,7 +40,12 @@ Result_t damgr_check_commit_preconditions(Damgr_Paths *paths) {
     return Error(damgr_err_fmt(".journal should exist: %s", paths->journal));
   }
 
-  // TODO: .journal status DONE (every subcommand SUCCEEDED)
+  bool done;
+  DAMGR_CALL(damgr_journal_is_done_r(paths, &done));
+  if (!done)
+    return Error(damgr_err_fmt(".journal is not done, manually perform the "
+                               "FAILED/PENDING cmds and add a %s line EOF: %s",
+                               JOURNAL_DONE, paths->journal));
 
   return Success;
 }
