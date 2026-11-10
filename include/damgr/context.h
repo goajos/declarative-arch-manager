@@ -105,12 +105,8 @@ static Result_t is_state_dir_empty_r(const char *fid_buffer, bool *empty) {
   struct dirent *ent;
   // .tmp and are not .state/damgr entries
   while ((ent = readdir(dir)) != nullptr) {
-    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0 ||
-        strcmp(ent->d_name, TMP) == 0)
+    if (ent->d_name[0] == '.')
       continue;
-
-    if (strcmp(ent->d_name, JOURNAL) == 0)
-      continue; // the journal is not a .state/damgr entry
 
     if (ent->d_type == DT_REG || ent->d_type == DT_LNK ||
         ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN)
@@ -497,10 +493,8 @@ static Result_t read_module_r(Damgr_Mod *module, Damgr_Arena *arena,
 
 /*  read context preconditions:
  *    - .state/damgr folder should exist
- *    - .state/damgr folder should be empty, excluding:
- *      - .journal
- *      - .tmp/
- * */
+ *    - .state/damgr folder should be empty, excluding all files starting with .
+ */
 Result_t damgr_read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
                               Damgr_Arena *arena) {
   bool empty;

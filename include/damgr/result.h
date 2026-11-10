@@ -41,6 +41,8 @@ Result_t damgr_mkdir_r(const char *fid_buffer, const mode_t perm);
 Result_t damgr_rmdir_r(const char *dir_buffer);
 Result_t damgr_unlink_r(const char *fid_buffer);
 
+Result_t damgr_rename_r(const char *old, const char *new);
+
 #ifdef DAMGR_RESULT_IMPLEMENTATION
 
 const char *damgr_err_fmt(const char *fmt, ...) {

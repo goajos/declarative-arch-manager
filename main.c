@@ -95,13 +95,11 @@ int main(int argc, char *argv[]) {
     break;
   case 1:
     damgr_log(INFO, "starting damgr commit!");
-    // TODO: journal guard?
-    r = damgr_check_commit_preconditions(&paths);
+    r = damgr_commit_r(&paths, &context);
     if (!r.is_success) {
-      damgr_log(ERROR, "commit pre condition failed: %s", r.error);
+      damgr_log(ERROR, "commit failed: %s", r.error);
       goto cleanup;
     }
-    // ret = damgr_commit(&paths);
     break;
   }
 
