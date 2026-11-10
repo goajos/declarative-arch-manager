@@ -13,6 +13,9 @@
 #define DAMGR_UTILS_IMPLEMENTATION
 #include "damgr/utils.h"
 
+#define DAMGR_CMD_IMPLEMENTATION
+#include "damgr/cmd.h"
+
 #define DAMGR_CONTEXT_IMPLEMENTATION
 #include "damgr/context.h"
 
