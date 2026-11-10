@@ -85,13 +85,11 @@ int main(int argc, char *argv[]) {
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
-    // TODO: journal guard?
-    r = damgr_check_merge_preconditions(&paths);
+    r = damgr_merge_r(&paths, &context);
     if (!r.is_success) {
-      damgr_log(ERROR, "merge pre condition failed: %s", r.error);
+      damgr_log(ERROR, "merge failed: %s", r.error);
       goto cleanup;
     }
-    // ret = damgr_merge(&paths, arena);
     break;
   case 1:
     damgr_log(INFO, "starting damgr commit!");
