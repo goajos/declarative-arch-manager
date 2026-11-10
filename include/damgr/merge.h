@@ -21,21 +21,20 @@
  *   - .tmp folder doesn't exist
  *   - .journal doesn't exist
  * */
-Result_t damgr_check_merge_preconditions(Damgr_Paths *paths, struct stat *st);
+Result_t damgr_check_merge_preconditions(Damgr_Paths *paths);
 
 // TODO: have all the diff + transaction logic inside merge?
 #ifdef DAMGR_MERGE_IMPLEMENTATION
 
-Result_t damgr_check_merge_preconditions(Damgr_Paths *paths, struct stat *st) {
-  bool existed;
-  DAMGR_CALL(damgr_make_dir_r(paths->state_dir, st, &existed));
+Result_t damgr_check_merge_preconditions(Damgr_Paths *paths) {
   bool exists;
-  DAMGR_CALL(damgr_dir_exists_r(paths->tmp_dir, st, &exists));
+  DAMGR_CALL(damgr_make_dir_r(paths->state_dir, &exists));
+  DAMGR_CALL(damgr_dir_exists_r(paths->tmp_dir, &exists));
   if (exists) {
     return Error(
         damgr_err_fmt(".tmp folder should not exist: %s", paths->tmp_dir));
   }
-  DAMGR_CALL(damgr_reg_exists_r(paths->journal, st, &exists));
+  DAMGR_CALL(damgr_reg_exists_r(paths->journal, &exists));
   if (exists) {
     return Error(damgr_err_fmt(".journal should not exist, finish or roll back "
                                "the previous merge first: %s",

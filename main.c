@@ -71,10 +71,9 @@ int main(int argc, char *argv[]) {
   }
   damgr_arena_init(arena);
 
-  struct stat st;
   // TODO: do we need context everytime?
   Damgr_Context context = {0};
-  r = damgr_read_context_r(&paths, &context, arena, &st);
+  r = damgr_read_context_r(&paths, &context, arena);
   if (!r.is_success) {
     damgr_log(ERROR, "failed to read context: %s", r.error);
     goto cleanup;
@@ -84,7 +83,7 @@ int main(int argc, char *argv[]) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
     // TODO: journal guard?
-    r = damgr_check_merge_preconditions(&paths, &st);
+    r = damgr_check_merge_preconditions(&paths);
     if (!r.is_success) {
       damgr_log(ERROR, "merge pre condition failed: %s", r.error);
       goto cleanup;
@@ -94,7 +93,7 @@ int main(int argc, char *argv[]) {
   case 1:
     damgr_log(INFO, "starting damgr commit!");
     // TODO: journal guard?
-    r = damgr_check_commit_preconditions(&paths, &st);
+    r = damgr_check_commit_preconditions(&paths);
     if (!r.is_success) {
       damgr_log(ERROR, "commit pre condition failed: %s", r.error);
       goto cleanup;

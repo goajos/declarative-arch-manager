@@ -49,7 +49,7 @@ typedef struct context {
 } Damgr_Context;
 
 Result_t damgr_read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
-                              Damgr_Arena *arena, struct stat *st);
+                              Damgr_Arena *arena);
 
 #ifdef DAMGR_CONTEXT_IMPLEMENTATION
 
@@ -502,9 +502,9 @@ static Result_t read_module_r(Damgr_Mod *module, Damgr_Arena *arena,
  *      - .tmp/
  * */
 Result_t damgr_read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
-                              Damgr_Arena *arena, struct stat *st) {
+                              Damgr_Arena *arena) {
   bool empty;
-  DAMGR_CALL(damgr_make_dir_r(paths->state_dir, st, &empty));
+  DAMGR_CALL(damgr_make_dir_r(paths->state_dir, &empty));
 
   DAMGR_CALL(is_state_dir_empty_r(paths->state_dir, &empty));
 

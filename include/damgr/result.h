@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "damgr/arena.h"
 #include "damgr/log.h"
@@ -36,6 +37,9 @@ Result_t damgr_opendir_r(const char *fid_buffer, DIR **out);
 Result_t damgr_snprintf_r(char *buffer, const size_t size, const char *fmt,
                           ...);
 Result_t damgr_mkdir_r(const char *fid_buffer, const mode_t perm);
+
+Result_t damgr_rmdir_r(const char *dir_buffer);
+Result_t damgr_unlink_r(const char *fid_buffer);
 
 #ifdef DAMGR_RESULT_IMPLEMENTATION
 
@@ -94,6 +98,20 @@ Result_t damgr_mkdir_r(const char *fid_buffer, const mode_t perm) {
     return Error(damgr_err_fmt("could not create dir \"%s\": %s", fid_buffer,
                                strerror(errno)));
   }
+  return Success;
+}
+
+Result_t damgr_rmdir_r(const char *dir_buffer) {
+  if (rmdir(dir_buffer) != 0)
+    return Error(damgr_err_fmt("rmdir failed to remove %s: %s", dir_buffer,
+                               strerror(errno)));
+  return Success;
+}
+
+Result_t damgr_unlink_r(const char *fid_buffer) {
+  if (unlink(fid_buffer) != 0)
+    return Error(damgr_err_fmt("unlink failed to remove %s: %s", fid_buffer,
+                               strerror(errno)));
   return Success;
 }
 

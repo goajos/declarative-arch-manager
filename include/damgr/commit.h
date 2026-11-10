@@ -19,29 +19,23 @@
  * */
 
 /*  commit preconditions:
- *   - state folder exists
  *   - .tmp folder doesn't exist
  *   - .journal exists
  *   - .journal status DONE
  * */
-Result_t damgr_check_commit_preconditions(Damgr_Paths *paths, struct stat *st);
+Result_t damgr_check_commit_preconditions(Damgr_Paths *paths);
 
 // TODO: have all the copy file logic inside commit?
 #ifdef DAMGR_COMMIT_IMPLEMENTATION
 
-Result_t damgr_check_commit_preconditions(Damgr_Paths *paths, struct stat *st) {
+Result_t damgr_check_commit_preconditions(Damgr_Paths *paths) {
   bool exists;
-  DAMGR_CALL(damgr_dir_exists_r(paths->state_dir, st, &exists));
-  if (!exists) {
-    return Error(
-        damgr_err_fmt(".state folder should exist: %s", paths->state_dir));
-  }
-  DAMGR_CALL(damgr_dir_exists_r(paths->tmp_dir, st, &exists));
+  DAMGR_CALL(damgr_dir_exists_r(paths->tmp_dir, &exists));
   if (exists) {
     return Error(
         damgr_err_fmt(".tmp folder should not exist: %s", paths->tmp_dir));
   }
-  DAMGR_CALL(damgr_reg_exists_r(paths->journal, st, &exists));
+  DAMGR_CALL(damgr_reg_exists_r(paths->journal, &exists));
   if (!exists) {
     return Error(damgr_err_fmt(".journal should exist: %s", paths->journal));
   }

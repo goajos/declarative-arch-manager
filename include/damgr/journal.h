@@ -4,15 +4,14 @@
 #include "damgr/paths.h"
 #include "damgr/utils.h"
 
-Result_t damgr_make_journal(Damgr_Paths *paths, struct stat *st,
-                            const char *fidbuffer);
+Result_t damgr_make_journal(Damgr_Paths *paths, const char *fidbuffer);
 
 #ifdef DAMGR_JOURNAL_IMPLEMENTATION
 
-Result_t damgr_make_journal(Damgr_Paths *paths, struct stat *st,
+Result_t damgr_make_journal(Damgr_Paths *paths,
                             [[maybe_unused]] const char *fidbuffer) {
   bool exists;
-  DAMGR_CALL(damgr_reg_exists_r(paths->journal, st, &exists));
+  DAMGR_CALL(damgr_reg_exists_r(paths->journal, &exists));
   if (exists)
     return Error(
         damgr_err_fmt(".journal should not exist: %s", paths->journal));

@@ -29,6 +29,16 @@ Result_t damgr_resolve_module_path_r(const Damgr_Paths *paths, char *fid_buffer,
                                      size_t size, const char *module_name,
                                      bool is_state);
 
+Result_t damgr_join_path_r(char *fid_buffer, size_t size, const char *dir,
+                           const char *name);
+
+// ~/.config/damgr/dotfiles/<name>
+Result_t damgr_resolve_dotfile_src_r(const Damgr_Paths *paths, char *fid_buffer,
+                                     size_t size, const char *dotfile);
+
+// ~/.config/<name>
+Result_t damgr_resolve_dotfile_dst_r(const Damgr_Paths *paths, char *fid_buffer,
+                                     size_t size, const char *dotfile);
 #ifdef DAMGR_PATHS_IMPLEMENTATION
 
 Result_t damgr_paths_init_r(Damgr_Paths *paths, const char *home) {
@@ -94,5 +104,23 @@ Result_t damgr_resolve_module_path_r(const Damgr_Paths *paths, char *fid_buffer,
   }
   return Success;
 }
+
+Result_t damgr_join_path_r(char *fid_buffer, size_t size, const char *dir,
+                           const char *name) {
+  return damgr_snprintf_r(fid_buffer, size, "%s/%s", dir, name);
+}
+
+Result_t damgr_resolve_dotfile_src_r(const Damgr_Paths *paths, char *fid_buffer,
+                                     size_t size, const char *dotfile) {
+  return damgr_join_path_r(fid_buffer, size, paths->active_dotfile_dir,
+                           dotfile);
+}
+
+Result_t damgr_resolve_dotfile_dst_r(const Damgr_Paths *paths, char *fid_buffer,
+                                     size_t size, const char *dotfile) {
+  return damgr_snprintf_r(fid_buffer, size, "%s/.config/%s", paths->home,
+                          dotfile);
+}
+
 #endif /* DAMGR_PATHS_IMPLEMENTATION */
 #endif /* DAMGR_PATHS_H */
