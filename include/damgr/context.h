@@ -7,7 +7,7 @@
 #include "damgr/result.h"
 #include "damgr/utils.h"
 
-constexpr size_t LINE_MAX = 512;
+constexpr size_t DAMGR_LINE_MAX = 512;
 constexpr size_t ARRAY_BUFFER_MAX = 256;
 constexpr size_t MOD_KEY_CNT = 4; // excluding NONE
 
@@ -89,6 +89,14 @@ static void trim_string_inplace(char *str) {
   str[len] = '\0';
 }
 
+static Result_t check_line_len_r(const char *line, FILE *fid, const char *src) {
+  if (strchr(line, '\n') == nullptr && !feof(fid))
+    return Error(damgr_err_fmt("line exceeds %zu chars in src file %s",
+                               DAMGR_LINE_MAX - 2, src));
+
+  return Success;
+}
+
 static Result_t is_state_dir_empty_r(const char *fid_buffer, bool *empty) {
   DIR *dir;
   DAMGR_CALL(damgr_opendir_r(fid_buffer, &dir));
@@ -127,12 +135,13 @@ static Result_t parse_config_r(Damgr_Context *context, Damgr_Arena *arena,
   Damgr_Host *host = {0};
   char *dup;
 
-  char *is_state_str = is_state ? "state" : "active";
+  const char *is_state_str = is_state ? "state" : "active";
   bool aur_parsed = false;
   bool host_parsed = false;
 
-  char line[LINE_MAX];
+  char line[DAMGR_LINE_MAX];
   while (fgets(line, sizeof(line), config_fid)) {
+    DAMGR_CALL(check_line_len_r(line, config_fid, is_state_str));
     if (line[0] == '\n') // skip newlines
       continue;
     if (line[0] == '#') // skip comments
@@ -195,6 +204,28 @@ static Result_t read_config_r(Damgr_Context *context, Damgr_Arena *arena,
   return r;
 }
 
+static Result_t validate_host_r(const Damgr_Host *host) {
+  if (host->modules_cnt == 0)
+    return Error(damgr_err_fmt("host %s has no modules", host->host_name));
+
+  for (size_t i = 0; i < host->modules_cnt; ++i) {
+    const char *name = host->modules[i]->mod_name;
+    if (strcmp(name, "config") == 0)
+      return Error(damgr_err_fmt(
+          "module name \"%s\" clashes with config state file name", name));
+    if (strcmp(name, host->host_name) == 0)
+      return Error(damgr_err_fmt(
+          "module name \"%s\" clashes with host state file name", name));
+    for (size_t j = i + 1; j < host->modules_cnt; ++j) {
+      if (strcmp(name, host->modules[j]->mod_name) == 0)
+        return Error(damgr_err_fmt("duplicate module name \"%s\" in host %s",
+                                   name, host->host_name));
+    }
+  }
+
+  return Success;
+}
+
 static Result_t parse_host_r(Damgr_Host *host, Damgr_Arena *arena,
                              FILE *host_fid) {
   Damgr_Mod **modules = {0};
@@ -205,8 +236,9 @@ static Result_t parse_host_r(Damgr_Host *host, Damgr_Arena *arena,
 
   bool modules_parsed = false;
 
-  char line[LINE_MAX];
+  char line[DAMGR_LINE_MAX];
   while (fgets(line, sizeof(line), host_fid)) {
+    DAMGR_CALL(check_line_len_r(line, host_fid, host->host_name));
     if (line[0] == '\n') // skip newlines
       continue;
     if (line[0] == '#') // skip comments
@@ -226,6 +258,11 @@ static Result_t parse_host_r(Damgr_Host *host, Damgr_Arena *arena,
         continue;
       if (line[0] == '#') // also skip indented comments
         continue;
+
+      if (!modules_parsed)
+        return Error(damgr_err_fmt(
+            "detected an item before parsing modules for host %s: %s",
+            host->host_name, line));
 
       DAMGR_CALL(append_stack_array_check_r(arena, modules_cnt, line, &dup));
       stack_modules[modules_cnt++] = dup;
@@ -317,9 +354,11 @@ static Result_t parse_module_r(Damgr_Mod *module, Damgr_Arena *arena,
   size_t cnt = 0;
   Damgr_Mod_Key cur_key = NONE;
   Damgr_Mod_Span span[MOD_KEY_CNT] = {0};
+  bool seen[MOD_KEY_CNT] = {0};
 
-  char line[LINE_MAX];
+  char line[DAMGR_LINE_MAX];
   while (fgets(line, sizeof(line), module_fid)) {
+    DAMGR_CALL(check_line_len_r(line, module_fid, module->mod_name));
     if (line[0] == '\n') // skip newlines
       continue;
     if (line[0] == '#') // skip comments
@@ -371,10 +410,11 @@ static Result_t parse_module_r(Damgr_Mod *module, Damgr_Arena *arena,
                           module->mod_name, key));
 
       // prevent data corruption with duplicate headers
-      if (span[next_key - 1].cnt > 0)
+      if (seen[next_key - 1])
         return Error(
             damgr_err_fmt("detected a duplicate header parsing module %s: %s",
                           module->mod_name, module_key_string(next_key)));
+      seen[next_key - 1] = true;
 
       span[next_key - 1].start = cnt;
       cur_key = next_key;
@@ -478,6 +518,7 @@ Result_t damgr_read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
                                          context->state_host->host_name, true));
 
     DAMGR_CALL(read_host_r(context->state_host, arena, fid_buffer));
+    DAMGR_CALL(validate_host_r(context->state_host));
 
     for (size_t i = 0; i < context->state_host->modules_cnt; ++i) {
       DAMGR_CALL(damgr_resolve_module_path_r(
@@ -491,10 +532,13 @@ Result_t damgr_read_context_r(const Damgr_Paths *paths, Damgr_Context *context,
   DAMGR_CALL(read_config_r(context, arena, paths->active_config, false));
   if (context->active_host == nullptr)
     return Error("failed to parse active host");
+  if (context->aur_helper == nullptr || *context->aur_helper == '\0')
+    return Error("failed to parse aur_helper from active config");
 
   DAMGR_CALL(damgr_resolve_host_path_r(paths, fid_buffer, sizeof(fid_buffer),
                                        context->active_host->host_name, false));
   DAMGR_CALL(read_host_r(context->active_host, arena, fid_buffer));
+  DAMGR_CALL(validate_host_r(context->active_host));
 
   for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
     DAMGR_CALL(damgr_resolve_module_path_r(

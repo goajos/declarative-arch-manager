@@ -12,7 +12,8 @@ constexpr mode_t DIR_PERM = 0755;
 
 typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
 
-Result_t damgr_make_dir_r(const char *fid_buffer, struct stat *st, bool *out);
+Result_t damgr_make_dir_r(const char *fid_buffer, struct stat *st,
+                          bool *existed);
 Result_t damgr_is_dir_empty_r(const char *fid_buffer, bool *out);
 Result_t damgr_dir_exists_r(const char *fid_buffer, struct stat *st, bool *out);
 Result_t damgr_reg_exists_r(const char *fid_buffer, struct stat *st, bool *out);
@@ -39,8 +40,7 @@ static Result_t lstat_r(const char *fid_buffer, struct stat *st,
   return Success;
 }
 
-static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
-                                  bool *out) {
+static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st) {
   const char *sep = strrchr(fid_buffer, '/');
   if (sep == nullptr || sep == fid_buffer) {
     return Success;
@@ -55,23 +55,25 @@ static Result_t make_dir_parent_r(const char *fid_buffer, struct stat *st,
   memcpy(p_buffer, fid_buffer, len);
   p_buffer[len] = '\0';
 
-  DAMGR_CALL(lstat_r(p_buffer, st, DIR_TYPE, out));
+  bool existed;
+  DAMGR_CALL(lstat_r(p_buffer, st, DIR_TYPE, &existed));
 
-  if (*out) // parent already exists
+  if (existed) // parent already exists
     return Success;
 
-  DAMGR_CALL(make_dir_parent_r(p_buffer, st, out));
+  DAMGR_CALL(make_dir_parent_r(p_buffer, st));
 
   return damgr_mkdir_r(p_buffer, DIR_PERM);
 }
 
-Result_t damgr_make_dir_r(const char *fid_buffer, struct stat *st, bool *out) {
-  DAMGR_CALL(lstat_r(fid_buffer, st, DIR_TYPE, out));
+Result_t damgr_make_dir_r(const char *fid_buffer, struct stat *st,
+                          bool *existed) {
+  DAMGR_CALL(lstat_r(fid_buffer, st, DIR_TYPE, existed));
 
-  if (*out) // folder already exists
+  if (*existed) // folder already exists
     return Success;
 
-  DAMGR_CALL(make_dir_parent_r(fid_buffer, st, out));
+  DAMGR_CALL(make_dir_parent_r(fid_buffer, st));
 
   return damgr_mkdir_r(fid_buffer, DIR_PERM);
 }

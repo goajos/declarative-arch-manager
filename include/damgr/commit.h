@@ -13,12 +13,13 @@
  */
 
 /* commit postconditions:
+ *   - .state folder contains 1 file for every active config/host/module file
  *   - .tmp folder doesn't exist
  *   - .journal doesn't exist
  * */
 
 /*  commit preconditions:
- *   - (implicit state folder exists)
+ *   - state folder exists
  *   - .tmp folder doesn't exist
  *   - .journal exists
  *   - .journal status DONE
@@ -29,12 +30,24 @@ Result_t damgr_check_commit_preconditions(Damgr_Paths *paths, struct stat *st);
 #ifdef DAMGR_COMMIT_IMPLEMENTATION
 
 Result_t damgr_check_commit_preconditions(Damgr_Paths *paths, struct stat *st) {
-  bool empty;
-  DAMGR_CALL(damgr_make_dir_r(paths->tmp_dir, st, &empty));
-  DAMGR_CALL(damgr_is_dir_empty_r(paths->tmp_dir, &empty));
-  if (!empty) {
-    return Error(damgr_err_fmt("%s: %s", paths->tmp_dir, strerror(ENOTEMPTY)));
+  bool exists;
+  DAMGR_CALL(damgr_dir_exists_r(paths->state_dir, st, &exists));
+  if (!exists) {
+    return Error(
+        damgr_err_fmt(".state folder should exist: %s", paths->state_dir));
   }
+  DAMGR_CALL(damgr_dir_exists_r(paths->tmp_dir, st, &exists));
+  if (exists) {
+    return Error(
+        damgr_err_fmt(".tmp folder should not exist: %s", paths->tmp_dir));
+  }
+  DAMGR_CALL(damgr_reg_exists_r(paths->journal, st, &exists));
+  if (!exists) {
+    return Error(damgr_err_fmt(".journal should exist: %s", paths->journal));
+  }
+
+  // TODO: .journal status DONE (every subcommand SUCCEEDED)
+
   return Success;
 }
 

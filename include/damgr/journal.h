@@ -10,7 +10,7 @@ Result_t damgr_make_journal(Damgr_Paths *paths, struct stat *st,
 #ifdef DAMGR_JOURNAL_IMPLEMENTATION
 
 Result_t damgr_make_journal(Damgr_Paths *paths, struct stat *st,
-                            const char *fidbuffer) {
+                            [[maybe_unused]] const char *fidbuffer) {
   bool exists;
   DAMGR_CALL(damgr_reg_exists_r(paths->journal, st, &exists));
   if (exists)

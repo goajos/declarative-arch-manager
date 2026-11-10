@@ -12,7 +12,6 @@
  */
 
 /* merge postconditions:
- *   - .state folder contains 1 file for every active config/host/module file
  *   - .tmp folder doesn't exist
  *   - .journal exists
  */
@@ -28,14 +27,21 @@ Result_t damgr_check_merge_preconditions(Damgr_Paths *paths, struct stat *st);
 #ifdef DAMGR_MERGE_IMPLEMENTATION
 
 Result_t damgr_check_merge_preconditions(Damgr_Paths *paths, struct stat *st) {
-  bool empty;
+  bool existed;
+  DAMGR_CALL(damgr_make_dir_r(paths->state_dir, st, &existed));
   bool exists;
-  DAMGR_CALL(damgr_make_dir_r(paths->state_dir, st, &empty));
   DAMGR_CALL(damgr_dir_exists_r(paths->tmp_dir, st, &exists));
   if (exists) {
     return Error(
         damgr_err_fmt(".tmp folder should not exist: %s", paths->tmp_dir));
   }
+  DAMGR_CALL(damgr_reg_exists_r(paths->journal, st, &exists));
+  if (exists) {
+    return Error(damgr_err_fmt(".journal should not exist, finish or roll back "
+                               "the previous merge first: %s",
+                               paths->journal));
+  }
+
   return Success;
 }
 
