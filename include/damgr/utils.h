@@ -3,21 +3,82 @@
 #include <dirent.h>
 #include <string.h>
 
-#include "damgr/path.h"
+#include "damgr/arena.h"
 #include "damgr/result.h"
 
 #define TMP ".tmp"
 #define JOURNAL ".journal"
 constexpr mode_t DIR_PERM = 0755;
 constexpr size_t COPY_BUFFER_MAX = 4096;
+constexpr size_t PATH_BUFFER_MAX = 4096;
 
 typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
+
+Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
+                                   char **out);
+Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out);
+Result_t damgr_snprintf_result(char *buffer, const size_t size, const char *fmt,
+                               ...);
+Result_t damgr_mkdir_result(const char *fid_buffer, const mode_t perm);
+
+Result_t damgr_fopen_result(const char *fid_buffer, const char *mode,
+                            FILE **out);
+Result_t damgr_opendir_result(const char *fid_buffer, DIR **out);
 
 Result_t damgr_make_dir_result(const char *fid_buffer, bool *exists);
 Result_t damgr_dir_exists_result(const char *fid_buffer, bool *out);
 Result_t damgr_reg_exists_result(const char *fid_buffer, bool *out);
 
 #ifdef DAMGR_UTILS_IMPLEMENTATION
+
+Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
+                                   char **out) {
+  *out = damgr_arena_strdup(arena, src);
+  if (*out == nullptr)
+    return Error("arena strdup failed");
+  return Success;
+}
+
+Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out) {
+  *out = damgr_arena_alloc(arena, size);
+  if (*out == nullptr)
+    return Error("arena alloc failed");
+  return Success;
+}
+
+Result_t damgr_snprintf_result(char *buffer, const size_t size, const char *fmt,
+                               ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vsnprintf(buffer, size, fmt, args);
+  va_end(args);
+  if (n < 0 || (size_t)n >= size)
+    return Error("\"%s\": %s", buffer, strerror(ENAMETOOLONG));
+  return Success;
+}
+
+Result_t damgr_mkdir_result(const char *fid_buffer, const mode_t perm) {
+  if (mkdir(fid_buffer, perm) != 0) {
+    return Error("could not create dir \"%s\": %s", fid_buffer,
+                 strerror(errno));
+  }
+  return Success;
+}
+
+Result_t damgr_fopen_result(const char *fid_buffer, const char *mode,
+                            FILE **out) {
+  *out = fopen(fid_buffer, mode);
+  if (*out == nullptr)
+    return Error("could not open fid %s: %s", fid_buffer, strerror(errno));
+  return Success;
+}
+
+Result_t damgr_opendir_result(const char *fid_buffer, DIR **out) {
+  *out = opendir(fid_buffer);
+  if (*out == nullptr)
+    return Error("could not open dir %s: %s", fid_buffer, strerror(errno));
+  return Success;
+}
 
 static Result_t lstat_result(const char *fid_buffer, Damgr_Filetype type,
                              bool *out) {

@@ -1,6 +1,7 @@
 #ifndef DAMGR_COMMIT_H
 #define DAMGR_COMMIT_H
 
+#include "damgr/context.h"
 #include "damgr/path.h"
 #include "damgr/result.h"
 #include "damgr/utils.h"
@@ -23,6 +24,8 @@
  *   - .journal status DONE
  * */
 Result_t damgr_commit_preconditions_result(const Damgr_Paths *paths);
+Result_t damgr_commit_result(const Damgr_Paths *paths,
+                             const Damgr_Context *context);
 
 #ifdef DAMGR_COMMIT_IMPLEMENTATION
 
@@ -41,6 +44,11 @@ Result_t damgr_commit_preconditions_result(const Damgr_Paths *paths) {
 
   return Success;
 }
+
+// Result_t damgr_commit_result(const Damgr_Paths *paths,
+//                              const Damgr_Context *context) {
+//   return Success;
+// }
 
 #endif /* DAMGR_COMMIT_IMPLEMENTATION */
 #endif /* DAMGR_COMMIT_H */

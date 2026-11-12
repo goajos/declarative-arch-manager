@@ -7,11 +7,14 @@
 #define DAMGR_RESULT_IMPLEMENTATION
 #include "damgr/result.h"
 
+#define DAMGR_UTILS_IMPLEMENTATION
+#include "damgr/utils.h"
+
 #define DAMGR_PATH_IMPLEMENTATION
 #include "damgr/path.h"
 
-#define DAMGR_UTILS_IMPLEMENTATION
-#include "damgr/utils.h"
+#define DAMGR_CONTEXT_IMPLEMENTATION
+#include "damgr/context.h"
 
 #define DAMGR_JOURNAL_IMPLEMENTATION
 #include "damgr/journal.h"
@@ -67,6 +70,14 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  bool exists;
+  if (!(damgr_make_dir_result(paths.state_dir, &exists)).is_success) {
+    damgr_log(ERROR, "state folder should exist: %s", paths.state_dir);
+    damgr_err_print();
+    damgr_err_free();
+    return EXIT_FAILURE;
+  }
+
   // command_idx == 0: damgr merge
   if (command_idx == 0 &&
       !(damgr_merge_preconditions_result(&paths)).is_success) {
@@ -95,6 +106,13 @@ int main(int argc, char *argv[]) {
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
+    Damgr_Context context = {0};
+    if (!(damgr_read_context_result(&paths, &context, arena)).is_success) {
+      damgr_log(ERROR, "failed to read context:");
+      damgr_err_print();
+      damgr_err_free();
+      return EXIT_FAILURE;
+    }
     break;
   case 1:
     damgr_log(INFO, "starting damgr commit!");

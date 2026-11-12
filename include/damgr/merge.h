@@ -2,6 +2,7 @@
 #define DAMGR_MERGE_H
 
 #include "damgr/commit.h"
+#include "damgr/context.h"
 #include "damgr/journal.h"
 #include "damgr/path.h"
 #include "damgr/result.h"
@@ -18,20 +19,17 @@
  */
 
 /*  merge preconditions:
- *   - .state folder exists
  *   - .tmp folder doesn't exist
  *   - .journal doesn't exist
  * */
 Result_t damgr_merge_preconditions_result(const Damgr_Paths *paths);
+Result_t damgr_merge_result(const Damgr_Paths *paths,
+                            const Damgr_Context *context);
 
 #ifdef DAMGR_MERGE_IMPLEMENTATION
 
 Result_t damgr_merge_preconditions_result(const Damgr_Paths *paths) {
   bool exists;
-  DAMGR_CALL(damgr_make_dir_result(paths->state_dir, &exists));
-  if (!exists)
-    return Error("state folder should exist: %s", paths->state_dir);
-
   DAMGR_CALL(damgr_dir_exists_result(paths->tmp_dir, &exists));
   if (exists)
     return Error(".tmp folder should not exist: %s", paths->tmp_dir);
@@ -42,6 +40,12 @@ Result_t damgr_merge_preconditions_result(const Damgr_Paths *paths) {
 
   return Success;
 }
+
+// Result_t damgr_merge_result(const Damgr_Paths *paths,
+//                             const Damgr_Context *context) {
+//
+//   return Success;
+// }
 
 #endif /* DAMGR_MERGE_IMPLEMENTATION */
 #endif /* DAMGR_MERGE_H */

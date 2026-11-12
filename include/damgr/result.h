@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "damgr/arena.h"
 #include "damgr/log.h"
 
 constexpr size_t ERR_MSG_MAX = 256;
@@ -39,13 +38,6 @@ void damgr_err_free();
     if (!(func).is_success)                                                    \
       return damgr_err_push("%s() at %s:%d", __func__, __FILE__, __LINE__);    \
   } while (0)
-
-Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
-                                   char **out);
-Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out);
-Result_t damgr_snprintf_result(char *buffer, const size_t size, const char *fmt,
-                               ...);
-Result_t damgr_mkdir_result(const char *fid_buffer, const mode_t perm);
 
 #ifdef DAMGR_RESULT_IMPLEMENTATION
 
@@ -83,40 +75,6 @@ void damgr_err_print() {
 void damgr_err_free() {
   free(damgr_err.msgs);
   damgr_err = (Damgr_Err){0};
-}
-
-Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
-                                   char **out) {
-  *out = damgr_arena_strdup(arena, src);
-  if (*out == nullptr)
-    return Error("arena strdup failed");
-  return Success;
-}
-
-Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out) {
-  *out = damgr_arena_alloc(arena, size);
-  if (*out == nullptr)
-    return Error("arena alloc failed");
-  return Success;
-}
-
-Result_t damgr_snprintf_result(char *buffer, const size_t size, const char *fmt,
-                               ...) {
-  va_list args;
-  va_start(args, fmt);
-  int n = vsnprintf(buffer, size, fmt, args);
-  va_end(args);
-  if (n < 0 || (size_t)n >= size)
-    return Error("\"%s\": %s", buffer, strerror(ENAMETOOLONG));
-  return Success;
-}
-
-Result_t damgr_mkdir_result(const char *fid_buffer, const mode_t perm) {
-  if (mkdir(fid_buffer, perm) != 0) {
-    return Error("could not create dir \"%s\": %s", fid_buffer,
-                 strerror(errno));
-  }
-  return Success;
 }
 
 #endif /* DAMGR_RESULT_IMPLEMENTATION */
