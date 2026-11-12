@@ -10,6 +10,7 @@ typedef void(damgr_log_handler)(enum damgr_log_level level, const char *fmt,
                                 va_list args);
 damgr_log_handler damgr_default_log_handler;
 
+[[gnu::format(printf, 2, 3)]]
 void damgr_log(enum damgr_log_level level, const char *fmt, ...);
 
 #ifdef DAMGR_LOG_IMPLEMENTATION

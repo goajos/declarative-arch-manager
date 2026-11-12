@@ -2,6 +2,7 @@
 #define DAMGR_RESULT_H
 #include <dirent.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,116 +12,99 @@
 #include "damgr/arena.h"
 #include "damgr/log.h"
 
-constexpr size_t RESULT_BUFFER_MAX = 512;
+constexpr size_t ERR_MSG_MAX = 256;
+
+typedef struct err {
+  char (*msgs)[ERR_MSG_MAX];
+  size_t capacity;
+  size_t cnt;
+} Damgr_Err;
 
 typedef struct Result {
   bool is_success;
-  const char *error;
 } Result_t;
 
-#define Success                                                                \
-  (Result_t) { .is_success = true, .error = nullptr }
-#define Error(err)                                                             \
-  (Result_t) { .is_success = false, .error = err }
+extern Damgr_Err damgr_err;
+
+[[gnu::format(printf, 1, 2)]]
+Result_t damgr_err_push(const char *fmt, ...);
+void damgr_err_print();
+void damgr_err_free();
+
+#define Success ((Result_t){.is_success = true})
+#define Error(...) damgr_err_push(__VA_ARGS__)
+// the return will log the failing DAMGR_CALL
 #define DAMGR_CALL(func)                                                       \
   do {                                                                         \
     Result_t _r = (func);                                                      \
     if (!_r.is_success)                                                        \
-      return _r;                                                               \
+      return damgr_err_push("%s() at %s:%d", __func__, __FILE__, __LINE__);    \
   } while (0)
 
-const char *damgr_err_fmt(const char *fmt, ...);
-Result_t damgr_arena_strdup_r(Damgr_Arena *arena, const char *src, char **out);
-Result_t damgr_arena_alloc_r(Damgr_Arena *arena, size_t size, void **out);
-Result_t damgr_fopen_r(const char *fid_buffer, const char *mode, FILE **out);
-Result_t damgr_opendir_r(const char *fid_buffer, DIR **out);
-Result_t damgr_snprintf_r(char *buffer, const size_t size, const char *fmt,
-                          ...);
-Result_t damgr_mkdir_r(const char *fid_buffer, const mode_t perm);
-
-Result_t damgr_rmdir_r(const char *dir_buffer);
-Result_t damgr_unlink_r(const char *fid_buffer);
-
-Result_t damgr_rename_r(const char *old, const char *new);
+Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
+                                   char **out);
+Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out);
+Result_t damgr_vsnprintf_result(char *buffer, const size_t size,
+                                const char *fmt, ...);
 
 #ifdef DAMGR_RESULT_IMPLEMENTATION
 
-const char *damgr_err_fmt(const char *fmt, ...) {
-  static char err_buffer[RESULT_BUFFER_MAX];
+Damgr_Err damgr_err = {0};
+
+Result_t damgr_err_push(const char *fmt, ...) {
+  if (damgr_err.cnt >= damgr_err.capacity) {
+    size_t capacity = damgr_err.capacity == 0 ? 2 : damgr_err.capacity * 2;
+    char (*msgs)[ERR_MSG_MAX] =
+        realloc(damgr_err.msgs, capacity * sizeof(*msgs));
+    if (!msgs)
+      return (Result_t){.is_success = false};
+
+    damgr_err.msgs = msgs;
+    damgr_err.capacity = capacity;
+  }
+
   va_list args;
   va_start(args, fmt);
-  vsnprintf(err_buffer, sizeof(err_buffer), fmt, args);
+  vsnprintf(damgr_err.msgs[damgr_err.cnt], ERR_MSG_MAX, fmt, args);
   va_end(args);
-  return err_buffer;
+
+  damgr_err.cnt++;
+  return (Result_t){.is_success = false};
 }
 
-Result_t damgr_arena_strdup_r(Damgr_Arena *arena, const char *src, char **out) {
+void damgr_err_print() {
+  for (size_t i = 0; i < damgr_err.cnt; ++i)
+    damgr_log(ERROR, " #%zu %s", i, damgr_err.msgs[i]);
+}
+
+void damgr_err_free() {
+  free(damgr_err.msgs);
+  damgr_err = (Damgr_Err){0};
+}
+
+Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
+                                   char **out) {
   *out = damgr_arena_strdup(arena, src);
   if (*out == nullptr)
     return Error("arena strdup failed");
   return Success;
 }
 
-Result_t damgr_arena_alloc_r(Damgr_Arena *arena, size_t size, void **out) {
+Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out) {
   *out = damgr_arena_alloc(arena, size);
   if (*out == nullptr)
     return Error("arena alloc failed");
   return Success;
 }
 
-Result_t damgr_fopen_r(const char *fid_buffer, const char *mode, FILE **out) {
-  *out = fopen(fid_buffer, mode);
-  if (*out == nullptr)
-    return Error(damgr_err_fmt("could not open fid %s: %s", fid_buffer,
-                               strerror(errno)));
-  return Success;
-}
-
-Result_t damgr_opendir_r(const char *fid_buffer, DIR **out) {
-  *out = opendir(fid_buffer);
-  if (*out == nullptr)
-    return Error(damgr_err_fmt("could not open dir %s: %s", fid_buffer,
-                               strerror(errno)));
-  return Success;
-}
-
-Result_t damgr_snprintf_r(char *buffer, const size_t size, const char *fmt,
-                          ...) {
+Result_t damgr_vsnprintf_result(char *buffer, const size_t size,
+                                const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   int n = vsnprintf(buffer, size, fmt, args);
   va_end(args);
   if (n < 0 || (size_t)n >= size)
-    return Error(damgr_err_fmt("\"%s\": %s", buffer, strerror(ENAMETOOLONG)));
-  return Success;
-}
-
-Result_t damgr_mkdir_r(const char *fid_buffer, const mode_t perm) {
-  if (mkdir(fid_buffer, perm) != 0) {
-    return Error(damgr_err_fmt("could not create dir \"%s\": %s", fid_buffer,
-                               strerror(errno)));
-  }
-  return Success;
-}
-
-Result_t damgr_rmdir_r(const char *dir_buffer) {
-  if (rmdir(dir_buffer) != 0)
-    return Error(damgr_err_fmt("rmdir failed to remove %s: %s", dir_buffer,
-                               strerror(errno)));
-  return Success;
-}
-
-Result_t damgr_unlink_r(const char *fid_buffer) {
-  if (unlink(fid_buffer) != 0)
-    return Error(damgr_err_fmt("unlink failed to remove %s: %s", fid_buffer,
-                               strerror(errno)));
-  return Success;
-}
-
-Result_t damgr_rename_r(const char *old, const char *new) {
-  if (rename(old, new) != 0)
-    return Error(
-        damgr_err_fmt("rename failed %s -> %s: %s", old, new, strerror(errno)));
+    return Error("\"%s\": %s", buffer, strerror(ENAMETOOLONG));
   return Success;
 }
 

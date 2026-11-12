@@ -7,26 +7,8 @@
 #define DAMGR_RESULT_IMPLEMENTATION
 #include "damgr/result.h"
 
-#define DAMGR_PATHS_IMPLEMENTATION
-#include "damgr/paths.h"
-
-#define DAMGR_UTILS_IMPLEMENTATION
-#include "damgr/utils.h"
-
-#define DAMGR_CMD_IMPLEMENTATION
-#include "damgr/cmd.h"
-
-#define DAMGR_CONTEXT_IMPLEMENTATION
-#include "damgr/context.h"
-
-#define DAMGR_JOURNAL_IMPLEMENTATION
-#include "damgr/journal.h"
-
-#define DAMGR_COMMIT_IMPLEMENTATION
-#include "damgr/commit.h"
-
-#define DAMGR_MERGE_IMPLEMENTATION
-#include "damgr/merge.h"
+#define DAMGR_PATH_IMPLEMENTATION
+#include "damgr/path.h"
 
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
@@ -59,11 +41,20 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // ensure damgr is not run as root
+  if (geteuid() == 0) {
+    damgr_log(ERROR, "do not run damgr as root");
+    return EXIT_FAILURE;
+  }
+
+  // TODO early precondition check for early failure for commit?
+
   Result_t r;
   Damgr_Paths paths = {0};
-  r = damgr_paths_init_r(&paths, home);
+  r = damgr_init_paths_result(&paths, home);
   if (!r.is_success) {
-    damgr_log(ERROR, "failed to init paths: %s", r.error);
+    damgr_log(ERROR, "failed to init paths:");
+    damgr_err_print();
     return EXIT_FAILURE;
   }
 
@@ -74,36 +65,16 @@ int main(int argc, char *argv[]) {
   }
   damgr_arena_init(arena);
 
-  // TODO: do we need context everytime?
-  Damgr_Context context = {0};
-  r = damgr_read_context_r(&paths, &context, arena);
-  if (!r.is_success) {
-    damgr_log(ERROR, "failed to read context: %s", r.error);
-    goto cleanup;
-  }
-
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
-    r = damgr_merge_r(&paths, &context);
-    if (!r.is_success) {
-      damgr_log(ERROR, "merge failed: %s", r.error);
-      goto cleanup;
-    }
     break;
   case 1:
     damgr_log(INFO, "starting damgr commit!");
-    r = damgr_commit_r(&paths, &context);
-    if (!r.is_success) {
-      damgr_log(ERROR, "commit failed: %s", r.error);
-      goto cleanup;
-    }
     break;
   }
 
+  damgr_err_free();
   free(arena);
   return EXIT_SUCCESS;
-cleanup:
-  free(arena);
-  return EXIT_FAILURE;
 }
