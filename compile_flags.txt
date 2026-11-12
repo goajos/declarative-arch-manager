@@ -3,4 +3,5 @@
 -Wextra
 -Werror
 -pedantic
+-D_DEFAULT_SOURCE
 -Iinclude

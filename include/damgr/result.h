@@ -36,28 +36,31 @@ void damgr_err_free();
 // the return will log the failing DAMGR_CALL
 #define DAMGR_CALL(func)                                                       \
   do {                                                                         \
-    Result_t _r = (func);                                                      \
-    if (!_r.is_success)                                                        \
+    if (!(func).is_success)                                                    \
       return damgr_err_push("%s() at %s:%d", __func__, __FILE__, __LINE__);    \
   } while (0)
 
 Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
                                    char **out);
 Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out);
-Result_t damgr_vsnprintf_result(char *buffer, const size_t size,
-                                const char *fmt, ...);
+Result_t damgr_snprintf_result(char *buffer, const size_t size, const char *fmt,
+                               ...);
+Result_t damgr_mkdir_result(const char *fid_buffer, const mode_t perm);
 
 #ifdef DAMGR_RESULT_IMPLEMENTATION
 
 Damgr_Err damgr_err = {0};
 
+// Error() returns this, e.g. Result_t
 Result_t damgr_err_push(const char *fmt, ...) {
   if (damgr_err.cnt >= damgr_err.capacity) {
     size_t capacity = damgr_err.capacity == 0 ? 2 : damgr_err.capacity * 2;
     char (*msgs)[ERR_MSG_MAX] =
         realloc(damgr_err.msgs, capacity * sizeof(*msgs));
-    if (!msgs)
+    if (!msgs) {
+      damgr_log(ERROR, "failed to realloc err msgs");
       return (Result_t){.is_success = false};
+    }
 
     damgr_err.msgs = msgs;
     damgr_err.capacity = capacity;
@@ -97,14 +100,22 @@ Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out) {
   return Success;
 }
 
-Result_t damgr_vsnprintf_result(char *buffer, const size_t size,
-                                const char *fmt, ...) {
+Result_t damgr_snprintf_result(char *buffer, const size_t size, const char *fmt,
+                               ...) {
   va_list args;
   va_start(args, fmt);
   int n = vsnprintf(buffer, size, fmt, args);
   va_end(args);
   if (n < 0 || (size_t)n >= size)
     return Error("\"%s\": %s", buffer, strerror(ENAMETOOLONG));
+  return Success;
+}
+
+Result_t damgr_mkdir_result(const char *fid_buffer, const mode_t perm) {
+  if (mkdir(fid_buffer, perm) != 0) {
+    return Error("could not create dir \"%s\": %s", fid_buffer,
+                 strerror(errno));
+  }
   return Success;
 }
 

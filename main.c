@@ -10,6 +10,18 @@
 #define DAMGR_PATH_IMPLEMENTATION
 #include "damgr/path.h"
 
+#define DAMGR_UTILS_IMPLEMENTATION
+#include "damgr/utils.h"
+
+#define DAMGR_JOURNAL_IMPLEMENTATION
+#include "damgr/journal.h"
+
+#define DAMGR_COMMIT_IMPLEMENTATION
+#include "damgr/commit.h"
+
+#define DAMGR_MERGE_IMPLEMENTATION
+#include "damgr/merge.h"
+
 int main(int argc, char *argv[]) {
   damgr_log(INFO, "damgr started!");
   if (argc == 1) {
@@ -47,14 +59,29 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  // TODO early precondition check for early failure for commit?
-
-  Result_t r;
   Damgr_Paths paths = {0};
-  r = damgr_init_paths_result(&paths, home);
-  if (!r.is_success) {
+  if (!(damgr_init_paths_result(&paths, home)).is_success) {
     damgr_log(ERROR, "failed to init paths:");
     damgr_err_print();
+    damgr_err_free();
+    return EXIT_FAILURE;
+  }
+
+  // command_idx == 0: damgr merge
+  if (command_idx == 0 &&
+      !(damgr_merge_preconditions_result(&paths)).is_success) {
+    damgr_log(ERROR, "merge preconditions failed:");
+    damgr_err_print();
+    damgr_err_free();
+    return EXIT_FAILURE;
+  }
+
+  // command_idx == 1: damgr commit
+  if (command_idx == 1 &&
+      !(damgr_commit_preconditions_result(&paths)).is_success) {
+    damgr_log(ERROR, "commit preconditions failed:");
+    damgr_err_print();
+    damgr_err_free();
     return EXIT_FAILURE;
   }
 
@@ -74,7 +101,6 @@ int main(int argc, char *argv[]) {
     break;
   }
 
-  damgr_err_free();
   free(arena);
   return EXIT_SUCCESS;
 }
