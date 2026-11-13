@@ -8,20 +8,7 @@
 #include "damgr/utils.h"
 
 constexpr size_t DAMGR_LINE_MAX = 512;
-constexpr size_t ARRAY_BUFFER_MAX = 256;
-constexpr size_t MOD_KEY_CNT = 4; // excluding NONE
-
-typedef enum module_key { NONE, AUR, PKG, SVC, DOT } Damgr_Mod_Key;
-
-typedef struct module_span {
-  size_t start;
-  size_t cnt;
-} Damgr_Mod_Span;
-
-typedef struct module_item {
-  const char *name;
-  bool flag;
-} Damgr_Mod_Item;
+constexpr size_t DAMGR_ARRAY_BUFFER_MAX = 256;
 
 typedef struct module {
   const char *mod_name;
@@ -38,12 +25,12 @@ typedef struct module {
 
 typedef struct host {
   const char *host_name;
-  Damgr_Mod **modules;
-  size_t modules_cnt;
+  Damgr_Mod **mods;
+  size_t mods_cnt;
 } Damgr_Host;
 
 typedef struct context {
-  char *aur_helper;
+  const char *aur_helper;
   Damgr_Host *active_host;
   Damgr_Host *state_host;
 } Damgr_Context;
@@ -53,20 +40,69 @@ Result_t damgr_read_context_result(const Damgr_Paths *paths,
 
 #ifdef DAMGR_CONTEXT_IMPLEMENTATION
 
-static const char *module_key_string(const Damgr_Mod_Key key) {
-  switch (key) {
-  case AUR:
-    return "aur_packages";
-  case PKG:
-    return "packages";
-  case SVC:
-    return "services";
-  case DOT:
-    return "dotfiles";
-  case NONE:
-    return "";
+typedef struct {
+  const char *name;
+  bool flag;
+} Mod_Item;
+
+typedef struct {
+  size_t start;
+  size_t cnt;
+} Mod_Span;
+
+typedef enum { LINE_SKIP, LINE_HEADER, LINE_ITEM } Line_Kind;
+
+typedef struct line {
+  Line_Kind kind;
+  char *key; // LINE_HEADER only
+  char *val; // LINE_HEADER: value after '=', LINE_ITEM: item text
+} Line;
+
+constexpr size_t CONF_KEY_CNT = 2;
+typedef enum { AUR_HELPER, HOST } Conf_Key;
+static const char *const CONF_KEYS[CONF_KEY_CNT] = {[AUR_HELPER] = "aur_helper",
+                                                    [HOST] = "host"};
+
+constexpr size_t HOST_KEY_CNT = 1;
+typedef enum { MODULES } Host_Key;
+static const char *const HOST_KEYS[HOST_KEY_CNT] = {[MODULES] = "modules"};
+
+constexpr size_t MOD_KEY_CNT = 4;
+typedef enum { NONE, DOT, SVC, AUR, PKG } Mod_Key;
+static const char *const MOD_KEYS[MOD_KEY_CNT] = {[DOT - 1] = "dotfiles",
+                                                  [SVC - 1] = "services",
+                                                  [AUR - 1] = "aur_packages",
+                                                  [PKG - 1] = "packages"};
+
+typedef enum { NAME_DOT, NAME_PATH, NAME_PKG, NAME_UNIT } Name_Kind;
+typedef struct {
+  Name_Kind kind;
+  bool allow_flag;
+} Item_Opts;
+static const Item_Opts MOD_OPTS[MOD_KEY_CNT] = {[DOT - 1] = {NAME_DOT, true},
+                                                [SVC - 1] = {NAME_UNIT, true},
+                                                [AUR - 1] = {NAME_PKG, false},
+                                                [PKG - 1] = {NAME_PKG, false}};
+
+static Result_t is_state_dir_empty_result(const char *fid_buffer, bool *empty) {
+  DIR *dir;
+  DAMGR_CALL(damgr_opendir_result(fid_buffer, &dir));
+
+  int count = 0;
+  struct dirent *ent;
+  // dot entries ., .., .tmp, .journal are not state files
+  while ((ent = readdir(dir)) != nullptr) {
+    if (ent->d_name[0] == '.')
+      continue;
+
+    if (ent->d_type == DT_REG || ent->d_type == DT_LNK ||
+        ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN)
+      count++;
   }
-  return "";
+
+  closedir(dir);
+  *empty = (count == 0);
+  return Success;
 }
 
 static void trim_string_inplace(char *str) {
@@ -89,128 +125,240 @@ static void trim_string_inplace(char *str) {
   str[len] = '\0';
 }
 
+static void strip_comment_inplace(char *str) {
+  char *hash = strchr(str, '#');
+  if (hash != nullptr)
+    *hash = '\0';
+}
+
 static Result_t check_line_len_result(const char *line, FILE *fid,
                                       const char *src) {
   if (strchr(line, '\n') == nullptr && !feof(fid))
-    return Error("line exceeds %zu chars in src file %s", DAMGR_LINE_MAX - 2,
-                 src);
+    return Error("line exceeds %zu chars in %s", DAMGR_LINE_MAX - 2, src);
 
   return Success;
 }
 
-static Result_t is_state_dir_empty_result(const char *fid_buffer, bool *empty) {
-  DIR *dir;
-  DAMGR_CALL(damgr_opendir_result(fid_buffer, &dir));
+static Result_t classify_line_result(char *line, FILE *fid, const char *src,
+                                     Line *out) {
+  DAMGR_CALL(check_line_len_result(line, fid, src));
+  bool indented = isspace((unsigned char)line[0]);
 
-  int count = 0;
-  struct dirent *ent;
-  // .tmp and are not .state/damgr entries
-  while ((ent = readdir(dir)) != nullptr) {
-    if (ent->d_name[0] == '.')
-      continue;
-
-    if (ent->d_type == DT_REG || ent->d_type == DT_LNK ||
-        ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN)
-      count++;
+  strip_comment_inplace(line);
+  trim_string_inplace(line);
+  if (line[0] == '\0') { // blank, comment, indented comment
+    *out = (Line){.kind = LINE_SKIP};
+    return Success;
   }
 
-  closedir(dir);
-  *empty = (count == 0);
+  if (indented) {
+    *out = (Line){.kind = LINE_ITEM, .val = line};
+    return Success;
+  }
+
+  char *eq = strchr(line, '=');
+  if (eq == nullptr)
+    return Error("expected key=value in %s: %s", src, line);
+  *eq = '\0';
+  trim_string_inplace(line);
+  trim_string_inplace(eq + 1);
+  if (line[0] == '\0')
+    return Error("empty key in %s", src);
+
+  *out = (Line){.kind = LINE_HEADER, .key = line, .val = eq + 1};
   return Success;
 }
 
-static Result_t append_stack_array_check_result(Damgr_Arena *arena, size_t cnt,
-                                                const char *src, char **dst) {
-  if (cnt >= ARRAY_BUFFER_MAX)
-    return Error("array buffer limit exceeded!");
-  DAMGR_CALL(damgr_arena_strdup_result(arena, src, dst));
+static Result_t match_header_result(const char *key, const char *const *keys,
+                                    size_t n, bool *seen, size_t *idx,
+                                    const char *src) {
+  for (size_t i = 0; i < n; ++i) {
+    if (strcmp(key, keys[i]) != 0)
+      continue;
+    if (seen[i]) // no duplicate headers allowed
+      return Error("duplicate header in %s: %s", src, key);
+    seen[i] = true;
+    *idx = i;
+    return Success;
+  }
+  return Error("invalid header in %s: %s", src, key);
+}
+
+static bool name_char_ok(Name_Kind kind, unsigned char c) {
+  if (isalnum(c))
+    return true;
+  switch (kind) {
+  case NAME_DOT:
+  case NAME_PATH:
+  case NAME_PKG:
+    return strchr("._-@+", c) != nullptr;
+  case NAME_UNIT:
+    return strchr("._-@\\", c) != nullptr;
+  }
+  return false;
+}
+
+static Result_t validate_name_result(const char *val, const char *src,
+                                     Name_Kind kind) {
+
+  if (val[0] == '\0')
+    return Error("empty val in %s", src);
+  if (val[0] == '-')
+    return Error("val may not start with \"-\" in %s: %s", src, val);
+  if (kind != NAME_DOT && val[0] == '.')
+    return Error("val may not start with \".\" in %s: %s", src, val);
+  if (kind == NAME_DOT && (strcmp(val, ".") == 0 || strcmp(val, "..") == 0))
+    return Error("val may not be \".\" or \"..\" in %s: %s", src, val);
+  for (const char *p = val; *p; ++p)
+    if (!name_char_ok(kind, (unsigned char)*p))
+      return Error("invalid char '%c' in %s: %s", *p, src, val);
+  return Success;
+}
+
+static Result_t parse_item_result(Damgr_Arena *arena, char *val, Item_Opts opts,
+                                  const char *src, Mod_Item *out) {
+  bool flag = false;
+  char *sep = strchr(val, ':');
+  if (sep != nullptr) {
+    if (!opts.allow_flag)
+      return Error("unexpected \":\" flag in %s: %s", src, val);
+
+    *sep = '\0';
+    char *nval = sep + 1;
+    trim_string_inplace(val);
+    trim_string_inplace(nval);
+    if (strcmp(nval, "true") == 0)
+      flag = true;
+    else if (strcmp(nval, "false") == 0)
+      flag = false;
+    else
+      return Error("expected true/false flag after \":\" in %s, got \"%s\"",
+                   src, nval);
+  }
+  DAMGR_CALL(validate_name_result(val, src, opts.kind));
+
+  char *dup;
+  DAMGR_CALL(damgr_arena_strdup_result(arena, val, &dup));
+  out->name = dup;
+  out->flag = flag;
+  return Success;
+}
+
+static Result_t push_item_result(Damgr_Arena *arena, Mod_Item *items,
+                                 size_t *cnt, char *val, Item_Opts opts,
+                                 const char *src) {
+  if (*cnt >= DAMGR_ARRAY_BUFFER_MAX)
+    return Error("more than %zu items in %s", DAMGR_ARRAY_BUFFER_MAX, src);
+  DAMGR_CALL(parse_item_result(arena, val, opts, src, &items[*cnt]));
+  (*cnt)++;
+  return Success;
+}
+
+static Result_t push_mod_item_result(Damgr_Arena *arena, Mod_Item *items,
+                                     size_t *cnt, Mod_Span *span, Mod_Key key,
+                                     char *text, const char *src) {
+  DAMGR_CALL(push_item_result(arena, items, cnt, text, MOD_OPTS[key - 1], src));
+  span[key - 1].cnt++;
+  return Success;
+}
+
+static Result_t validate_config_result(const Damgr_Context *context,
+                                       bool is_state) {
+  const char *src = is_state ? "state config" : "active config";
+  const Damgr_Host *host =
+      is_state ? context->state_host : context->active_host;
+
+  if (host == nullptr)
+    return Error("no host in %s", src);
+  if (strcmp(host->host_name, "config") == 0)
+    return Error("host name \"%s\" in %s clashes with config state file name",
+                 host->host_name, src);
+
+  if (!is_state) {
+    if (context->aur_helper == nullptr)
+      return Error("no aur_helper in %s", src);
+  }
+
   return Success;
 }
 
 static Result_t parse_config_result(Damgr_Context *context, Damgr_Arena *arena,
-                                    FILE *config_fid, bool is_state) {
-  Damgr_Host *host = {0};
+                                    FILE *config_fid, const char *src,
+                                    bool is_state) {
+  bool seen[CONF_KEY_CNT] = {0};
   char *dup;
-
-  const char *is_state_str = is_state ? "state" : "active";
-  bool aur_parsed = false;
-  bool host_parsed = false;
 
   char line[DAMGR_LINE_MAX];
   while (fgets(line, sizeof(line), config_fid)) {
-    DAMGR_CALL(check_line_len_result(line, config_fid, is_state_str));
-    if (line[0] == '\n') // skip newlines
-      continue;
-    if (line[0] == '#') // skip comments
-      continue;
+    Line l;
+    DAMGR_CALL(classify_line_result(line, config_fid, src, &l));
 
-    // valid config lines are all x=y
-    char *eq = strchr(line, '=');
-    if (!eq)
-      continue;
-
-    *eq = '\0';
-    char *key = line;
-    char *val = eq + 1;
-    trim_string_inplace(key);
-    trim_string_inplace(val);
-
-    if (strcmp(key, "aur_helper") == 0) {
-      if (aur_parsed)
-        return Error("detected a duplicate header parsing %s config: %s",
-                     is_state_str, key);
-      aur_parsed = true;
-
-      if (!is_state)
-        DAMGR_CALL(damgr_arena_strdup_result(arena, val, &context->aur_helper));
-
-    } else if (strcmp(key, "host") == 0) {
-      if (host_parsed)
-        return Error("detected a duplicate header parsing %s config: %s",
-                     is_state_str, key);
-      host_parsed = true;
-
+    switch (l.kind) {
+    case LINE_SKIP:
+      break;
+    case LINE_ITEM:
+      return Error("unexpected indented line in %s: %s", src, l.val);
+    case LINE_HEADER: {
+      size_t idx;
       DAMGR_CALL(
-          damgr_arena_alloc_result(arena, sizeof(Damgr_Host), (void **)&host));
-      DAMGR_CALL(damgr_arena_strdup_result(arena, val, &dup));
-      if (is_state) {
-        context->state_host = host;
-        context->state_host->host_name = dup;
-      } else {
-        context->active_host = host;
-        context->active_host->host_name = dup;
+          match_header_result(l.key, CONF_KEYS, CONF_KEY_CNT, seen, &idx, src));
+
+      switch ((Conf_Key)idx) {
+      case AUR_HELPER:
+        if (!is_state) { // the aur helper of the state config is not used
+          DAMGR_CALL(validate_name_result(l.val, src, NAME_PKG));
+          DAMGR_CALL(damgr_arena_strdup_result(arena, l.val, &dup));
+          context->aur_helper = dup;
+        }
+        break;
+      case HOST: {
+        Damgr_Host *host;
+        DAMGR_CALL(validate_name_result(l.val, src, NAME_PATH));
+        DAMGR_CALL(damgr_arena_alloc_result(arena, sizeof(Damgr_Host),
+                                            (void **)&host));
+        DAMGR_CALL(damgr_arena_strdup_result(arena, l.val, &dup));
+        host->host_name = dup;
+        if (is_state)
+          context->state_host = host;
+        else
+          context->active_host = host;
+        break;
       }
-    } else {
-      return Error("detected an invalid header parsing %s config: %s",
-                   is_state_str, key);
+      }
+      break;
+    }
     }
   }
+
+  if (ferror(config_fid))
+    return Error("failed to read %s", src);
   return Success;
 }
 
 static Result_t read_config_result(Damgr_Context *context, Damgr_Arena *arena,
-                                   const char *config, bool is_state) {
+                                   const char *config_path, bool is_state) {
   FILE *config_fid;
-  DAMGR_CALL(damgr_fopen_result(config, "r", &config_fid));
-  auto r = parse_config_result(context, arena, config_fid, is_state);
+  DAMGR_CALL(damgr_fopen_result(config_path, "r", &config_fid));
+  auto r =
+      parse_config_result(context, arena, config_fid, config_path, is_state);
   fclose(config_fid);
   return r;
 }
 
 static Result_t validate_host_result(const Damgr_Host *host) {
-  if (host->modules_cnt == 0)
+  if (host->mods_cnt == 0)
     return Error("host %s has no modules", host->host_name);
 
-  for (size_t i = 0; i < host->modules_cnt; ++i) {
-    const char *name = host->modules[i]->mod_name;
+  for (size_t i = 0; i < host->mods_cnt; ++i) {
+    const char *name = host->mods[i]->mod_name;
     if (strcmp(name, "config") == 0)
       return Error("module name \"%s\" clashes with config state file name",
                    name);
     if (strcmp(name, host->host_name) == 0)
       return Error("module name \"%s\" clashes with host state file name",
                    name);
-    for (size_t j = i + 1; j < host->modules_cnt; ++j) {
-      if (strcmp(name, host->modules[j]->mod_name) == 0)
+    for (size_t j = i + 1; j < host->mods_cnt; ++j) {
+      if (strcmp(name, host->mods[j]->mod_name) == 0)
         return Error("duplicate module name \"%s\" in host %s", name,
                      host->host_name);
     }
@@ -220,82 +368,55 @@ static Result_t validate_host_result(const Damgr_Host *host) {
 }
 
 static Result_t parse_host_result(Damgr_Host *host, Damgr_Arena *arena,
-                                  FILE *host_fid) {
-  Damgr_Mod **modules = {0};
-  Damgr_Mod *module = {0};
-  char *stack_modules[ARRAY_BUFFER_MAX] = {0};
-  size_t modules_cnt = 0;
-  char *dup;
-
-  bool modules_parsed = false;
+                                  FILE *host_fid, const char *src) {
+  bool seen[HOST_KEY_CNT] = {0};
+  size_t cnt = 0;
+  bool in_section = false;
+  Mod_Item items[DAMGR_ARRAY_BUFFER_MAX];
+  Item_Opts opts = {NAME_PATH, false};
 
   char line[DAMGR_LINE_MAX];
   while (fgets(line, sizeof(line), host_fid)) {
-    DAMGR_CALL(check_line_len_result(line, host_fid, host->host_name));
-    if (line[0] == '\n') // skip newlines
-      continue;
-    if (line[0] == '#') // skip comments
-      continue;
+    Line l;
+    DAMGR_CALL(classify_line_result(line, host_fid, src, &l));
 
-    char *eq = strchr(line, '=');
-    if (!eq) {
-      // non = lines should be indented
-      if (!isspace((unsigned char)line[0]))
-        return Error(
-            "detected a not indented line parsing modules for host %s: %s",
-            host->host_name, line);
-
-      // is indented
-      trim_string_inplace(line);
-      if (line[0] == '\0')
-        continue;
-      if (line[0] == '#') // also skip indented comments
-        continue;
-
-      if (!modules_parsed)
-        return Error("detected an item before parsing modules for host %s: %s",
-                     host->host_name, line);
-
+    switch (l.kind) {
+    case LINE_SKIP:
+      break;
+    case LINE_HEADER: {
+      size_t idx;
       DAMGR_CALL(
-          append_stack_array_check_result(arena, modules_cnt, line, &dup));
-      stack_modules[modules_cnt++] = dup;
-
-    } else { // not !eq
-      *eq = '\0';
-      char *key = line;
-      char *val = eq + 1;
-      trim_string_inplace(key);
-      trim_string_inplace(val);
-      if (strcmp(key, "modules") == 0) {
-        if (modules_parsed)
-          return Error("detected a duplicate header parsing host %s: %s",
-                       host->host_name, "modules");
-        modules_parsed = true;
-
-        if (*val != '\0' && *val != '\n') {
-          DAMGR_CALL(
-              append_stack_array_check_result(arena, modules_cnt, val, &dup));
-          stack_modules[modules_cnt++] = dup;
-        }
-
-      } else {
-        return Error("detected an invalid header parsing host %s: %s",
-                     host->host_name, key);
-      }
+          match_header_result(l.key, HOST_KEYS, HOST_KEY_CNT, seen, &idx, src));
+      in_section = true;
+      if (l.val[0] != '\0')
+        DAMGR_CALL(push_item_result(arena, items, &cnt, l.val, opts, src));
+      break;
     }
-  } // end while
+    case LINE_ITEM:
+      if (!in_section)
+        return Error("item before any header in %s: %s", src, l.val);
+      char *eq = strchr(l.val, '=');
+      if (eq != nullptr)
+        return Error("indented header in %s: %s", src, l.val);
 
-  if (modules_cnt > 0) {
-    DAMGR_CALL(damgr_arena_alloc_result(
-        arena, modules_cnt * sizeof(Damgr_Mod *), (void **)&modules));
-    host->modules = modules;
-    host->modules_cnt = modules_cnt;
-    for (size_t i = 0; i < modules_cnt; ++i) {
-      DAMGR_CALL(
-          damgr_arena_alloc_result(arena, sizeof(Damgr_Mod), (void **)&module));
-      host->modules[i] = module;
-      host->modules[i]->mod_name = stack_modules[i];
+      DAMGR_CALL(push_item_result(arena, items, &cnt, l.val, opts, src));
+      break;
     }
+  }
+
+  if (ferror(host_fid))
+    return Error("failed to read %s", src);
+
+  if (cnt == 0)
+    return Success; // validate_host_result reports this
+
+  DAMGR_CALL(damgr_arena_alloc_result(arena, cnt * sizeof(Damgr_Mod *),
+                                      (void **)&host->mods));
+  host->mods_cnt = cnt;
+  for (size_t i = 0; i < cnt; ++i) {
+    DAMGR_CALL(damgr_arena_alloc_result(arena, sizeof(Damgr_Mod),
+                                        (void **)&host->mods[i]));
+    host->mods[i]->mod_name = items[i].name;
   }
   return Success;
 }
@@ -304,121 +425,67 @@ static Result_t read_host_result(Damgr_Host *host, Damgr_Arena *arena,
                                  const char *host_path) {
   FILE *host_fid;
   DAMGR_CALL(damgr_fopen_result(host_path, "r", &host_fid));
-  auto r = parse_host_result(host, arena, host_fid);
+  auto r = parse_host_result(host, arena, host_fid, host_path);
   fclose(host_fid);
   return r;
 }
 
-static Result_t parse_item_result(Damgr_Arena *arena, char *src,
-                                  const size_t cnt, Damgr_Mod_Item *out) {
-  bool flag = false;
-  char *sep = strchr(src, ':');
-  if (sep) {
-    *sep = '\0';
-    char *key = src;
-    char *val = sep + 1;
-    trim_string_inplace(key);
-    trim_string_inplace(val);
-    if (strcmp(val, "true") == 0)
-      flag = true;
-    else if (strcmp(val, "false") == 0)
-      flag = false;
-    else
-      return Error("expected true/false after \":\" got \"%s\"", val);
-  } else { // not sep
-    trim_string_inplace(src);
-  }
-  if (*src == '\0')
-    return Error("empty item name");
-  char *dup;
-  DAMGR_CALL(append_stack_array_check_result(arena, cnt, src, &dup));
-  out->name = dup;
-  out->flag = flag;
+static Result_t validate_module_result(const Damgr_Mod *mod, const char *path) {
+  if (mod->aur_cnt == 0 && mod->pkg_cnt == 0 && mod->svc_cnt == 0 &&
+      mod->dotfile == nullptr)
+    return Error("empty module in %s: %s", path, mod->mod_name);
 
   return Success;
 }
 
 static Result_t parse_module_result(Damgr_Mod *module, Damgr_Arena *arena,
-                                    FILE *module_fid) {
-  Damgr_Mod_Item *stack_item = {0};
-  Damgr_Mod_Item *stack_items[ARRAY_BUFFER_MAX] = {0};
+                                    FILE *module_fid, const char *src) {
+  Mod_Item items[DAMGR_ARRAY_BUFFER_MAX];
   size_t cnt = 0;
-  Damgr_Mod_Key cur_key = NONE;
-  Damgr_Mod_Span span[MOD_KEY_CNT] = {0};
+  Mod_Key cur_key = NONE;
+  Mod_Span span[MOD_KEY_CNT] = {0};
   bool seen[MOD_KEY_CNT] = {0};
 
   char line[DAMGR_LINE_MAX];
   while (fgets(line, sizeof(line), module_fid)) {
-    DAMGR_CALL(check_line_len_result(line, module_fid, module->mod_name));
-    if (line[0] == '\n') // skip newlines
-      continue;
-    if (line[0] == '#') // skip comments
-      continue;
+    Line l;
+    DAMGR_CALL(classify_line_result(line, module_fid, src, &l));
 
-    // all first level lines start with  x=y
-    char *eq = strchr(line, '=');
-    if (!eq) {
-      // non = lines should be indented
-      if (!isspace((unsigned char)line[0]))
-        return Error("detected a not indented line parsing module %s: %s",
-                     module->mod_name, line);
-
+    switch (l.kind) {
+    case LINE_SKIP:
+      break;
+    case LINE_HEADER: {
+      size_t idx;
+      DAMGR_CALL(
+          match_header_result(l.key, MOD_KEYS, MOD_KEY_CNT, seen, &idx, src));
+      cur_key = (Mod_Key)(idx + 1);
+      span[idx].start = cnt;
+      if (l.val[0] != '\0')
+        DAMGR_CALL(push_mod_item_result(arena, items, &cnt, span, cur_key,
+                                        l.val, src));
+      break;
+    }
+    case LINE_ITEM:
       if (cur_key == NONE)
-        continue;
+        return Error("item before any header in %s: %s", src, l.val);
+      char *eq = strchr(l.val, '=');
+      if (eq != nullptr)
+        return Error("indented header in %s: %s", src, l.val);
 
-      // is indented
-      trim_string_inplace(line);
-      if (line[0] == '\0')
-        continue;
-      if (line[0] == '#') // also skip indented comments
-        continue;
-
-      DAMGR_CALL(damgr_arena_alloc_result(arena, sizeof(Damgr_Mod_Item),
-                                          (void **)&stack_item));
-      DAMGR_CALL(parse_item_result(arena, line, cnt, stack_item));
-      stack_items[cnt++] = stack_item;
-      span[cur_key - 1].cnt++;
-    } else { // not !eq
-      *eq = '\0';
-      char *key = line;
-      char *val = eq + 1;
-      trim_string_inplace(key);
-      trim_string_inplace(val);
-
-      Damgr_Mod_Key next_key;
-      if (strcmp(key, "aur_packages") == 0)
-        next_key = AUR;
-      else if (strcmp(key, "packages") == 0)
-        next_key = PKG;
-      else if (strcmp(key, "services") == 0)
-        next_key = SVC;
-      else if (strcmp(key, "dotfiles") == 0)
-        next_key = DOT;
-      else
-        return Error("detected an invalid key parsing module %s: %s",
-                     module->mod_name, key);
-
-      // prevent data corruption with duplicate headers
-      if (seen[next_key - 1])
-        return Error("detected a duplicate header parsing module %s: %s",
-                     module->mod_name, module_key_string(next_key));
-      seen[next_key - 1] = true;
-
-      span[next_key - 1].start = cnt;
-      cur_key = next_key;
-
-      if (*val != '\0' && *val != '\n') {
-        DAMGR_CALL(damgr_arena_alloc_result(arena, sizeof(Damgr_Mod_Item),
-                                            (void **)&stack_item));
-        DAMGR_CALL(parse_item_result(arena, val, cnt, stack_item));
-        stack_items[cnt++] = stack_item;
-        span[cur_key - 1].cnt++;
-      }
+      DAMGR_CALL(
+          push_mod_item_result(arena, items, &cnt, span, cur_key, l.val, src));
+      break;
     }
   }
 
+  if (ferror(module_fid))
+    return Error("failed to read %s", src);
+
+  if (span[DOT - 1].cnt > 1)
+    return Error("only one dotfile per module allowed in %s", src);
+
   for (size_t i = 0; i < MOD_KEY_CNT; ++i) {
-    Damgr_Mod_Key key = (Damgr_Mod_Key)(i + 1);
+    Mod_Key key = (Mod_Key)(i + 1);
     size_t offset = span[i].start;
     size_t mod_cnt = span[i].cnt;
 
@@ -449,7 +516,7 @@ static Result_t parse_module_result(Damgr_Mod *module, Damgr_Arena *arena,
     }
 
     for (size_t j = 0; j < mod_cnt; ++j) {
-      Damgr_Mod_Item *item = stack_items[offset + j];
+      const Mod_Item *item = &items[offset + j];
       switch (key) {
       case AUR:
         module->aur[j] = item->name;
@@ -478,7 +545,7 @@ static Result_t read_module_result(Damgr_Mod *module, Damgr_Arena *arena,
                                    const char *module_path) {
   FILE *module_fid;
   DAMGR_CALL(damgr_fopen_result(module_path, "r", &module_fid));
-  auto r = parse_module_result(module, arena, module_fid);
+  auto r = parse_module_result(module, arena, module_fid, module_path);
   fclose(module_fid);
   return r;
 }
@@ -488,11 +555,10 @@ Result_t damgr_read_context_result(const Damgr_Paths *paths,
   bool empty;
   DAMGR_CALL(is_state_dir_empty_result(paths->state_dir, &empty));
 
-  char fid_buffer[PATH_BUFFER_MAX];
+  char fid_buffer[DAMGR_PATH_BUFFER_MAX];
   if (!empty) { // state dir is not empty, so read
     DAMGR_CALL(read_config_result(context, arena, paths->state_config, true));
-    if (context->state_host == nullptr)
-      return Error("failed to parse state host");
+    DAMGR_CALL(validate_config_result(context, true));
 
     DAMGR_CALL(
         damgr_resolve_host_path_result(paths, fid_buffer, sizeof(fid_buffer),
@@ -501,20 +567,17 @@ Result_t damgr_read_context_result(const Damgr_Paths *paths,
     DAMGR_CALL(read_host_result(context->state_host, arena, fid_buffer));
     DAMGR_CALL(validate_host_result(context->state_host));
 
-    for (size_t i = 0; i < context->state_host->modules_cnt; ++i) {
+    for (size_t i = 0; i < context->state_host->mods_cnt; ++i) {
       DAMGR_CALL(damgr_resolve_module_path_result(
           paths, fid_buffer, sizeof(fid_buffer),
-          context->state_host->modules[i]->mod_name, true));
-      DAMGR_CALL(read_module_result(context->state_host->modules[i], arena,
-                                    fid_buffer));
+          context->state_host->mods[i]->mod_name, true));
+      DAMGR_CALL(
+          read_module_result(context->state_host->mods[i], arena, fid_buffer));
     }
   } // not (state dir is not empty)
 
   DAMGR_CALL(read_config_result(context, arena, paths->active_config, false));
-  if (context->active_host == nullptr)
-    return Error("failed to parse active host");
-  if (context->aur_helper == nullptr || *context->aur_helper == '\0')
-    return Error("failed to parse aur_helper from active config");
+  DAMGR_CALL(validate_config_result(context, false));
 
   DAMGR_CALL(
       damgr_resolve_host_path_result(paths, fid_buffer, sizeof(fid_buffer),
@@ -522,12 +585,14 @@ Result_t damgr_read_context_result(const Damgr_Paths *paths,
   DAMGR_CALL(read_host_result(context->active_host, arena, fid_buffer));
   DAMGR_CALL(validate_host_result(context->active_host));
 
-  for (size_t i = 0; i < context->active_host->modules_cnt; ++i) {
+  for (size_t i = 0; i < context->active_host->mods_cnt; ++i) {
     DAMGR_CALL(damgr_resolve_module_path_result(
         paths, fid_buffer, sizeof(fid_buffer),
-        context->active_host->modules[i]->mod_name, false));
-    DAMGR_CALL(read_module_result(context->active_host->modules[i], arena,
-                                  fid_buffer));
+        context->active_host->mods[i]->mod_name, false));
+    DAMGR_CALL(
+        read_module_result(context->active_host->mods[i], arena, fid_buffer));
+    DAMGR_CALL(
+        validate_module_result(context->active_host->mods[i], fid_buffer));
   }
 
   return Success;

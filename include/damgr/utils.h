@@ -6,13 +6,9 @@
 #include "damgr/arena.h"
 #include "damgr/result.h"
 
-#define TMP ".tmp"
-#define JOURNAL ".journal"
-constexpr mode_t DIR_PERM = 0755;
-constexpr size_t COPY_BUFFER_MAX = 4096;
-constexpr size_t PATH_BUFFER_MAX = 4096;
-
-typedef enum filetype { DIR_TYPE, REG_TYPE } Damgr_Filetype;
+#define DAMGR_TMP ".tmp"
+#define DAMGR_JOURNAL ".journal"
+constexpr size_t DAMGR_PATH_BUFFER_MAX = 4096;
 
 Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
                                    char **out);
@@ -30,6 +26,11 @@ Result_t damgr_dir_exists_result(const char *fid_buffer, bool *out);
 Result_t damgr_reg_exists_result(const char *fid_buffer, bool *out);
 
 #ifdef DAMGR_UTILS_IMPLEMENTATION
+
+constexpr mode_t DIR_PERM = 0755;
+constexpr size_t COPY_BUFFER_MAX = 4096;
+
+typedef enum { DIR_TYPE, REG_TYPE } Filetype;
 
 Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
                                    char **out) {
@@ -80,8 +81,7 @@ Result_t damgr_opendir_result(const char *fid_buffer, DIR **out) {
   return Success;
 }
 
-static Result_t lstat_result(const char *fid_buffer, Damgr_Filetype type,
-                             bool *out) {
+static Result_t lstat_result(const char *fid_buffer, Filetype type, bool *out) {
   struct stat st;
   if (lstat(fid_buffer, &st) == 0) {
     bool matched =
@@ -107,7 +107,7 @@ static Result_t make_dir_parent_result(const char *fid_buffer) {
     return Success;
   }
 
-  char p_buffer[PATH_BUFFER_MAX];
+  char p_buffer[DAMGR_PATH_BUFFER_MAX];
   size_t len = (size_t)(sep - fid_buffer);
   if (len >= sizeof(p_buffer))
     return Error("\"%s\": %s", fid_buffer, strerror(ENAMETOOLONG));

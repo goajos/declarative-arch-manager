@@ -5,7 +5,6 @@
 #include <string.h>
 
 constexpr size_t ARENA_BUFFER_SIZE = 1024 * 1024;
-constexpr size_t ALIGN = 16;
 
 typedef struct arena {
   uint8_t arena_buffer[ARENA_BUFFER_SIZE];
@@ -17,6 +16,8 @@ void *damgr_arena_alloc(Damgr_Arena *arena, size_t size);
 char *damgr_arena_strdup(Damgr_Arena *arena, const char *src);
 
 #ifdef DAMGR_ARENA_IMPLEMENTATION
+
+constexpr size_t ALIGN = 16;
 
 void damgr_arena_init(Damgr_Arena *arena) {
   if (arena != nullptr)

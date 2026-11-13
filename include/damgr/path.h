@@ -5,16 +5,17 @@
 #include "damgr/utils.h"
 
 typedef struct paths {
-  char home[PATH_BUFFER_MAX];
-  char active_dir[PATH_BUFFER_MAX];         // ~/.config/damgr
-  char active_config[PATH_BUFFER_MAX];      // ~/.config/damgr/config.conf
-  char active_host_dir[PATH_BUFFER_MAX];    // ~/.config/damgr/hosts
-  char active_module_dir[PATH_BUFFER_MAX];  // ~/.config/damgr/modules
-  char active_dotfile_dir[PATH_BUFFER_MAX]; // ~/.config/damgr/dotfiles
-  char state_dir[PATH_BUFFER_MAX];          // ~/.local/state/damgr
-  char state_config[PATH_BUFFER_MAX]; // ~/.local/state/damgr/state_config.conf
-  char tmp_dir[PATH_BUFFER_MAX];      // ~/.local/state/damgr/.tmp
-  char journal[PATH_BUFFER_MAX];      // ~/.local/state/damgr/.journal
+  char home[DAMGR_PATH_BUFFER_MAX];
+  char active_dir[DAMGR_PATH_BUFFER_MAX];         // ~/.config/damgr
+  char active_config[DAMGR_PATH_BUFFER_MAX];      // ~/.config/damgr/config.conf
+  char active_host_dir[DAMGR_PATH_BUFFER_MAX];    // ~/.config/damgr/hosts
+  char active_module_dir[DAMGR_PATH_BUFFER_MAX];  // ~/.config/damgr/modules
+  char active_dotfile_dir[DAMGR_PATH_BUFFER_MAX]; // ~/.config/damgr/dotfiles
+  char state_dir[DAMGR_PATH_BUFFER_MAX];          // ~/.local/state/damgr
+  char state_config
+      [DAMGR_PATH_BUFFER_MAX];         // ~/.local/state/damgr/state_config.conf
+  char tmp_dir[DAMGR_PATH_BUFFER_MAX]; // ~/.local/state/damgr/.tmp
+  char journal[DAMGR_PATH_BUFFER_MAX]; // ~/.local/state/damgr/.journal
 } Damgr_Paths;
 
 Result_t damgr_init_paths_result(Damgr_Paths *paths, const char *home);
