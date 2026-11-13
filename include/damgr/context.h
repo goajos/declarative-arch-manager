@@ -64,8 +64,8 @@ static const char *const CONF_KEYS[CONF_KEY_CNT] = {[AUR_HELPER] = "aur_helper",
                                                     [HOST] = "host"};
 
 constexpr size_t HOST_KEY_CNT = 1;
-typedef enum { MODULES } Host_Key;
-static const char *const HOST_KEYS[HOST_KEY_CNT] = {[MODULES] = "modules"};
+typedef enum { MODS } Host_Key;
+static const char *const HOST_KEYS[HOST_KEY_CNT] = {[MODS] = "modules"};
 
 constexpr size_t MOD_KEY_CNT = 4;
 typedef enum { NONE, DOT, SVC, AUR, PKG } Mod_Key;

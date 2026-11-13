@@ -13,6 +13,7 @@ constexpr size_t DAMGR_PATH_BUFFER_MAX = 4096;
 Result_t damgr_arena_strdup_result(Damgr_Arena *arena, const char *src,
                                    char **out);
 Result_t damgr_arena_alloc_result(Damgr_Arena *arena, size_t size, void **out);
+[[gnu::format(printf, 3, 4)]]
 Result_t damgr_snprintf_result(char *buffer, const size_t size, const char *fmt,
                                ...);
 Result_t damgr_mkdir_result(const char *fid_buffer, const mode_t perm);
