@@ -1,5 +1,6 @@
 #ifndef DAMGR_MERGE_H
 #define DAMGR_MERGE_H
+#include <sys/wait.h>
 
 #include "damgr/commit.h"
 #include "damgr/context.h"
@@ -129,9 +130,122 @@ static Result_t get_tasks_result(const Damgr_Context *context) {
   return Success;
 }
 
-Result_t damgr_merge_result([[maybe_unused]] const Damgr_Paths *paths,
+static Result_t exec_result(char *const argv[]) {
+  // return Success;
+  fflush(nullptr); // don't duplicate buffered output in the child
+  pid_t pid = fork();
+  if (pid == -1)
+    return Error("fork failed: %s", strerror(errno));
+  if (pid == 0) {
+    execvp(argv[0], argv);
+    _exit(127); // only reached if execvp failed
+  }
+  int wstatus;
+  while (waitpid(pid, &wstatus, 0) == -1)
+    if (errno != EINTR)
+      return Error("waitpid failed: %s", strerror(errno));
+  if (WIFEXITED(wstatus)) {
+    if (WEXITSTATUS(wstatus) == EXIT_SUCCESS)
+      return Success;
+    return Error("%s exited with code %d", argv[0], WEXITSTATUS(wstatus));
+  }
+  if (WIFSIGNALED(wstatus))
+    return Error("%s was terminated by signal %d", argv[0], WTERMSIG(wstatus));
+
+  return Error("%s ended in unexpected state (wait status 0x%x)", argv[0],
+               wstatus);
+}
+
+static Result_t is_link_result(const char *dst, const char *src, bool *exists,
+                               bool *is_link) {
+  struct stat st;
+  *exists = false;
+  *is_link = false;
+  if (lstat(dst, &st) != 0) {
+    if (errno == ENOENT)
+      return Success;
+    return Error("lstat %s failed: %s", dst, strerror(errno));
+  }
+  *exists = true;
+  if (!S_ISLNK(st.st_mode))
+    return Success;
+
+  char link[DAMGR_PATH_BUFFER_MAX];
+  ssize_t len = readlink(dst, link, sizeof(link) - 1);
+  if (len < 0)
+    return Error("could not read link %s: %s", dst, strerror(errno));
+
+  link[len] = '\0';
+  *is_link = strcmp(link, src) == 0;
+  return Success;
+}
+
+static Result_t run_cmd_result(const Damgr_Paths *paths,
+                               const Damgr_Context *context,
+                               const Damgr_Cmd *cmd) {
+  char *name = (char *)cmd->name;
+  switch (cmd->type) {
+  case SVC_DISABLE:
+  case SVC_ENABLE: {
+    char *action = cmd->type == SVC_ENABLE ? "enable" : "disable";
+    if (cmd->flag)
+      return exec_result(
+          (char *[]){"sudo", "systemctl", "--now", action, name, nullptr});
+
+    return exec_result(
+        (char *[]){"systemctl", "--user", "--now", action, name, nullptr});
+  }
+  case DOT_UNLINK:
+  case DOT_LINK: {
+    char src[DAMGR_PATH_BUFFER_MAX];
+    char dst[DAMGR_PATH_BUFFER_MAX];
+    DAMGR_CALL(damgr_snprintf_result(src, sizeof(src), "%s/%s",
+                                     paths->active_dotfile_dir, name));
+    DAMGR_CALL(damgr_snprintf_result(dst, sizeof(dst), "%s/.config/%s",
+                                     paths->home, name));
+    bool exists;
+    bool is_link;
+    DAMGR_CALL(is_link_result(dst, src, &exists, &is_link));
+    if (exists && !is_link)
+      return Error("%s exists and is not a symlink to %s", dst, src);
+    if (cmd->type == DOT_LINK) {
+      if (!exists && symlink(src, dst) != 0)
+        return Error("could not link %s -> %s: %s", dst, src, strerror(errno));
+      return Success;
+    }
+    if (is_link && unlink(dst) != 0)
+      return Error("could not unlink %s: %s", dst, strerror(errno));
+    return Success;
+  }
+  case AUR_REMOVE:
+  case PKG_REMOVE:
+    // return exec_result((char *[]){"sudo", "pacman", "-Rns", name, nullptr});
+    return exec_result((char *[]){"sudo", "pacman", "-Rn", name, nullptr});
+  case PKG_INSTALL:
+    return exec_result(
+        (char *[]){"sudo", "pacman", "-S", "--needed", name, nullptr});
+  case AUR_INSTALL:
+    return exec_result((char *[]){(char *)context->aur_helper, "-S", "--needed",
+                                  name, nullptr});
+  }
+  return Error("not a valid task type");
+}
+
+Result_t damgr_merge_result(const Damgr_Paths *paths,
                             const Damgr_Context *context) {
   DAMGR_CALL(get_tasks_result(context));
+  DAMGR_CALL(damgr_journal_write_result(paths)); // all PENDING
+
+  for (size_t i = 0; i < damgr_journal.cnt; ++i) {
+    Damgr_Cmd *cmd = &damgr_journal.cmds[i];
+    auto r = run_cmd_result(paths, context, cmd);
+    cmd->status = r.is_success ? SUCCEEDED : FAILED;
+    DAMGR_CALL(damgr_journal_write_result(paths));
+    if (!r.is_success) {
+      return Error("%s %s failed, see %s", TYPE_STR[cmd->type], cmd->name,
+                   paths->journal);
+    }
+  }
 
   return Success;
 }

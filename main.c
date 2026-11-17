@@ -108,14 +108,16 @@ int main(int argc, char *argv[]) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
     Damgr_Context context = {0};
-    if (!(damgr_read_context_result(&paths, &context, arena)).is_success) {
+    auto r = damgr_read_context_result(&paths, &context, arena);
+    if (!r.is_success) {
       damgr_log(ERROR, "failed to read context:");
       damgr_err_print();
       damgr_err_free();
       ret = EXIT_FAILURE;
       goto cleanup;
     }
-    if (!(damgr_merge_result(&paths, &context)).is_success) {
+    r = damgr_merge_result(&paths, &context);
+    if (!r.is_success) {
       damgr_log(ERROR, "failed to merge:");
       damgr_err_print();
       damgr_err_free();

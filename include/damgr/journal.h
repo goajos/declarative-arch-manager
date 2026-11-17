@@ -39,6 +39,8 @@ Result_t damgr_journal_push_result(const Damgr_Task_Type type,
                                    const char *mod_name, const char *out_name,
                                    bool flag);
 
+Result_t damgr_journal_write_result(const Damgr_Paths *paths);
+
 void damgr_journal_free();
 /*
  */
@@ -46,6 +48,14 @@ void damgr_journal_free();
 #ifdef DAMGR_JOURNAL_IMPLEMENTATION
 
 Damgr_Journal damgr_journal = {0};
+
+static const char *const TYPE_STR[] = {
+    [SVC_DISABLE] = "SVC_DISABLE", [DOT_UNLINK] = "DOT_UNLINK",
+    [AUR_REMOVE] = "AUR_REMOVE",   [PKG_REMOVE] = "PKG_REMOVE",
+    [PKG_INSTALL] = "PKG_INSTALL", [AUR_INSTALL] = "AUR_INSTALL",
+    [DOT_LINK] = "DOT_LINK",       [SVC_ENABLE] = "SVC_ENABLE"};
+static const char *const STATUS_STR[] = {
+    [PENDING] = "PENDING", [SUCCEEDED] = "SUCCEEDED", [FAILED] = "FAILED"};
 
 Result_t damgr_journal_push_result(const Damgr_Task_Type type,
                                    const char *mod_name, const char *out_name,
@@ -69,6 +79,39 @@ Result_t damgr_journal_push_result(const Damgr_Task_Type type,
                                                         .status = PENDING};
 
   return Success;
+}
+
+static Result_t write_lines(FILE *fid, const Damgr_Paths *paths) {
+  bool done = true;
+  for (size_t i = 0; i < damgr_journal.cnt; ++i) {
+    const Damgr_Cmd *cmd = &damgr_journal.cmds[i];
+    const Damgr_Task_Type type = cmd->type;
+    done = done && cmd->status == SUCCEEDED;
+    if (type == SVC_DISABLE || type == SVC_ENABLE) {
+      fprintf(fid, "%s\t%s\t%s\t%s:%s\n", STATUS_STR[cmd->status],
+              TYPE_STR[cmd->type], cmd->mod_name, cmd->name,
+              cmd->flag ? "true" : "false");
+    } else {
+      fprintf(fid, "%s\t%s\t%s\t%s\n", STATUS_STR[cmd->status],
+              TYPE_STR[cmd->type], cmd->mod_name, cmd->name);
+    }
+  }
+  if (done)
+    fprintf(fid, "DONE\n");
+
+  fflush(fid); // write the buffer to file
+  if (ferror(fid))
+    return Error("could not write %s", paths->journal);
+
+  return Success;
+}
+
+Result_t damgr_journal_write_result(const Damgr_Paths *paths) {
+  FILE *fid;
+  DAMGR_CALL(damgr_fopen_result(paths->journal, "w", &fid));
+  auto r = write_lines(fid, paths);
+  fclose(fid);
+  return r;
 }
 
 void damgr_journal_free() {
