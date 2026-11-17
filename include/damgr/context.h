@@ -52,7 +52,7 @@ typedef struct {
 
 typedef enum { LINE_SKIP, LINE_HEADER, LINE_ITEM } Line_Kind;
 
-typedef struct line {
+typedef struct {
   Line_Kind kind;
   char *key; // LINE_HEADER only
   char *val; // LINE_HEADER: value after '=', LINE_ITEM: item text

@@ -103,6 +103,7 @@ int main(int argc, char *argv[]) {
   }
   damgr_arena_init(arena);
 
+  int ret = EXIT_SUCCESS;
   switch (command_idx) {
   case 0:
     damgr_log(INFO, "starting damgr merge!");
@@ -111,14 +112,25 @@ int main(int argc, char *argv[]) {
       damgr_log(ERROR, "failed to read context:");
       damgr_err_print();
       damgr_err_free();
-      return EXIT_FAILURE;
+      ret = EXIT_FAILURE;
+      goto cleanup;
+    }
+    if (!(damgr_merge_result(&paths, &context)).is_success) {
+      damgr_log(ERROR, "failed to merge:");
+      damgr_err_print();
+      damgr_err_free();
+      ret = EXIT_FAILURE;
+      goto cleanup;
     }
     break;
   case 1:
     damgr_log(INFO, "starting damgr commit!");
+    // TODO: goto cleanup on failure?
     break;
   }
 
+cleanup:
+  damgr_journal_free();
   free(arena);
-  return EXIT_SUCCESS;
+  return ret;
 }

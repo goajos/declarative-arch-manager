@@ -29,7 +29,6 @@ Result_t damgr_reg_exists_result(const char *fid_buffer, bool *out);
 #ifdef DAMGR_UTILS_IMPLEMENTATION
 
 constexpr mode_t DIR_PERM = 0755;
-constexpr size_t COPY_BUFFER_MAX = 4096;
 
 typedef enum { DIR_TYPE, REG_TYPE } Filetype;
 
